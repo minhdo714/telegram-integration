@@ -136,6 +136,17 @@ export default function Home() {
                         OFCharmer learns YOUR voice, YOUR style, YOUR flirting. It handles every DM like YOU would—but 24/7.
                     </p>
 
+                    {/* Phone Mockup Image */}
+                    <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+                        <Image
+                            src="/phone-conversation.png"
+                            alt="AI chatbot conversation on phone"
+                            width={400}
+                            height={600}
+                            style={{ borderRadius: '20px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}
+                        />
+                    </div>
+
                     <div style={{
                         display: 'grid',
                         gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
@@ -214,11 +225,9 @@ export default function Home() {
                         Join models who stopped losing sleep over DMs and started making money on autopilot.
                     </p>
                     <button
-                        className="btn"
+                        className="btn btn-primary"
                         onClick={() => setIsModalOpen(true)}
                         style={{
-                            background: 'white',
-                            color: 'var(--color-primary)',
                             fontSize: '1.3rem',
                             padding: '1.2rem 3rem',
                             fontWeight: 'bold',
