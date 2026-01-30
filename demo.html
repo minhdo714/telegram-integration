@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Account Integration - Demo</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .hero {
+            text-align: center;
+            margin-bottom: 4rem;
+            position: relative;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(102, 126, 234, 0.15) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            line-height: 1.1;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 1.25rem;
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 2rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 30px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .accounts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .account-card {
+            background: rgba(26, 26, 46, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            animation: slideUp 0.4s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .account-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border-color: rgba(102, 126, 234, 0.3);
+        }
+
+        .account-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: white;
+        }
+
+        .account-info {
+            flex: 1;
+        }
+
+        .username {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .phone {
+            font-size: 0.875rem;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 100px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            background: rgba(0, 242, 254, 0.1);
+            color: #00f2fe;
+            border: 1px solid rgba(0, 242, 254, 0.3);
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+            font-size: 0.875rem;
+        }
+
+        .label {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .value {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: #242438;
+            border-radius: 100px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 100px;
+            transition: width 0.3s ease;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 1rem;
+        }
+
+        .modal.active {
+            display: flex;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        .modal-content {
+            background: #1a1a2e;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow: auto;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 1.5rem;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            line-height: 1;
+        }
+
+        .close-btn:hover {
+            color: white;
+        }
+
+        .modal-body {
+            padding: 2rem 1.5rem;
+            text-align: center;
+        }
+
+        #qrcode {
+            width: 240px;
+            height: 240px;
+            margin: 2rem auto;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            padding: 16px;
+        }
+
+        #qrcode canvas {
+            display: block !important;
+        }
+
+        .instructions {
+            text-align: left;
+            margin-bottom: 2rem;
+        }
+
+        .instructions h3 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .instructions ol {
+            padding-left: 1.5rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .instructions li {
+            margin-bottom: 0.5rem;
+        }
+
+        .success-message {
+            text-align: center;
+            padding: 3rem 1rem;
+        }
+
+        .success-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            animation: bounce 0.5s ease;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.2);
+            }
+        }
+
+        .timer {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.875rem;
+            margin-top: 1rem;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+
+            .accounts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Hero Section -->
+        <section class="hero">
+            <h1>
+                Telegram Account
+                <br>
+                <span class="gradient-text">Integration</span>
+            </h1>
+            <p class="subtitle">
+                Connect your existing Telegram accounts or create new ones.
+                Enjoy seamless automation with session management and health monitoring.
+            </p>
+            <button class="btn" onclick="openModal()">
+                <span>➕</span>
+                Add Telegram Account
+            </button>
+        </section>
+
+        <!-- Accounts Grid -->
+        <div class="accounts-grid" id="accountsGrid">
+            <!-- Sample Account Card -->
+            <div class="account-card">
+                <div class="account-header">
+                    <div class="avatar">J</div>
+                    <div class="account-info">
+                        <div class="username">📱 @johndoe</div>
+                        <div class="phone">+1-555-123-4567</div>
+                    </div>
+                    <span class="badge">✅ Active</span>
+                </div>
+                <div>
+                    <div class="detail-row">
+                        <span class="label">Type:</span>
+                        <span class="value">🙋 Your Account</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Integrated:</span>
+                        <span class="value">2 days ago</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Session:</span>
+                        <span class="value">Valid ✓ (5 min ago)</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Today's DMs:</span>
+                        <span class="value">147/200</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 73.5%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div class="modal" id="modal" onclick="closeModalOnBackdrop(event)">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Connect Telegram Account</h2>
+                <button class="close-btn" onclick="closeModal()">✕</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <div class="instructions">
+                    <h3>Scan QR Code</h3>
+                    <ol>
+                        <li>Open <strong>Telegram</strong> on your phone</li>
+                        <li>Go to <strong>Settings → Devices</strong></li>
+                        <li>Tap <strong>"Link Desktop Device"</strong></li>
+                        <li>Scan this QR code</li>
+                    </ol>
+                </div>
+                <div id="qrcode" class="pulse"></div>
+                <p class="timer" id="timer">
+                    ⏱️ Expires in <span id="countdown">2:00</span>
+                </p>
+                <button class="btn" onclick="simulateSuccess()" style="margin-top: 2rem;">
+                    Simulate Scan Success
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let countdownInterval;
+        let timeLeft = 120; // 2 minutes
+
+        function generateQRCode() {
+            const qrDiv = document.getElementById('qrcode');
+            qrDiv.innerHTML = ''; // Clear previous QR code
+
+            // Generate random token for demo
+            const token = 'tg://login?token=' + Math.random().toString(36).substring(7);
+
+            new QRCode(qrDiv, {
+                text: token,
+                width: 208,
+                height: 208,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
+            });
+
+            startCountdown();
+        }
+
+        function startCountdown() {
+            timeLeft = 120;
+            updateCountdownDisplay();
+
+            countdownInterval = setInterval(() => {
+                timeLeft--;
+                updateCountdownDisplay();
+
+                if (timeLeft <= 0) {
+                    clearInterval(countdownInterval);
+                    showExpired();
+                }
+            }, 1000);
+        }
+
+        function updateCountdownDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            const display = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            document.getElementById('countdown').textContent = display;
+        }
+
+        function showExpired() {
+            const modalBody = document.getElementById('modalBody');
+            modalBody.innerHTML = `
+                <div class="success-message">
+                    <div style="font-size: 4rem; margin-bottom: 1rem;">⏱️</div>
+                    <h3>QR Code Expired</h3>
+                    <p style="color: rgba(255, 255, 255, 0.7); margin-top: 0.5rem;">
+                        The QR code was not scanned in time.
+                    </p>
+                    <button class="btn" onclick="resetModal()" style="margin-top: 2rem;">
+                        Generate New QR Code
+                    </button>
+                </div>
+            `;
+        }
+
+        function resetModal() {
+            const modalBody = document.getElementById('modalBody');
+            modalBody.innerHTML = `
+                <div class="instructions">
+                    <h3>Scan QR Code</h3>
+                    <ol>
+                        <li>Open <strong>Telegram</strong> on your phone</li>
+                        <li>Go to <strong>Settings → Devices</strong></li>
+                        <li>Tap <strong>"Link Desktop Device"</strong></li>
+                        <li>Scan this QR code</li>
+                    </ol>
+                </div>
+                <div id="qrcode" class="pulse"></div>
+                <p class="timer" id="timer">
+                    ⏱️ Expires in <span id="countdown">2:00</span>
+                </p>
+                <button class="btn" onclick="simulateSuccess()" style="margin-top: 2rem;">
+                    Simulate Scan Success
+                </button>
+            `;
+            generateQRCode();
+        }
+
+        function openModal() {
+            document.getElementById('modal').classList.add('active');
+            generateQRCode();
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+            }
+        }
+
+        function closeModalOnBackdrop(event) {
+            if (event.target === event.currentTarget) {
+                closeModal();
+            }
+        }
+
+        function simulateSuccess() {
+            clearInterval(countdownInterval);
+            const modalBody = document.getElementById('modalBody');
+            modalBody.innerHTML = `
+                <div class="success-message">
+                    <div class="success-icon">✅</div>
+                    <h3>Successfully Connected!</h3>
+                    <p style="color: rgba(255, 255, 255, 0.7); margin-top: 0.5rem;">
+                        Your Telegram account has been integrated.
+                    </p>
+                </div>
+            `;
+
+            setTimeout(() => {
+                addNewAccount();
+                closeModal();
+            }, 2000);
+        }
+
+        function addNewAccount() {
+            const grid = document.getElementById('accountsGrid');
+            const randomUsername = 'user' + Math.floor(Math.random() * 10000);
+            const colors = [
+                'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+            ];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+            const newCard = document.createElement('div');
+            newCard.className = 'account-card';
+            newCard.innerHTML = `
+                <div class="account-header">
+                    <div class="avatar" style="background: ${randomColor};">
+                        ${randomUsername[0].toUpperCase()}
+                    </div>
+                    <div class="account-info">
+                        <div class="username">📱 @${randomUsername}</div>
+                        <div class="phone">+1-555-${Math.floor(Math.random() * 900 + 100)}-${Math.floor(Math.random() * 9000 + 1000)}</div>
+                    </div>
+                    <span class="badge">✅ Active</span>
+                </div>
+                <div>
+                    <div class="detail-row">
+                        <span class="label">Type:</span>
+                        <span class="value">🙋 Your Account</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Integrated:</span>
+                        <span class="value">Just now</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Session:</span>
+                        <span class="value">Valid ✓ (Just now)</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Today's DMs:</span>
+                        <span class="value">0/200</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0%"></div>
+                    </div>
+                </div>
+            `;
+            grid.appendChild(newCard);
+        }
+    </script>
+</body>
+
+</html>
