@@ -2,8 +2,8 @@ import './globals.css';
 import { Toaster } from 'react-hot-toast';
 
 export const metadata = {
-    title: 'Telegram Account Integration',
-    description: 'Connect your Telegram accounts with QR code or SMS authentication',
+    title: 'OFCharmer - AI Chatbot for OnlyFans & Fansly Creators',
+    description: 'Turn Telegram DMs into paying fans. AI-powered chatbot that talks like you, sends photos, and converts to PPV sales 24/7.',
 };
 
 export default function RootLayout({ children }) {
