@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import AccountsList from '@/components/AccountsList';
 import AccountConnectionModal from '@/components/AccountConnectionModal';
-import styles from './page.module.css';
 
 export default function Home() {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -15,17 +14,17 @@ export default function Home() {
     };
 
     return (
-        <div className={styles.page}>
+        <div className="page">
             {/* Hero Section */}
-            <section className={styles.hero}>
+            <section className="hero">
                 <div className="container">
-                    <div className={styles.heroContent}>
-                        <h1 className={styles.title}>
+                    <div className="hero-content">
+                        <h1 className="title">
                             Telegram Account
                             <br />
                             <span className="gradient-text">Integration</span>
                         </h1>
-                        <p className={styles.subtitle}>
+                        <p className="subtitle">
                             Connect your existing Telegram accounts or create new ones.
                             Enjoy seamless automation with session management and health monitoring.
                         </p>
@@ -43,7 +42,7 @@ export default function Home() {
             </section>
 
             {/* Accounts Section */}
-            <section className={styles.accountsSection}>
+            <section className="accounts-section">
                 <div className="container">
                     <AccountsList key={refreshTrigger} onAddAccount={() => setIsModalOpen(true)} />
                 </div>
