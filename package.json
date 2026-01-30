@@ -18,6 +18,8 @@
     "react-hot-toast": "^2.4.1"
   },
   "devDependencies": {
+    "@types/node": "25.1.0",
+    "@types/react": "19.2.10",
     "eslint": "^8",
     "eslint-config-next": "15.1.4"
   }
