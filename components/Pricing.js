@@ -38,7 +38,7 @@ export default function Pricing({ onOpenModal }) {
             credits: 15000,
             name: "Scale",
             features: [
-                "Unlimited Telegram Accounts",
+                "15 Telegram Accounts",
                 "15,000 AI Credits (Messages)",
                 "Custom AI Models",
                 "White-label Options",
@@ -153,14 +153,27 @@ export default function Pricing({ onOpenModal }) {
                         ))}
                     </ul>
 
+                    {/* Free Trial Highlight */}
+                    <div style={{
+                        background: 'rgba(0, 242, 254, 0.1)',
+                        padding: '1rem',
+                        borderRadius: '8px',
+                        marginBottom: '2rem',
+                        border: '1px dashed var(--color-primary)',
+                        fontWeight: 'bold',
+                        color: 'var(--color-primary)'
+                    }}>
+                        🎁 Includes 7-Day Free Trial
+                    </div>
+
                     <button
                         className="btn btn-primary"
                         style={{ width: '100%', fontSize: '1.2rem', padding: '1rem' }}
                         onClick={onOpenModal}
                     >
-                        Get Started
+                        Start 7-Day Free Trial
                     </button>
-                    <p style={{ marginTop: '1rem', fontSize: '0.9rem', opacity: 0.6 }}>7-day free trial included</p>
+                    <p style={{ marginTop: '1rem', fontSize: '0.9rem', opacity: 0.6 }}>No credit card required</p>
                 </div>
             </div>
         </section>

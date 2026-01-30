@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 
 export default function Testimonials() {
     const [activeIndex, setActiveIndex] = useState(0);
@@ -10,24 +11,28 @@ export default function Testimonials() {
             text: "I was skeptical at first but OFCharmer literally 3X'd my income in the first month. My fans love chatting and I'm making money while I sleep. Game changer!",
             author: "Sarah M.",
             role: "OnlyFans Creator",
+            image: "/avatar-1.png",
             initial: "S"
         },
         {
             text: "The AI learns my personality so well that my fans can't tell the difference. I finally have time to create content instead of typing the same DMs all day.",
             author: "Ashley K.",
             role: "Fansly Creator",
+            image: "/avatar-2.png",
             initial: "A"
         },
         {
             text: "Best investment I've made. My PPV sales are through the roof and I don't have to be glued to my phone 24/7. Worth every penny!",
             author: "Mia R.",
             role: "OnlyFans Top 1%",
+            image: "/avatar-3.png",
             initial: "M"
         },
         {
             text: "The credit system is so fair. I only pay when I make money. The 'smart photo' feature is genius for upselling custom content.",
             author: "Lexi D.",
             role: "Content Creator",
+            image: "/avatar-1.png", // Reuse image or add more
             initial: "L"
         }
     ];
@@ -91,17 +96,20 @@ export default function Testimonials() {
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'center' }}>
                             <div style={{
-                                width: '60px',
-                                height: '60px',
-                                borderRadius: '50%',
-                                background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent))',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '1.8rem',
-                                fontWeight: 'bold'
+                                position: 'relative',
+                                width: '80px',
+                                height: '80px',
                             }}>
-                                {testimonials[activeIndex].initial}
+                                <Image
+                                    src={testimonials[activeIndex].image}
+                                    alt={testimonials[activeIndex].author}
+                                    fill
+                                    style={{
+                                        borderRadius: '50%',
+                                        objectFit: 'cover',
+                                        border: '3px solid var(--color-primary)'
+                                    }}
+                                />
                             </div>
                             <div style={{ textAlign: 'left' }}>
                                 <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{testimonials[activeIndex].author}</div>

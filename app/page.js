@@ -145,11 +145,11 @@ export default function Home() {
                         {/* Phone Mockup Image */}
                         <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
                             <Image
-                                src="/phone-conversation.png"
+                                src="/phone-conversation-square.png"
                                 alt="AI chatbot conversation on phone"
-                                width={400}
-                                height={600}
-                                style={{ borderRadius: '20px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}
+                                width={500}
+                                height={500}
+                                style={{ borderRadius: '20px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', maxWidth: '100%', height: 'auto' }}
                             />
                         </div>
 
