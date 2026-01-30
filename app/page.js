@@ -35,7 +35,7 @@ export default function Home() {
                                 style={{ marginBottom: '2rem' }}
                             />
                             <h1 className="title">
-                                Turn Every Telegram Message Into
+                                Turn Telegram Chats Into
                                 <br />
                                 <span className="gradient-text">Paying Fans</span>
                             </h1>
