@@ -1,0 +1,34 @@
+# Next.js Build
+.next/
+out/
+
+# Dependencies
+node_modules/
+
+# Database and sessions
+*.db
+*.session
+*.db-journal
+
+# Environment variables
+.env
+.env.local
+
+# Workers directory (deployed separately)
+workers/
+
+# Python virtual environment
+.venv/
+venv/
+
+# Uploads
+workers/uploads/*
+!workers/uploads/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

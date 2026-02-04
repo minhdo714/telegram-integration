@@ -25,7 +25,13 @@ import traceback
 from flask import send_from_directory
 
 app = Flask(__name__)
-CORS(app)  # Allow requests from Vercel
+# Allow requests from production (Vercel) and development (localhost)
+# In production, update the Vercel URL after deployment
+CORS(app, origins=[
+    'https://*.vercel.app',  # All Vercel deployments
+    'http://localhost:3000', # Local development
+    'http://127.0.0.1:3000'  # Alternative localhost
+], supports_credentials=True)
 
 import sqlite3
 DB_PATH = os.getenv('DB_PATH', 'users.db')

@@ -42,7 +42,31 @@ yarn-error.log*
 !package-lock.json
 !tsconfig.json
 !vercel.json
+!railway.json
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Database files (SECURITY: Never commit these!)
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Telegram session files (SECURITY: Never commit these!)
+*.session
+*.session-journal
+
+# Uploaded assets (SECURITY: May contain user content)
+workers/uploads/*
+!workers/uploads/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+ENV/

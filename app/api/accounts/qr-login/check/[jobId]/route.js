@@ -1,49 +1,23 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/database';
-import { simulateQRScan } from '@/lib/mockTelethon';
+
+const WORKER_URL = process.env.RAILWAY_WORKER_URL || 'http://localhost:5000';
 
 export async function GET(request, { params }) {
     try {
-        // In Next.js 15, params is a Promise and must be awaited
         const { jobId } = await params;
-        const job = await db.getJob(jobId);
 
-        if (!job) {
-            return NextResponse.json(
-                { error: 'Job not found' },
-                { status: 404 }
-            );
-        }
+        // Proxy request to Railway worker
+        const response = await fetch(`${WORKER_URL}/api/qr-login/status/${jobId}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
 
-        // Check if job was already scanned
-        if (job.status === 'success') {
-            return NextResponse.json({ status: 'success', user: job.user });
-        }
-
-        if (job.status === 'expired') {
-            return NextResponse.json({ status: 'expired' });
-        }
-
-        // In development, simulate scan after some time
-        if (job.status === 'qr_generated' && !job.scanSimulated) {
-            await db.updateJob(jobId, { scanSimulated: true });
-
-            // Simulate user scanning (30-60 seconds delay)
-            setTimeout(async () => {
-                try {
-                    const result = await simulateQRScan(jobId, 120000);
-                    await db.updateJob(jobId, {
-                        status: 'success',
-                        user: result.user,
-                    });
-                } catch (error) {
-                    await db.updateJob(jobId, { status: 'expired' });
-                }
-            }, 30000 + Math.random() * 30000);
-        }
-
-        return NextResponse.json({ status: job.status });
+        const data = await response.json();
+        return NextResponse.json(data, { status: response.status });
     } catch (error) {
+        console.error('Error checking QR status:', error);
         return NextResponse.json(
             { error: 'Failed to check scan status' },
             { status: 500 }
