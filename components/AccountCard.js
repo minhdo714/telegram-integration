@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import styles from './AccountCard.module.css';
 
 export default function AccountCard({ account, onDisconnect, onValidate }) {
@@ -63,13 +64,15 @@ export default function AccountCard({ account, onDisconnect, onValidate }) {
             <div className={styles.header}>
                 <div className={styles.userInfo}>
                     <div className={styles.avatarLetter} style={{
-                        background: `linear-gradient(135deg, hsl(${account.id.charCodeAt(0) * 137.5 % 360}, 70%, 60%), hsl(${account.id.charCodeAt(0) * 137.5 % 360 + 60}, 70%, 50%))`
+                        background: `linear-gradient(135deg, hsl(${String(account.id).charCodeAt(0) * 137.5 % 360}, 70%, 60%), hsl(${String(account.id).charCodeAt(0) * 137.5 % 360 + 60}, 70%, 50%))`
                     }}>
                         {account.firstName ? account.firstName[0] : '?'}
                     </div>
                     <div>
                         <h3 className={styles.username}>
-                            📱 @{account.telegramUsername || 'unknown'}
+                            📱 {account.telegramUsername && account.telegramUsername !== 'unknown'
+                                ? `@${account.telegramUsername}`
+                                : (account.firstName || account.phoneNumber || 'User')}
                         </h3>
                         <p className={styles.phone}>{account.phoneNumber}</p>
                     </div>
@@ -141,6 +144,7 @@ export default function AccountCard({ account, onDisconnect, onValidate }) {
                         </>
                     )}
                 </button>
+
                 <button
                     className="btn btn-ghost"
                     onClick={() => onDisconnect(account.id)}
@@ -148,6 +152,10 @@ export default function AccountCard({ account, onDisconnect, onValidate }) {
                     🔌
                     Disconnect
                 </button>
+                <Link href={`/config?accountId=${account.id}`} className="btn btn-ghost" style={{ textDecoration: 'none', color: 'inherit' }}>
+                    🤖
+                    Configure AI
+                </Link>
             </div>
         </div>
     );

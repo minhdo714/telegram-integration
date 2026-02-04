@@ -3,19 +3,37 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 import json
 
-# Load credentials from environment
-GOOGLE_CREDS = json.loads(os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON'))
-SHEET_ID = os.getenv('GOOGLE_SHEET_ID')
+# Setup Sheets Service
+try:
+    # Load credentials from environment
+    google_creds_json = os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON')
+    if google_creds_json:
+        GOOGLE_CREDS = json.loads(google_creds_json)
+        SHEET_ID = os.getenv('GOOGLE_SHEET_ID')
+        
+        credentials = service_account.Credentials.from_service_account_info(
+            GOOGLE_CREDS,
+            scopes=['https://www.googleapis.com/auth/spreadsheets']
+        )
+        
+        sheets_service = build('sheets', 'v4', credentials=credentials)
+        print("Google Sheets service initialized successfully.")
+    else:
+        print("GOOGLE_SERVICE_ACCOUNT_JSON not found. Google Sheets integration disabled.")
+        sheets_service = None
+        SHEET_ID = None
 
-credentials = service_account.Credentials.from_service_account_info(
-    GOOGLE_CREDS,
-    scopes=['https://www.googleapis.com/auth/spreadsheets']
-)
-
-sheets_service = build('sheets', 'v4', credentials=credentials)
+except Exception as e:
+    print(f"Error initializing Google Sheets: {e}")
+    sheets_service = None
+    SHEET_ID = None
 
 async def save_account_to_sheets(account_data):
     """Save new account to Google Sheets"""
+    if not sheets_service or not SHEET_ID:
+        print("Skipping Sheets save (integration disabled)")
+        return True
+        
     try:
         values = [[
             account_data.get('id'),

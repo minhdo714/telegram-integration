@@ -1,5 +1,4 @@
 import os
-import base64
 from github import Github, GithubException
 
 GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')
@@ -13,11 +12,9 @@ async def upload_session_to_github(account_id, session_data):
         repo = g.get_repo(GITHUB_REPO)
         file_path = f"sessions/{account_id}.session"
         
-        # Convert session data to base64
-        if isinstance(session_data, bytes):
-            content = base64.b64encode(session_data).decode()
-        else:
-            content = base64.b64encode(session_data.encode()).decode()
+        # session_data is expected to be bytes (sqlite database content)
+        # PyGithub will handle the base64 encoding for the API call
+        content = session_data
         
         try:
             # Try to get existing file
@@ -52,9 +49,8 @@ async def download_session_from_github(account_id):
         file_path = f"sessions/{account_id}.session"
         
         file_content = repo.get_contents(file_path)
-        session_data = base64.b64decode(file_content.content)
-        
-        return session_data
+        # decoded_content returns the raw bytes of the file
+        return file_content.decoded_content
     
     except GithubException as e:
         if e.status == 404:

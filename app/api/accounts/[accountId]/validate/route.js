@@ -1,36 +1,36 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/database';
+
+const WORKER_URL = process.env.RAILWAY_WORKER_URL || 'http://localhost:5000';
 
 export async function POST(request, { params }) {
     try {
-        const { accountId } = params;
-        const account = await db.getAccount(accountId);
+        // In Next.js 15, params is a Promise and must be awaited
+        const { accountId } = await params;
 
-        if (!account) {
+        // Call the backend worker to validate the session
+        const response = await fetch(`${WORKER_URL}/api/validate-session`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accountId: accountId }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
             return NextResponse.json(
-                { error: 'Account not found' },
-                { status: 404 }
+                { error: errorData.error || 'Validation failed' },
+                { status: response.status }
             );
         }
 
-        // In production, this would test the Telethon session
-        // For now, randomly determine status
-        const statuses = ['valid', 'expired', 'banned'];
-        const status = statuses[Math.floor(Math.random() * statuses.length)];
-
-        // Update account
-        await db.updateAccount(accountId, {
-            sessionStatus: status,
-            sessionLastValidated: new Date(),
-        });
-
-        await db.logSessionEvent(accountId, 'validated', { status });
+        const data = await response.json();
 
         return NextResponse.json({
             success: true,
-            status,
+            status: data.status,
+            message: data.message
         });
     } catch (error) {
+        console.error('Validation error:', error);
         return NextResponse.json(
             { error: 'Failed to validate session' },
             { status: 500 }

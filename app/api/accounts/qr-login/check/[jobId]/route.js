@@ -4,7 +4,8 @@ import { simulateQRScan } from '@/lib/mockTelethon';
 
 export async function GET(request, { params }) {
     try {
-        const { jobId } = params;
+        // In Next.js 15, params is a Promise and must be awaited
+        const { jobId } = await params;
         const job = await db.getJob(jobId);
 
         if (!job) {

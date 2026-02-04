@@ -1,18 +1,29 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/database';
+import { cookies } from 'next/headers';
 
-export async function GET() {
+const WORKER_URL = process.env.RAILWAY_WORKER_URL || 'http://localhost:5000';
+
+export async function GET(request) {
     try {
-        const accounts = await db.getAccounts('user1');
+        const cookieStore = await cookies();
+        const authToken = cookieStore.get('auth_token');
+        const userId = cookieStore.get('user_id'); // We need to store this on login!
 
-        return NextResponse.json({
-            success: true,
-            accounts,
+        // For now, let's just create a quick hack to get userId, assuming we stored it
+        // If not, we might need to rely on client passing it, but cleaner to do it server side
+        // Let's rely on query param passed from client for now as planned in worker
+
+        const { searchParams } = new URL(request.url);
+        const qUserId = searchParams.get('userId');
+
+        const response = await fetch(`${WORKER_URL}/api/accounts?userId=${qUserId}`, {
+            method: 'GET',
         });
+
+        const data = await response.json();
+        return NextResponse.json(data, { status: response.status });
+
     } catch (error) {
-        return NextResponse.json(
-            { error: 'Failed to fetch accounts' },
-            { status: 500 }
-        );
+        return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

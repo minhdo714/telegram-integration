@@ -3,7 +3,8 @@ import { db } from '@/lib/database';
 
 export async function POST(request, { params }) {
     try {
-        const { jobId } = params;
+        // In Next.js 15, params is a Promise and must be awaited
+        const { jobId } = await params;
         const job = await db.getJob(jobId);
 
         if (!job || job.status !== 'success') {

@@ -1,38 +1,25 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/database';
-import { simulateSendSMSCode } from '@/lib/mockTelethon';
+import { initiateSMSLogin } from '@/lib/railwayWorker';
 
 export async function POST(request) {
     try {
-        const { phoneNumber } = await request.json();
+        const body = await request.json();
+        const { phoneNumber, sessionString } = body;
 
-        if (!phoneNumber || !phoneNumber.startsWith('+')) {
+        if (!phoneNumber) {
             return NextResponse.json(
-                { error: 'Invalid phone number format' },
+                { error: 'Phone number is required' },
                 { status: 400 }
             );
         }
 
-        // In production, this would trigger Telethon worker to send SMS
-        const result = await simulateSendSMSCode(phoneNumber);
+        const result = await initiateSMSLogin(phoneNumber, sessionString);
+        return NextResponse.json(result);
 
-        // Create session job
-        const job = await db.createJob({
-            type: 'sms_login',
-            status: 'code_sent',
-            userId: 'user1',
-            phoneNumber,
-            phoneHash: result.phoneHash,
-            expectedCode: result.code, // Only for dev
-        });
-
-        return NextResponse.json({
-            success: true,
-            sessionId: job.id,
-        });
     } catch (error) {
+        console.error('SMS Request Error:', error);
         return NextResponse.json(
-            { error: 'Failed to send code' },
+            { error: error.message || 'Failed to send SMS code' },
             { status: 500 }
         );
     }

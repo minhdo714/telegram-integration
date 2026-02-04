@@ -4,12 +4,15 @@ import { useState } from 'react';
 import Image from 'next/image';
 import AccountsList from '@/components/AccountsList';
 import AccountConnectionModal from '@/components/AccountConnectionModal';
+import MessageComposer from '@/components/MessageComposer';
 import Navigation from '@/components/Navigation';
 import Pricing from '@/components/Pricing';
 import Testimonials from '@/components/Testimonials';
+import Footer from '@/components/Footer';
 
 export default function Home() {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isMessageComposerOpen, setIsMessageComposerOpen] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
 
     const handleAccountAdded = () => {
@@ -337,6 +340,8 @@ export default function Home() {
                         onSuccess={handleAccountAdded}
                     />
                 )}
+
+                <Footer />
             </div>
         </>
     );

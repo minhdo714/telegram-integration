@@ -18,7 +18,7 @@ export default function QRCodeDisplay({ onSuccess, onError }) {
     useEffect(() => {
         if (jobId && status === 'qr_ready') {
             const interval = setInterval(() => {
-                checkQRStatus();
+                pollForStatus(jobId);
             }, 2000); // Poll every 2 seconds
 
             return () => clearInterval(interval);
@@ -50,7 +50,9 @@ export default function QRCodeDisplay({ onSuccess, onError }) {
 
             if (response.ok) {
                 setJobId(data.jobId);
-                pollForQRCode(data.jobId);
+                setQrCode(data.qrUrl);
+                setStatus('qr_ready');
+                setLoading(false);
             } else {
                 onError(new Error(data.error || 'Failed to initiate login'));
             }
@@ -59,49 +61,28 @@ export default function QRCodeDisplay({ onSuccess, onError }) {
         }
     };
 
-    const pollForQRCode = async (id) => {
+    const pollForStatus = async (id) => {
         try {
             const response = await fetch(`/api/accounts/qr-login/status/${id}`);
             const data = await response.json();
 
-            if (data.status === 'qr_generated') {
-                setQrCode(data.qrUrl);
-                setStatus('qr_ready');
-                setLoading(false);
-            } else if (data.status === 'pending') {
-                setTimeout(() => pollForQRCode(id), 1000);
-            } else {
-                onError(new Error('Failed to generate QR code'));
-            }
-        } catch (error) {
-            onError(error);
-        }
-    };
+            console.log('QR Status Poll Response:', data);
 
-    const checkQRStatus = async () => {
-        try {
-            const response = await fetch(`/api/accounts/qr-login/check/${jobId}`);
-            const data = await response.json();
-
-            if (data.status === 'success') {
+            if (data.status === 'completed') {
+                console.log('QR Scan completed! Account data:', data.accountData);
                 setStatus('success');
-                // Complete the login process
-                const completeResponse = await fetch(`/api/accounts/qr-login/complete/${jobId}`, {
-                    method: 'POST',
-                });
-                const completeData = await completeResponse.json();
-
-                if (completeResponse.ok) {
-                    onSuccess(completeData.account);
-                }
-            } else if (data.status === 'expired') {
+                onSuccess(data.accountData);
+            } else if (data.status === 'error') {
+                onError(new Error(data.error || 'QR Login Failed'));
+            } else if (data.status === 'timeout') {
                 setStatus('expired');
             }
         } catch (error) {
-            // Silently fail for polling errors
             console.error('Polling error:', error);
         }
     };
+
+
 
     const handleRetry = () => {
         setStatus('initializing');

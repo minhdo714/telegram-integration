@@ -2,10 +2,17 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function Navigation() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+    useEffect(() => {
+        // Simple client-side check for auth token cookie
+        const hasAuthToken = document.cookie.includes('auth_token');
+        setIsLoggedIn(hasAuthToken);
+    }, []);
 
     const scrollToSection = (sectionId) => {
         const element = document.getElementById(sectionId);
@@ -35,8 +42,7 @@ export default function Navigation() {
                 margin: '0 auto',
             }}>
                 {/* Logo */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}
-                    onClick={() => scrollToSection('hero')}>
+                <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', textDecoration: 'none' }}>
                     <Image
                         src="/ofcharmer-logo.png"
                         alt="OFCharmer"
@@ -52,21 +58,40 @@ export default function Navigation() {
                     }}>
                         OFCharmer
                     </span>
-                </div>
+                </Link>
 
                 {/* Desktop Menu */}
                 <div style={{
                     display: 'flex',
                     gap: '2rem',
                     alignItems: 'center',
-                    '@media (max-width: 768px)': { display: 'none' }
                 }} className="desktop-menu">
                     <button onClick={() => scrollToSection('pricing')} className="nav-link">Pricing</button>
                     <button onClick={() => scrollToSection('testimonials')} className="nav-link">Testimonials</button>
                     <button onClick={() => scrollToSection('faq')} className="nav-link">FAQ</button>
-                    <button onClick={() => scrollToSection('accounts')} className="btn btn-primary" style={{ padding: '0.5rem 1.5rem' }}>
-                        My Account
-                    </button>
+
+                    {isLoggedIn ? (
+                        <>
+                            <Link href="/config" className="nav-link">AI Config</Link>
+                            <button onClick={() => scrollToSection('accounts')} className="btn btn-primary" style={{ padding: '0.5rem 1.5rem' }}>
+                                My Account
+                            </button>
+                        </>
+                    ) : (
+                        <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
+                            <Link href="/login?mode=login" className="nav-link" style={{ fontWeight: '500' }}>
+                                Log In
+                            </Link>
+                            <Link href="/login?mode=register" className="btn btn-primary" style={{
+                                padding: '0.6rem 1.5rem',
+                                background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', // Custom gradient to match "Botly" style
+                                border: 'none',
+                                textDecoration: 'none'
+                            }}>
+                                Start Free Trial
+                            </Link>
+                        </div>
+                    )}
                 </div>
 
                 {/* Mobile Menu Button */}
@@ -98,9 +123,19 @@ export default function Navigation() {
                     <button onClick={() => scrollToSection('pricing')} className="nav-link">Pricing</button>
                     <button onClick={() => scrollToSection('testimonials')} className="nav-link">Testimonials</button>
                     <button onClick={() => scrollToSection('faq')} className="nav-link">FAQ</button>
-                    <button onClick={() => scrollToSection('accounts')} className="btn btn-primary">
-                        My Account
-                    </button>
+
+                    {isLoggedIn ? (
+                        <button onClick={() => scrollToSection('accounts')} className="btn btn-primary">
+                            My Account
+                        </button>
+                    ) : (
+                        <>
+                            <Link href="/login?mode=login" className="nav-link" style={{ textAlign: 'center' }}>Log In</Link>
+                            <Link href="/login?mode=register" className="btn btn-primary" style={{ textAlign: 'center' }}>
+                                Start Free Trial
+                            </Link>
+                        </>
+                    )}
                 </div>
             )}
 

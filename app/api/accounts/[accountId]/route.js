@@ -3,7 +3,8 @@ import { db } from '@/lib/database';
 
 export async function DELETE(request, { params }) {
     try {
-        const { accountId } = params;
+        // In Next.js 15, params is a Promise and must be awaited
+        const { accountId } = await params;
         const account = await db.getAccount(accountId);
 
         if (!account) {

@@ -18,12 +18,12 @@ export default function CodeVerification({ phoneNumber, onVerify, onResend, load
         }
     }, [resendCountdown]);
 
-    useEffect(() => {
-        // Auto-submit when all digits are filled
-        if (code.every(digit => digit !== '')) {
-            onVerify(code.join(''));
-        }
-    }, [code]);
+    // Auto-submit removed in favor of manual button for better UX
+    // useEffect(() => {
+    //     if (code.every(digit => digit !== '')) {
+    //         onVerify(code.join(''));
+    //     }
+    // }, [code]);
 
     const handleChange = (index, value) => {
         // Only allow digits
@@ -91,6 +91,15 @@ export default function CodeVerification({ phoneNumber, onVerify, onResend, load
                     <span className="spin">⟳</span> Verifying...
                 </div>
             )}
+
+            <button
+                className="btn btn-primary full-width mt-md"
+                onClick={() => onVerify(code.join(''))}
+                disabled={loading || code.some(digit => digit === '')}
+                style={{ marginTop: '1rem', width: '100%' }}
+            >
+                Verify Code
+            </button>
 
             <div className={styles.resendSection}>
                 {canResend ? (

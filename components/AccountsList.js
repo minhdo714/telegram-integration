@@ -15,7 +15,12 @@ export default function AccountsList({ onAddAccount }) {
     const fetchAccounts = async () => {
         try {
             setLoading(true);
-            const response = await fetch('/api/accounts/list');
+            let userId = document.cookie.split('; ').find(row => row.startsWith('user_id='))?.split('=')[1];
+            if (!userId) {
+                userId = '1';
+            }
+
+            const response = await fetch(`/api/accounts/list?userId=${userId}`);
             const data = await response.json();
             setAccounts(data.accounts || []);
         } catch (error) {
@@ -29,7 +34,10 @@ export default function AccountsList({ onAddAccount }) {
         if (!confirm('Are you sure you want to disconnect this account?')) return;
 
         try {
-            const response = await fetch(`/api/accounts/${accountId}`, {
+            let userId = document.cookie.split('; ').find(row => row.startsWith('user_id='))?.split('=')[1];
+            if (!userId) userId = '1';
+
+            const response = await fetch(`/api/accounts/delete?id=${accountId}&userId=${userId}`, {
                 method: 'DELETE',
             });
 
@@ -48,14 +56,26 @@ export default function AccountsList({ onAddAccount }) {
             });
             const data = await response.json();
 
-            // Update account status
-            setAccounts(accounts.map(acc =>
-                acc.id === accountId
-                    ? { ...acc, sessionStatus: data.status }
-                    : acc
-            ));
+            if (response.ok && data.success) {
+                // Update account status
+                setAccounts(accounts.map(acc =>
+                    acc.id === accountId
+                        ? { ...acc, sessionStatus: data.status, sessionLastValidated: new Date().toISOString() }
+                        : acc
+                ));
+
+                // Show feedback to user
+                if (data.status === 'valid') {
+                    alert('✅ Session is valid and active!');
+                } else {
+                    alert(`⚠️ Session status: ${data.status}. ${data.message || 'You may need to re-authenticate.'}`);
+                }
+            } else {
+                alert(`❌ Validation failed: ${data.error || 'Unknown error'}`);
+            }
         } catch (error) {
             console.error('Error validating account:', error);
+            alert('❌ Network error. Please try again.');
         }
     };
 
