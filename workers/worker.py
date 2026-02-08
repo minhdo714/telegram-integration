@@ -516,9 +516,9 @@ def get_bot_status():
 @app.route('/api/bot/logs', methods=['GET'])
 def get_bot_logs():
     try:
-        log_file = os.path.join(os.path.dirname(__file__), 'bot.log')
+        log_file = '/tmp/bot.log' if os.name != 'nt' else os.path.join(os.path.dirname(__file__), 'bot.log')
         if not os.path.exists(log_file):
-            return jsonify({"logs": []}), 200
+            return jsonify({"logs": ["Log file not found at " + log_file]}), 200
             
         with open(log_file, 'r') as f:
             # Read last 100 lines

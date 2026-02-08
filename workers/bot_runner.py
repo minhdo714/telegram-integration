@@ -1,21 +1,10 @@
-import asyncio
-import sqlite3
-import logging
-from telethon import TelegramClient, events
-from telethon.sessions import StringSession
-from auth_handler import DB_PATH
-from ai_handler import AIHandler
 import os
-from dotenv import load_dotenv
+import logging
+import sys
 
-# Load environment variables
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../.env"))
-
-API_ID = os.getenv('TELEGRAM_API_ID')
-API_HASH = os.getenv('TELEGRAM_API_HASH')
-
-# Configure Logging
-log_file = os.path.join(os.path.dirname(__file__), 'bot.log')
+# Configure Logging IMMEDIATELY
+# Use /tmp for Railway/Linux environments to avoid permission issues
+log_file = '/tmp/bot.log' if os.name != 'nt' else 'bot.log'
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -26,8 +15,35 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-ai_handler = AIHandler()
-clients = {} # account_id -> client
+logger.info("Bot Runner starting...")
+
+try:
+    import asyncio
+    import sqlite3
+    from dotenv import load_dotenv
+    
+    logger.info("Importing Telethon...")
+    from telethon import TelegramClient, events
+    from telethon.sessions import StringSession
+    
+    logger.info("Importing Handlers...")
+    # Add current dir to path to find local modules
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    from auth_handler import DB_PATH
+    from ai_handler import AIHandler
+
+    # Load environment variables
+    load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../.env"))
+    
+    API_ID = os.getenv('TELEGRAM_API_ID')
+    API_HASH = os.getenv('TELEGRAM_API_HASH')
+
+    ai_handler = AIHandler()
+    clients = {} # account_id -> client
+
+except Exception as e:
+    logger.critical(f"Failed to import dependencies: {e}")
+    sys.exit(1)
 
     """Start a single bot instance for an account"""
     try:
