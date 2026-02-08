@@ -514,6 +514,22 @@ def get_bot_status():
         traceback.print_exc()
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@app.route('/api/bot/logs', methods=['GET'])
+def get_bot_logs():
+    try:
+        log_file = os.path.join(os.path.dirname(__file__), 'bot.log')
+        if not os.path.exists(log_file):
+            return jsonify({"logs": []}), 200
+            
+        with open(log_file, 'r') as f:
+            # Read last 100 lines
+            lines = f.readlines()
+            last_lines = lines[-100:]
+            
+        return jsonify({"logs": [line.strip() for line in last_lines]}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
