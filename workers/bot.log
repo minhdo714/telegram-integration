@@ -1,0 +1,31 @@
+2026-02-08 11:33:58,152 - __main__ - INFO - Bot Runner starting...
+2026-02-08 11:33:58,931 - __main__ - INFO - Importing Telethon...
+2026-02-08 11:33:59,254 - telethon.crypto.libssl - INFO - Failed to load SSL library: <class 'OSError'> (no library called "ssl" found)
+2026-02-08 11:33:59,254 - telethon.crypto.aes - INFO - cryptg module not installed and libssl not found, falling back to (slower) Python encryption
+2026-02-08 11:33:59,386 - __main__ - INFO - Importing Handlers...
+2026-02-08 11:33:59,705 - __main__ - INFO - Starting Bot Runner...
+2026-02-08 11:33:59,706 - __main__ - CRITICAL - FATAL: Bot runner crashed: no such column: session_status
+Traceback (most recent call last):
+  File "E:\Projects\Webapp_OF management\telegram-integration\workers\bot_runner.py", line 150, in <module>
+    asyncio.run(main())
+    ~~~~~~~~~~~^^^^^^^^
+  File "C:\Python313\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+           ~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Python313\Lib\asyncio\base_events.py", line 725, in run_until_complete
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "E:\Projects\Webapp_OF management\telegram-integration\workers\bot_runner.py", line 122, in main
+    c.execute("SELECT id, session_string FROM telegram_accounts WHERE status = 'active' AND session_status = 'active'")
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such column: session_status
+2026-02-08 11:37:41,705 - __main__ - INFO - Bot Runner starting...
+2026-02-08 11:37:41,855 - __main__ - INFO - Importing Telethon...
+2026-02-08 11:37:42,000 - telethon.crypto.libssl - INFO - Failed to load SSL library: <class 'OSError'> (no library called "ssl" found)
+2026-02-08 11:37:42,000 - telethon.crypto.aes - INFO - cryptg module not installed and libssl not found, falling back to (slower) Python encryption
+2026-02-08 11:37:42,065 - __main__ - INFO - Importing Handlers...
+2026-02-08 11:37:42,163 - __main__ - INFO - Starting Bot Runner...
+2026-02-08 11:37:42,164 - __main__ - INFO - No active accounts found.

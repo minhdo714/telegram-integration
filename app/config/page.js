@@ -193,7 +193,7 @@ export default function AIConfig() {
             try {
                 const msgToSend = outreachMessage || "Hey! Saw you on my feed...";
 
-                const res = await fetch('/api/bot/send-message', {
+                const res = await fetch('/api/messages/send', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -208,7 +208,7 @@ export default function AIConfig() {
                 if (res.ok) {
                     addLog(`[Outreach] ✅ Sent to @${recipient}`);
                 } else {
-                    addLog(`[Outreach] ❌ Failed @${recipient}: ${data.error || 'Unknown error'}`);
+                    addLog(`[Outreach] ❌ Failed @${recipient}: ${data.message || data.error || 'Unknown error'}`);
                 }
             } catch (err) {
                 addLog(`[Outreach] ❌ Error @${recipient}: ${err.message}`);

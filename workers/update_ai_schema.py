@@ -11,10 +11,10 @@ def update_schema():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
-    print("Dropping model_assets table to update schema...")
-    c.execute('DROP TABLE IF EXISTS model_assets')
+    # print("Dropping model_assets table to update schema...")
+    # c.execute('DROP TABLE IF EXISTS model_assets')
 
-    print("Creating model_assets table...")
+    print("Creating model_assets table (if not exists)...")
     c.execute('''
         CREATE TABLE IF NOT EXISTS model_assets (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -30,7 +30,7 @@ def update_schema():
         )
     ''')
 
-    print("Creating chat_sessions table...")
+    print("Creating chat_sessions table (if not exists)...")
     c.execute('''
         CREATE TABLE IF NOT EXISTS chat_sessions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,

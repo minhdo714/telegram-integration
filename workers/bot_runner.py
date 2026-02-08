@@ -3,14 +3,18 @@ import logging
 import sys
 
 # Configure Logging IMMEDIATELY
-# Use /tmp for Railway/Linux environments to avoid permission issues
-log_file = '/tmp/bot.log' if os.name != 'nt' else 'bot.log'
+# Use absolute path for log file to avoid CWD issues
+log_dir = os.path.dirname(os.path.abspath(__file__))
+log_file = os.path.join(log_dir, 'bot.log')
+
+print(f"DEBUG: Logging to {log_file}")
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler(log_file),
-        logging.StreamHandler()
+        logging.StreamHandler(sys.stdout) # Explicitly log to stdout for worker.py capture
     ]
 )
 logger = logging.getLogger(__name__)
@@ -142,4 +146,10 @@ async def main():
             await client.disconnect()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        logger.critical(f"FATAL: Bot runner crashed: {e}", exc_info=True)
+        # Also print to stderr for good measure
+        print(f"FATAL: Bot runner crashed: {e}", file=sys.stderr)
+        sys.exit(1)
