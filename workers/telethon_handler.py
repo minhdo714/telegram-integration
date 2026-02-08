@@ -598,6 +598,36 @@ def send_dm(account_id, recipient, message):
                 # Send the message
                 try:
                     sent_message = await client.send_message(entity, message)
+                    
+                    # Create/Update session in DB so AI knows the state
+                    try:
+                        recipient_id = entity.id
+                        recipient_username = getattr(entity, 'username', None)
+                        
+                        # Import here to avoid circular dependency if possible, or move to top
+                        # We use raw SQL to avoid dependency on AIHandler for now
+                        conn_db = sqlite3.connect(DB_PATH)
+                        c_db = conn_db.cursor()
+                        
+                        # Check if session exists
+                        c_db.execute('SELECT id FROM chat_sessions WHERE account_id = ? AND remote_user_id = ?', (account_id, recipient_id))
+                        existing_session = c_db.fetchone()
+                        
+                        if existing_session:
+                            # Update existing
+                            c_db.execute('UPDATE chat_sessions SET last_message_at = CURRENT_TIMESTAMP WHERE id = ?', (existing_session[0],))
+                        else:
+                            # Create new session with STATE_OPENER_SENT (assuming outreach is like an opener)
+                            c_db.execute('''
+                                INSERT INTO chat_sessions (account_id, remote_user_id, username, state)
+                                VALUES (?, ?, ?, ?)
+                            ''', (account_id, recipient_id, recipient_username, 'OPENER_SENT'))
+                            
+                        conn_db.commit()
+                        conn_db.close()
+                    except Exception as db_e:
+                        print(f"Warning: Failed to create session context: {db_e}")
+
                     await client.disconnect()
                     
                     # Get recipient info
