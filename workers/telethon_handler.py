@@ -33,8 +33,9 @@ def initiate_qr_login():
         
         async def qr_login_task():
             try:
-                # Use a file-based session
-                client = TelegramClient(job_id, API_ID, API_HASH)
+                # Use a file-based session with proper string filename
+                session_file = f"{job_id}.session"  
+                client = TelegramClient(session_file, API_ID, API_HASH)
                 await client.connect()
                 
                 # Request QR login token
