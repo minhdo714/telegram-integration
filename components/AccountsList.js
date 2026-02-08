@@ -79,6 +79,40 @@ export default function AccountsList({ onAddAccount }) {
         }
     };
 
+    const handleReLink = async (account) => {
+        if (!confirm(`Re-link ${account.telegramUsername || account.phoneNumber}?\n\nThis will disconnect the current session and let you re-authenticate.`)) {
+            return;
+        }
+
+        try {
+            let userId = document.cookie.split('; ').find(row => row.startsWith('user_id='))?.split('=')[1];
+            if (!userId) userId = '1';
+
+            // Step 1: Disconnect the account
+            const response = await fetch(`/api/accounts/delete?id=${account.id}&userId=${userId}`, {
+                method: 'DELETE',
+            });
+
+            if (response.ok) {
+                // Step 2: Remove from local state
+                setAccounts(accounts.filter(acc => acc.id !== account.id));
+
+                // Step 3: Open the add account modal
+                onAddAccount();
+
+                // Optional: Show success message
+                setTimeout(() => {
+                    alert(`✅ ${account.telegramUsername || account.phoneNumber} disconnected. Please complete the re-authentication.`);
+                }, 500);
+            } else {
+                alert('❌ Failed to disconnect account. Please try again.');
+            }
+        } catch (error) {
+            console.error('Error re-linking account:', error);
+            alert('❌ Network error. Please try again.');
+        }
+    };
+
     if (loading) {
         return (
             <div className={styles.container}>
@@ -138,6 +172,7 @@ export default function AccountsList({ onAddAccount }) {
                         account={account}
                         onDisconnect={handleDisconnect}
                         onValidate={handleValidate}
+                        onReLink={handleReLink}
                     />
                 ))}
             </div>

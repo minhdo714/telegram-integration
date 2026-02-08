@@ -4,8 +4,9 @@ import { useState } from 'react';
 import Link from 'next/link';
 import styles from './AccountCard.module.css';
 
-export default function AccountCard({ account, onDisconnect, onValidate }) {
+export default function AccountCard({ account, onDisconnect, onValidate, onReLink }) {
     const [isValidating, setIsValidating] = useState(false);
+    const [isRelinking, setIsRelinking] = useState(false);
 
     const getStatusBadge = (status) => {
         const badgeMap = {
@@ -53,6 +54,12 @@ export default function AccountCard({ account, onDisconnect, onValidate }) {
         setIsValidating(true);
         await onValidate(account.id);
         setIsValidating(false);
+    };
+
+    const handleReLink = async () => {
+        setIsRelinking(true);
+        await onReLink(account);
+        setIsRelinking(false);
     };
 
     const statusBadge = getStatusBadge(account.sessionStatus);
@@ -141,6 +148,25 @@ export default function AccountCard({ account, onDisconnect, onValidate }) {
                         <>
                             🔍
                             Validate
+                        </>
+                    )}
+                </button>
+
+                <button
+                    className="btn btn-primary"
+                    onClick={handleReLink}
+                    disabled={isRelinking}
+                    title="Disconnect and re-authenticate this account"
+                >
+                    {isRelinking ? (
+                        <>
+                            <span className="spin">⟳</span>
+                            Re-linking...
+                        </>
+                    ) : (
+                        <>
+                            🔄
+                            Re-Link
                         </>
                     )}
                 </button>

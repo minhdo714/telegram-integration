@@ -74,18 +74,52 @@ def get_user_accounts(user_id):
         return {'error': str(e)}
 
 def delete_account(account_id, user_id):
-    """Delete an account if it belongs to the user"""
+    """Delete an account if it belongs to the user and log out from Telegram"""
     try:
         conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
         c = conn.cursor()
         
-        c.execute('DELETE FROM telegram_accounts WHERE id = ? AND user_id = ?', (account_id, user_id))
-        if c.rowcount == 0:
+        # First, get the account details to retrieve the session
+        c.execute('SELECT session_string, phone_number FROM telegram_accounts WHERE id = ? AND user_id = ?', 
+                  (account_id, user_id))
+        account = c.fetchone()
+        
+        if not account:
             conn.close()
             return {'error': 'Account not found or unauthorized'}
+        
+        # Try to log out from Telegram
+        try:
+            from telethon.sync import TelegramClient
+            from telethon.sessions import StringSession
+            import os
             
+            API_ID = int(os.getenv('TELEGRAM_API_ID'))
+            API_HASH = os.getenv('TELEGRAM_API_HASH')
+            
+            # Create client with the session string
+            client = TelegramClient(
+                StringSession(account['session_string']), 
+                API_ID, 
+                API_HASH
+            )
+            client.connect()
+            
+            if client.is_user_authorized():
+                client.log_out()  # Properly log out from Telegram
+                print(f"Successfully logged out from Telegram for account {account['phone_number']}")
+            
+            client.disconnect()
+        except Exception as e:
+            # If logout fails (session already invalid, etc.), continue with deletion
+            print(f"Warning: Could not log out from Telegram: {str(e)}")
+        
+        # Delete from database
+        c.execute('DELETE FROM telegram_accounts WHERE id = ? AND user_id = ?', (account_id, user_id))
         conn.commit()
         conn.close()
-        return {'status': 'success'}
+        
+        return {'status': 'success', 'message': 'Account disconnected and logged out from Telegram'}
     except Exception as e:
         return {'error': str(e)}
