@@ -475,10 +475,17 @@ def start_bot():
             return jsonify({"status": "already_running", "pid": bot_process.pid}), 200
         
         # Start the bot runner as a subprocess
-        # We don't pipe stdout/stderr because we want it to run detached or inherit logs
-        # And preventing buffer blocking if we don't read the pipes
+        # Redirect stdout/stderr to files so we can debug crashes
+        out_log = '/tmp/bot_out.log' if os.name != 'nt' else 'bot_out.log'
+        err_log = '/tmp/bot_err.log' if os.name != 'nt' else 'bot_err.log'
+        
+        stdout_f = open(out_log, 'w')
+        stderr_f = open(err_log, 'w')
+        
         bot_runner_path = os.path.join(os.path.dirname(__file__), 'bot_runner.py')
-        bot_process = subprocess.Popen([sys.executable, bot_runner_path])
+        bot_process = subprocess.Popen([sys.executable, bot_runner_path],
+                                     stdout=stdout_f,
+                                     stderr=stderr_f)
         
         return jsonify({"status": "started", "pid": bot_process.pid}), 200
     except Exception as e:
@@ -516,16 +523,37 @@ def get_bot_status():
 @app.route('/api/bot/logs', methods=['GET'])
 def get_bot_logs():
     try:
+        logs = []
+        
+        # Check STDERR (Crashes)
+        err_log = '/tmp/bot_err.log' if os.name != 'nt' else 'bot_err.log'
+        if os.path.exists(err_log):
+            with open(err_log, 'r') as f:
+                content = f.read().strip()
+                if content:
+                    logs.append("=== STDERR ===")
+                    logs.extend(content.split('\n')[-20:])
+
+        # Check STDOUT
+        out_log = '/tmp/bot_out.log' if os.name != 'nt' else 'bot_out.log'
+        if os.path.exists(out_log):
+            with open(out_log, 'r') as f:
+                content = f.read().strip()
+                if content:
+                    logs.append("=== STDOUT ===")
+                    logs.extend(content.split('\n')[-20:])
+
+        # Check App Log
         log_file = '/tmp/bot.log' if os.name != 'nt' else os.path.join(os.path.dirname(__file__), 'bot.log')
-        if not os.path.exists(log_file):
-            return jsonify({"logs": ["Log file not found at " + log_file]}), 200
-            
-        with open(log_file, 'r') as f:
-            # Read last 100 lines
-            lines = f.readlines()
-            last_lines = lines[-100:]
-            
-        return jsonify({"logs": [line.strip() for line in last_lines]}), 200
+        if os.path.exists(log_file):
+            with open(log_file, 'r') as f:
+                logs.append("=== BOT.LOG ===")
+                logs.extend(f.read().split('\n')[-50:])
+        
+        if not logs:
+             return jsonify({"logs": ["No logs found."]}), 200
+             
+        return jsonify({"logs": logs}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
