@@ -474,12 +474,11 @@ def start_bot():
         if bot_process and bot_process.poll() is None:
             return jsonify({"status": "already_running", "pid": bot_process.pid}), 200
         
-        # Start bot_runner.py as a subprocess
-        # Use sys.executable to ensure we use the same python interpreter
+        # Start the bot runner as a subprocess
+        # We don't pipe stdout/stderr because we want it to run detached or inherit logs
+        # And preventing buffer blocking if we don't read the pipes
         bot_runner_path = os.path.join(os.path.dirname(__file__), 'bot_runner.py')
-        bot_process = subprocess.Popen([sys.executable, bot_runner_path], 
-                                     stdout=subprocess.PIPE, 
-                                     stderr=subprocess.PIPE)
+        bot_process = subprocess.Popen([sys.executable, bot_runner_path])
         
         return jsonify({"status": "started", "pid": bot_process.pid}), 200
     except Exception as e:
