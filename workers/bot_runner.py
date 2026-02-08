@@ -45,6 +45,7 @@ except Exception as e:
     logger.critical(f"Failed to import dependencies: {e}")
     sys.exit(1)
 
+async def start_bot(account_id, session_string):
     """Start a single bot instance for an account"""
     try:
         logger.info(f"Starting bot for account {account_id}")
