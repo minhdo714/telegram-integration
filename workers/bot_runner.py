@@ -29,13 +29,25 @@ logger = logging.getLogger(__name__)
 ai_handler = AIHandler()
 clients = {} # account_id -> client
 
-async def start_bot(account_id, session_string):
     """Start a single bot instance for an account"""
     try:
+        logger.info(f"Starting bot for account {account_id}")
+        logger.info(f"API_ID present: {bool(API_ID)}")
+        
+        # Ensure session_string is string
+        if isinstance(session_string, bytes):
+            logger.info("Converting session_string from bytes to string")
+            session_string = session_string.decode('utf-8')
+            
+        logger.info(f"Session string length: {len(session_string)}")
+        
         client = TelegramClient(StringSession(session_string), API_ID, API_HASH)
         await client.connect()
         
-        if not await client.is_user_authorized():
+        is_auth = await client.is_user_authorized()
+        logger.info(f"Account {account_id} is_verified: {is_auth}")
+        
+        if not is_auth:
             logger.warning(f"Account {account_id} not authorized. Skipping.")
             return
 
