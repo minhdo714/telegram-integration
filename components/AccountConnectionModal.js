@@ -12,6 +12,8 @@ export default function AccountConnectionModal({ isOpen, onClose, onSuccess }) {
     const [smsStep, setSmsStep] = useState('phone'); // 'phone', 'code', '2fa'
     const [sessionId, setSessionId] = useState(null);
     const [phoneNumber, setPhoneNumber] = useState('');
+    const [phoneHash, setPhoneHash] = useState('');
+    const [sessionString, setSessionString] = useState('');
     const [loading, setLoading] = useState(false);
 
     if (!isOpen) return null;
@@ -34,6 +36,8 @@ export default function AccountConnectionModal({ isOpen, onClose, onSuccess }) {
 
             if (response.ok) {
                 setPhoneNumber(phone);
+                setPhoneHash(data.phoneHash);
+                setSessionString(data.sessionString);
                 setSessionId(data.sessionId);
                 setSmsStep('code');
                 toast.success('Code sent to your phone!');
@@ -53,7 +57,12 @@ export default function AccountConnectionModal({ isOpen, onClose, onSuccess }) {
             const response = await fetch('/api/accounts/sms-login/verify-code', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sessionId, code }),
+                body: JSON.stringify({
+                    phoneNumber,
+                    code,
+                    phoneHash,
+                    sessionString
+                }),
             });
 
             const data = await response.json();

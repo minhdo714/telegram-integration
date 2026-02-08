@@ -9,6 +9,7 @@ import qrcode
 import base64
 from github_session_manager import upload_session_to_github, download_session_from_github
 from sheets_connector import save_account_to_sheets, update_job_status
+from account_manager import add_account
 
 # Load Telegram API credentials from environment
 API_ID_STR = os.getenv('TELEGRAM_API_ID')
@@ -356,6 +357,25 @@ def verify_sms_code(phone_number, code, phone_hash, session_string=None):
                 session_path = await upload_session_to_github(account_id, session_data)
             except Exception as github_error:
                 print(f"WARNING: Failed to upload to GitHub: {github_error}")
+            
+            # Save to database (REQUIRED)
+            # Note: user_id defaults to 1 for now
+            user_id = 1
+            try:
+                add_account(
+                    user_id=user_id,
+                    phone_number=me.phone,
+                    session_string=session_data,
+                    telegram_user_id=str(me.id),
+                    telegram_username=me.username,
+                    first_name=me.first_name,
+                    last_name=me.last_name,
+                    account_ownership='user_owned',
+                    session_status='active'
+                )
+                print(f"SUCCESS: Saved account {account_id} to database for user {user_id}")
+            except Exception as db_error:
+                print(f"ERROR: Failed to save to database: {db_error}")
             
             # Save to Google Sheets (optional)
             try:
