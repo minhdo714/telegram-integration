@@ -40,6 +40,17 @@ DB_PATH = os.getenv('DB_PATH', 'users.db')
 def health():
     return jsonify({"status": "healthy", "service": "telegram-worker"}), 200
 
+@app.route('/debug/env', methods=['GET'])
+def debug_env():
+    """Debug endpoint to check environment variables"""
+    return jsonify({
+        "has_telegram_api_id": os.getenv('TELEGRAM_API_ID') is not None,
+        "has_telegram_api_hash": os.getenv('TELEGRAM_API_HASH') is not None,
+        "has_github_token": os.getenv('GITHUB_TOKEN') is not None,
+        "has_kie_api_key": os.getenv('KIE_API_KEY') is not None,
+        "telegram_api_id_value": os.getenv('TELEGRAM_API_ID', 'NOT_SET')[:5] + "..." if os.getenv('TELEGRAM_API_ID') else "NOT_SET"
+    }), 200
+
 @app.route('/api/qr-login/initiate', methods=['POST'])
 def qr_login_initiate():
     try:

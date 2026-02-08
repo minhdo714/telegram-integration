@@ -10,8 +10,14 @@ import base64
 from github_session_manager import upload_session_to_github, download_session_from_github
 from sheets_connector import save_account_to_sheets, update_job_status
 
-API_ID = int(os.getenv('TELEGRAM_API_ID'))
+# Load Telegram API credentials from environment
+API_ID_STR = os.getenv('TELEGRAM_API_ID')
 API_HASH = os.getenv('TELEGRAM_API_HASH')
+
+if not API_ID_STR or not API_HASH:
+    raise ValueError(f"Missing Telegram credentials! API_ID: {API_ID_STR is not None}, API_HASH: {API_HASH is not None}")
+
+API_ID = int(API_ID_STR)
 
 # Store active QR login sessions
 qr_sessions = {}
