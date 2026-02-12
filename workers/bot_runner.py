@@ -85,8 +85,23 @@ async def start_bot(account_id, session_string):
                 
                 logger.info(f"Received message from {username} ({user_id}) on account {account_id}: {message}")
                 
-                # Process with AI
-                response = ai_handler.handle_message(account_id, user_id, message, username)
+                # Process with AI - with guaranteed response
+                try:
+                    response = ai_handler.handle_message(account_id, user_id, message, username)
+                    
+                    # Ensure we always have a valid response
+                    if not response or not isinstance(response, dict):
+                        logger.warning(f"AI handler returned invalid response: {response}. Using fallback.")
+                        response = {'text': "hey sorry, what was that? my phone's acting weird 😅"}
+                    
+                    # Ensure there's at least some response
+                    if not response.get('text') and not response.get('image_path') and not response.get('async_task'):
+                        logger.warning("AI handler returned empty response. Using fallback.")
+                        response['text'] = "hey! sorry i was spacing out... what's up? 😊"
+                        
+                except Exception as ai_error:
+                    logger.error(f"AI handler crashed: {ai_error}", exc_info=True)
+                    response = {'text': "omg sorry, my phone totally glitched... what did you say? 😅"}
                 
                 if response:
                     # Handle typing delay
@@ -98,7 +113,11 @@ async def start_bot(account_id, session_string):
 
                     # Send text response
                     if response.get('text'):
-                        await event.reply(response['text'])
+                        try:
+                            await event.reply(response['text'])
+                            logger.info(f"[OK] Sent text reply: {response['text'][:50]}...")
+                        except Exception as send_error:
+                            logger.error(f"Failed to send text reply: {send_error}", exc_info=True)
                         
                     # Handle Async Tasks (Image Generation)
                     if response.get('async_task'):
@@ -122,7 +141,7 @@ async def start_bot(account_id, session_string):
                                     try:
                                         logger.info(f"Attempting to send image to chat {event.chat_id}")
                                         await client.send_file(event.chat_id, gen_result['url'], caption="here u go 😘")
-                                        logger.info(f"✓ Image sent successfully!")
+                                        logger.info(f"[OK] Image sent successfully!")
                                     except Exception as e:
                                         logger.error(f"Failed to send image file: {e}", exc_info=True)
                                         await event.reply(f"hmm i can't send the file directly, but here's the link: {gen_result['url']}")
@@ -139,13 +158,22 @@ async def start_bot(account_id, session_string):
                         # Check if file exists or is URL
                         if os.path.exists(img_path) or img_path.startswith('http'):
                             # Send 'uploading photo' action
-                            async with client.action(event.chat_id, 'photo'):
-                                await client.send_file(event.chat_id, img_path)
+                            try:
+                                async with client.action(event.chat_id, 'photo'):
+                                    await client.send_file(event.chat_id, img_path)
+                                logger.info(f"[OK] Sent image: {img_path}")
+                            except Exception as img_error:
+                                logger.error(f"Failed to send image: {img_error}", exc_info=True)
                         else:
-                             await event.reply(f"[DEBUG] Image not found: {img_path}")
+                             logger.warning(f"Image not found: {img_path}")
 
             except Exception as e:
-                logger.error(f"Error handling message: {e}")
+                logger.error(f"Error handling message: {e}", exc_info=True)
+                # Send a fallback response even if everything fails
+                try:
+                    await event.reply("hey sorry, something went weird on my end... what were you saying? 😅")
+                except:
+                    logger.error("Failed to send even the fallback response!", exc_info=True)
 
         
         clients[account_id] = client

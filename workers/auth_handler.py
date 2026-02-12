@@ -3,7 +3,7 @@ import os
 from werkzeug.security import generate_password_hash, check_password_hash
 import secrets
 
-DB_PATH = 'users.db'
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.db')
 
 def init_db():
     """Initialize the users database"""

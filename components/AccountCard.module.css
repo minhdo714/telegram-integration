@@ -116,6 +116,7 @@
 
 .actions {
     display: flex;
+    flex-direction: column;
     gap: 0.75rem;
     padding-top: 1rem;
     margin-top: 1rem;
@@ -123,18 +124,62 @@
 }
 
 .actions .btn {
-    flex: 1;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
     font-size: 0.875rem;
-    padding: 0.625rem 1rem;
+    padding: 0.75rem 1rem;
     white-space: nowrap;
+}
+
+/* Primary Configure AI Button */
+.primaryBtn {
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    padding: 1rem 1.5rem !important;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+    transition: all 0.3s ease;
+}
+
+.primaryBtn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+}
+
+/* Secondary Actions - Horizontal Layout */
+.secondaryActions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: space-between;
+}
+
+.secondaryBtn {
+    flex: 1;
+    font-size: 1.25rem !important;
+    padding: 0.5rem !important;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+    min-width: 0;
+}
+
+.secondaryBtn:hover {
+    opacity: 1;
 }
 
 @media (max-width: 480px) {
     .actions {
-        flex-direction: column;
+        gap: 0.5rem;
     }
 
-    .actions .btn {
-        width: 100%;
+    .primaryBtn {
+        font-size: 0.95rem !important;
+        padding: 0.875rem 1.25rem !important;
+    }
+
+    .secondaryBtn {
+        font-size: 1.1rem !important;
+        padding: 0.4rem !important;
     }
 }

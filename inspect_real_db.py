@@ -1,0 +1,1 @@
+import sqlite3; conn = sqlite3.connect('workers/users.db'); c = conn.cursor(); c.execute('SELECT id, length(session_string), session_status FROM telegram_accounts'); print(c.fetchall()); conn.close()  

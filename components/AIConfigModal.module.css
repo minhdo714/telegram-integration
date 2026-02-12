@@ -1,0 +1,158 @@
+
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal {
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+    overflow: hidden;
+}
+
+.header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.closeBtn {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.content {
+    padding: 1.5rem;
+    overflow-y: auto;
+}
+
+.listHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.card {
+    border: 2px solid #eee;
+    border-radius: 8px;
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.card:hover {
+    border-color: #aaa;
+}
+
+.selected {
+    border-color: var(--color-primary);
+    background-color: rgba(59, 130, 246, 0.05);
+}
+
+.cardHeader {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.deleteBtn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    opacity: 0.5;
+}
+
+.deleteBtn:hover {
+    opacity: 1;
+    color: red;
+}
+
+.preview {
+    font-size: 0.85rem;
+    color: #666;
+    margin-bottom: 0.5rem;
+    height: 2.5em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tags {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.tag {
+    font-size: 0.75rem;
+    background: #eee;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+}
+
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.input, .textarea, .select {
+    padding: 0.8rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-family: inherit;
+}
+
+.textarea {
+    resize: vertical;
+}
+
+.row {
+    display: flex;
+    gap: 1rem;
+}
+
+.row > * {
+    flex: 1;
+}
+
+.actions, .footerActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.full-width {
+    width: 100%;
+}

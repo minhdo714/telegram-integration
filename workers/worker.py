@@ -164,7 +164,8 @@ def login_route():
         return jsonify({"error": str(e)}), 500
 
 # Account Management Routes
-from account_manager import add_account, get_user_accounts, delete_account
+from account_manager import add_account, get_user_accounts, delete_account, update_account_settings
+from ai_config_manager import get_ai_configs, save_ai_config, delete_ai_config
 
 @app.route('/api/accounts', methods=['GET'])
 def list_accounts():
@@ -197,6 +198,10 @@ def add_account_route():
         account_ownership = data.get('accountOwnership', 'user_owned')
         session_status = data.get('sessionStatus', 'active')
         
+        # New fields
+        proxy_url = data.get('proxyUrl')
+        active_config_id = data.get('activeConfigId')
+        
         if not all([user_id, phone_number, session_string]):
             return jsonify({"error": "Missing required fields"}), 400
             
@@ -207,7 +212,9 @@ def add_account_route():
             first_name=first_name,
             last_name=last_name,
             account_ownership=account_ownership,
-            session_status=session_status
+            session_status=session_status,
+            proxy_url=proxy_url,
+            active_config_id=active_config_id
         )
         if 'error' in result:
              return jsonify(result), 500
@@ -228,6 +235,83 @@ def delete_account_route(account_id):
         return jsonify(result), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/accounts/<account_id>/assign-config', methods=['POST'])
+def assign_config_route(account_id):
+    try:
+        data = request.json
+        active_config_id = data.get('activeConfigId')
+        
+        result = update_account_settings(account_id, active_config_id=active_config_id)
+        if 'error' in result:
+             return jsonify(result), 500
+        return jsonify(result), 200
+    except Exception as e:
+         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/accounts/<account_id>/proxy', methods=['POST'])
+def update_proxy_route(account_id):
+    try:
+        data = request.json
+        proxy_url = data.get('proxyUrl') # Can be None/Empty to clear
+        
+        result = update_account_settings(account_id, proxy_url=proxy_url)
+        if 'error' in result:
+             return jsonify(result), 500
+        return jsonify(result), 200
+    except Exception as e:
+         return jsonify({"error": str(e)}), 500
+
+# AI Config Routes
+@app.route('/api/ai-configs', methods=['GET'])
+def list_ai_configs():
+    try:
+        user_id = request.args.get('userId')
+        if not user_id:
+             return jsonify({"error": "User ID required"}), 400
+             
+        result = get_ai_configs(user_id)
+        if 'error' in result:
+             return jsonify(result), 500
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/ai-configs', methods=['POST'])
+def save_ai_config_route():
+    try:
+        data = request.json
+        user_id = data.get('userId')
+        name = data.get('name')
+        system_prompt = data.get('systemPrompt')
+        model_provider = data.get('modelProvider')
+        model_name = data.get('modelName')
+        temperature = data.get('temperature', 0.7)
+        config_id = data.get('id') # If present, update
+        
+        if not all([user_id, name]):
+             return jsonify({"error": "User ID and Name required"}), 400
+             
+        result = save_ai_config(user_id, name, system_prompt, model_provider, model_name, temperature, config_id)
+        if 'error' in result:
+             return jsonify(result), 500
+        return jsonify(result), 200
+    except Exception as e:
+         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/ai-configs/<config_id>', methods=['DELETE'])
+def delete_ai_config_route(config_id):
+    try:
+        user_id = request.args.get('userId')
+        if not user_id:
+             return jsonify({"error": "User ID required"}), 400
+             
+        result = delete_ai_config(config_id, user_id)
+        if 'error' in result:
+             return jsonify(result), 500
+        return jsonify(result), 200
+    except Exception as e:
+         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/send-dm', methods=['POST'])
 def send_dm_route():

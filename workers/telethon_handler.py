@@ -190,17 +190,48 @@ async def check_qr_login_completion(job_id):
                     print(f"SUCCESS: Job {job_id} - Got user info: {me.username} (ID: {account_id})")
                     
                     # Disconnect to flush
-                    await verified_client.disconnect()
+                    # await verified_client.disconnect() # Don't disconnect yet, we need session info!
                     
-                    # Read session file
-                    with open(session_file, 'rb') as f:
-                        session_data = f.read()
-                    print(f"DEBUG: Job {job_id} - Read session file ({len(session_data)} bytes)")
+                    # Convert to StringSession
+                    from telethon.sessions import StringSession
+                    string_session = StringSession()
+                    string_session.set_dc(verified_client.session.dc_id, verified_client.session.server_address, verified_client.session.port)
+                    string_session.auth_key = verified_client.session.auth_key
+                    session_data_str = string_session.save()
+                    
+                    print(f"DEBUG: Job {job_id} - Generated StringSession (len: {len(session_data_str)})")
+                    
+                    if len(session_data_str) < 50:
+                        print(f"ERROR: Job {job_id} - Generated session string is suspiciously short! ({len(session_data_str)} chars). ABORTING SAVE.")
+                    else:
+                        # SAVE TO DB IMMEDIATELY (Server-side reliability)
+                        from account_manager import add_account
+                        try:
+                            print(f"DEBUG: calling add_account for {account_id}")
+                            add_account(
+                                user_id=1, # Default user
+                                phone_number=me.phone,
+                                session_string=session_data_str,
+                                telegram_user_id=str(me.id),
+                                telegram_username=me.username,
+                                first_name=me.first_name,
+                                last_name=me.last_name,
+                                account_ownership='user_owned',
+                                session_status='active'
+                            )
+                            print(f"SUCCESS: Job {job_id} - Account saved to DB server-side.")
+                        except Exception as e:
+                            print(f"ERROR: Job {job_id} - Failed to save account to DB: {e}")
+                            import traceback
+                            traceback.print_exc()
+
+                    await verified_client.disconnect()
                     
                     # Upload session to GitHub (Optional)
                     session_path = "local_only"
                     try:
-                        session_path = await upload_session_to_github(account_id, session_data)
+                        # Upload the STRING session, not bytes
+                        session_path = await upload_session_to_github(account_id, session_data_str.encode('utf-8'))
                         print(f"DEBUG: Job {job_id} - Uploaded session to GitHub")
                     except Exception as e:
                         print(f"Warning: Failed to upload session to GitHub: {e}")
@@ -235,7 +266,7 @@ async def check_qr_login_completion(job_id):
                         'id': account_id,
                         'username': me.username,
                         'phone': me.phone,
-                        'session_string': session_data.decode('latin-1') if isinstance(session_data, bytes) else session_data
+                        'session_string': session_data_str
                     }
                     print(f"SUCCESS: Job {job_id} - Status set to COMPLETED")
                 else:
@@ -337,7 +368,11 @@ def verify_sms_code(phone_number, code, phone_hash, session_string=None):
         # Use the provided session string to maintain context/auth key
         # If no session string (legacy), try fresh session (might fail with 'expired')
         if session_string:
-            client = TelegramClient(StringSession(session_string), API_ID, API_HASH)
+            try:
+                client = TelegramClient(StringSession(session_string), API_ID, API_HASH)
+            except Exception as e:
+                print(f"WARNING: Failed to load session_string ({e}), falling back to fresh session")
+                client = TelegramClient(StringSession(), API_ID, API_HASH)
         else:
             client = TelegramClient(StringSession(), API_ID, API_HASH)
             
@@ -348,6 +383,7 @@ def verify_sms_code(phone_number, code, phone_hash, session_string=None):
             
             me = await client.get_me()
             session_data = client.session.save()
+            print(f"DEBUG: SMS Login - Generated Session String (len: {len(session_data)})")
             
             account_id = str(me.id)
             
@@ -440,6 +476,7 @@ def verify_2fa_password(phone_number, password, session_string=None):
             
             me = await client.get_me()
             session_data = client.session.save()
+            print(f"DEBUG: 2FA Login - Generated Session String (len: {len(session_data)})")
             
             account_id = str(me.id)
             
@@ -477,6 +514,38 @@ def verify_2fa_password(phone_number, password, session_string=None):
     asyncio.set_event_loop(loop)
     return loop.run_until_complete(check_password())
 
+import urllib.parse
+
+def parse_proxy(proxy_url):
+    """Parse proxy URL into python-socks format tuple"""
+    if not proxy_url:
+        return None
+    
+    try:
+        parsed = urllib.parse.urlparse(proxy_url)
+        scheme = parsed.scheme.lower()
+        
+        proxy_type = None
+        if 'socks5' in scheme:
+            import socks
+            proxy_type = socks.SOCKS5
+        elif 'socks4' in scheme:
+            import socks
+            proxy_type = socks.SOCKS4
+        elif 'http' in scheme:
+            proxy_type = 'http' # Telethon accepts 'http' string for HTTP proxies
+        
+        if not proxy_type:
+            return None
+            
+        # Telethon proxy tuple: (mode, addr, port, rdns, username, password)
+        # rdns=True is generally good for privacy
+        
+        return (proxy_type, parsed.hostname, parsed.port, True, parsed.username, parsed.password)
+    except Exception as e:
+        print(f"Error parsing proxy {proxy_url}: {e}")
+        return None
+
 def validate_session(account_id):
     """Validate if a session is still active"""
     async def check_session():
@@ -487,7 +556,7 @@ def validate_session(account_id):
             
             conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
-            c.execute('SELECT session_string FROM telegram_accounts WHERE id = ?', (account_id,))
+            c.execute('SELECT session_string, proxy_url FROM telegram_accounts WHERE id = ?', (account_id,))
             result = c.fetchone()
             conn.close()
             
@@ -495,14 +564,17 @@ def validate_session(account_id):
                 return {'status': 'invalid', 'reason': 'session_not_found', 'message': 'Session not found in database'}
             
             session_data = result[0]
+            proxy_url = result[1]
+            proxy = parse_proxy(proxy_url)
             
             # Try to connect with the session
             if isinstance(session_data, bytes):
                 session_data = session_data.decode('utf-8')
                 
-            client = TelegramClient(StringSession(session_data), API_ID, API_HASH)
+            client = TelegramClient(StringSession(session_data), API_ID, API_HASH, proxy=proxy)
             
             try:
+                # Set lower timeout for validation
                 await client.connect()
                 
                 if await client.is_user_authorized():
@@ -512,7 +584,7 @@ def validate_session(account_id):
                         'status': 'valid',
                         'accountId': account_id,
                         'username': me.username,
-                        'message': 'Session is active and valid'
+                        'message': 'Session is active and valid' + (' (Proxy Enabled)' if proxy else '')
                     }
                 else:
                     await client.disconnect()
@@ -539,7 +611,7 @@ def send_dm(account_id, recipient, message):
             
             conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
-            c.execute('SELECT session_string FROM telegram_accounts WHERE id = ?', (account_id,))
+            c.execute('SELECT session_string, proxy_url FROM telegram_accounts WHERE id = ?', (account_id,))
             result = c.fetchone()
             conn.close()
             
@@ -551,11 +623,14 @@ def send_dm(account_id, recipient, message):
                 }
             
             session_data = result[0]
+            proxy_url = result[1]
+            proxy = parse_proxy(proxy_url)
+
             if isinstance(session_data, bytes):
                 session_data = session_data.decode('utf-8')
             
             # Create Telethon client
-            client = TelegramClient(StringSession(session_data), API_ID, API_HASH)
+            client = TelegramClient(StringSession(session_data), API_ID, API_HASH, proxy=proxy)
             
             try:
                 await client.connect()

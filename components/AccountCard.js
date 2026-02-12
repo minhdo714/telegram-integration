@@ -1,10 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import styles from './AccountCard.module.css';
 
-export default function AccountCard({ account, onDisconnect, onValidate, onReLink }) {
+export default function AccountCard({ account, onDisconnect, onValidate, onReLink, onConfigureAI, onConfigureProxy }) {
     const [isValidating, setIsValidating] = useState(false);
     const [isRelinking, setIsRelinking] = useState(false);
 
@@ -87,7 +86,7 @@ export default function AccountCard({ account, onDisconnect, onValidate, onReLin
                 <span className={`badge badge-${statusBadge.class}`}>
                     {account.sessionStatus === 'active' && '✅'}
                     {account.sessionStatus === 'expired' && '⚠️'}
-                    {account.sessionStatus === 'banned' && '��'}
+                    {account.sessionStatus === 'banned' && '🚫'}
                     {account.sessionStatus === 'cooling' && '❄️'}
                     {statusBadge.label}
                 </span>
@@ -98,6 +97,20 @@ export default function AccountCard({ account, onDisconnect, onValidate, onReLin
                     <span className={styles.label}>Type:</span>
                     <span className={`badge badge-${ownershipBadge.class} ${styles.miniBadge}`}>
                         {ownershipBadge.label}
+                    </span>
+                </div>
+
+                <div className={styles.detailRow}>
+                    <span className={styles.label}>AI Persona:</span>
+                    <span className={styles.value} style={{ fontWeight: 'bold', color: 'var(--color-primary)' }}>
+                        {account.activeConfigName || 'Default'}
+                    </span>
+                </div>
+
+                <div className={styles.detailRow}>
+                    <span className={styles.label}>Proxy:</span>
+                    <span className={styles.value}>
+                        {account.proxyUrl ? '✅ Enabled' : '❌ None'}
                     </span>
                 </div>
 
@@ -134,54 +147,58 @@ export default function AccountCard({ account, onDisconnect, onValidate, onReLin
             </div>
 
             <div className={styles.actions}>
+                {/* Primary Action - Configure AI */}
                 <button
-                    className="btn btn-ghost"
-                    onClick={handleValidate}
-                    disabled={isValidating}
+                    onClick={() => onConfigureAI(account.id)}
+                    className={`btn btn-primary ${styles.primaryBtn}`}
                 >
-                    {isValidating ? (
-                        <>
-                            <span className="spin">⟳</span>
-                            Checking...
-                        </>
-                    ) : (
-                        <>
-                            🔍
-                            Validate
-                        </>
-                    )}
+                    🤖 Configure AI
                 </button>
 
-                <button
-                    className="btn btn-primary"
-                    onClick={handleReLink}
-                    disabled={isRelinking}
-                    title="Disconnect and re-authenticate this account"
-                >
-                    {isRelinking ? (
-                        <>
-                            <span className="spin">⟳</span>
-                            Re-linking...
-                        </>
-                    ) : (
-                        <>
-                            🔄
-                            Re-Link
-                        </>
-                    )}
-                </button>
+                {/* Secondary Actions */}
+                <div className={styles.secondaryActions}>
+                    <button
+                        className={`btn btn-ghost ${styles.secondaryBtn}`}
+                        onClick={() => onConfigureProxy(account)}
+                        title="Proxy Settings"
+                    >
+                        🛡️
+                    </button>
 
-                <button
-                    className="btn btn-ghost"
-                    onClick={() => onDisconnect(account.id)}
-                >
-                    🔌
-                    Disconnect
-                </button>
-                <Link href={`/config?accountId=${account.id}`} className="btn btn-ghost" style={{ textDecoration: 'none', color: 'inherit' }}>
-                    🤖
-                    Configure AI
-                </Link>
+                    <button
+                        className={`btn btn-ghost ${styles.secondaryBtn}`}
+                        onClick={handleValidate}
+                        disabled={isValidating}
+                        title="Check session health"
+                    >
+                        {isValidating ? (
+                            <span className="spin">⟳</span>
+                        ) : (
+                            '🔍'
+                        )}
+                    </button>
+
+                    <button
+                        className={`btn btn-ghost ${styles.secondaryBtn}`}
+                        onClick={handleReLink}
+                        disabled={isRelinking}
+                        title="Re-authenticate this account"
+                    >
+                        {isRelinking ? (
+                            <span className="spin">⟳</span>
+                        ) : (
+                            '🔄'
+                        )}
+                    </button>
+
+                    <button
+                        className={`btn btn-ghost ${styles.secondaryBtn}`}
+                        onClick={() => onDisconnect(account.id)}
+                        title="Disconnect account"
+                    >
+                        🔌
+                    </button>
+                </div>
             </div>
         </div>
     );

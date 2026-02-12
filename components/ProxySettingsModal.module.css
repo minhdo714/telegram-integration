@@ -1,0 +1,89 @@
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal {
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+}
+
+.header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.closeBtn {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.content {
+    padding: 1.5rem;
+}
+
+.info {
+    color: #666;
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+}
+
+.formGroup {
+    margin-bottom: 2rem;
+}
+
+.formGroup label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.input {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-family: monospace;
+}
+
+.hint {
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: #888;
+}
+
+.hint code {
+    background: #f5f5f5;
+    padding: 2px 4px;
+    border-radius: 4px;
+    color: #333;
+}
+
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}

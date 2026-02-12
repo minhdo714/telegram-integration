@@ -27,52 +27,168 @@
     grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
     gap: 10px;
     margin-top: 10px;
+    padding: 8px;
+    overflow: visible;
 }
 
 .openerItem {
     position: relative;
     border-radius: 6px;
-    overflow: hidden;
+    overflow: visible;
     height: 80px;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    user-select: none;
+}
+
+.openerItem:active {
+    cursor: grabbing !important;
 }
 
 .openerItem img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    pointer-events: none;
+    border-radius: 6px;
 }
 
-.removeBtn {
+.deleteBtn {
     position: absolute;
-    top: 2px;
-    right: 2px;
-    background: rgba(0, 0, 0, 0.6);
+    top: -6px;
+    right: -6px;
+    background: rgba(239, 68, 68, 0.95);
     color: white;
-    border: none;
+    border: 2px solid white;
     border-radius: 50%;
-    width: 20px;
-    height: 20px;
-    font-size: 12px;
+    width: 26px;
+    height: 26px;
+    font-size: 16px;
+    font-weight: bold;
+    line-height: 1;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s ease;
+    z-index: 10;
+}
+
+.deleteBtn:hover {
+    background: rgba(220, 38, 38, 1);
+    transform: scale(1.15);
+    box-shadow: 0 3px 12px rgba(239, 68, 68, 0.5);
 }
 
 .accountSelector {
     padding: 12px;
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(30, 30, 30, 0.95);
+    border: 1px solid rgba(139, 92, 246, 0.3);
     border-radius: 8px;
-    color: white;
+    color: #ffffff;
     width: 100%;
     margin-bottom: 20px;
     font-size: 16px;
     appearance: none;
     cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.accountSelector option {
+    background: #1e1e1e;
+    color: #ffffff;
+    padding: 12px;
+}
+
+.accountSelector:hover {
+    border-color: rgba(139, 92, 246, 0.5);
+    background: rgba(30, 30, 30, 1);
 }
 
 .accountSelector:focus {
     outline: none;
     border-color: var(--color-primary);
+}
+
+/* Responsive Grid Layout */
+.configGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 40px;
+}
+
+@media (max-width: 968px) {
+    .configGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Info Tooltip Styles */
+.tooltipContainer {
+    position: relative;
+    display: inline-flex;
+    cursor: help;
+    user-select: none;
+}
+
+.infoIcon {
+    font-size: 16px;
+    opacity: 0.7;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.infoIcon:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.tooltip {
+    position: fixed;
+    background: rgba(0, 0, 0, 0.95);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: normal;
+    max-width: min(280px, calc(100vw - 40px));
+    min-width: 200px;
+    width: max-content;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 10000;
+    animation: fadeIn 0.2s ease;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    pointer-events: none;
+    margin-top: 8px;
+}
+
+.tooltip::after {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 20px;
+    border: 6px solid transparent;
+    border-bottom-color: rgba(0, 0, 0, 0.95);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+/* Responsive tooltip positioning */
+@media (max-width: 768px) {
+    .tooltip {
+        max-width: 220px;
+        font-size: 12px;
+        padding: 10px 12px;
+    }
 }

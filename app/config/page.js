@@ -1,10 +1,69 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Navigation from '@/components/Navigation';
 import styles from '@/components/MessageComposer.module.css'; // Global container styles
 import assetStyles from './AIConfig.module.css'; // New asset specific styles
+
+// Info Tooltip Component
+function InfoTooltip({ text }) {
+    const [showTooltip, setShowTooltip] = useState(false);
+    const [tooltipPos, setTooltipPos] = useState({ top: 0, left: 0 });
+    const iconRef = useRef(null);
+
+    const updatePosition = (element) => {
+        if (!element) return;
+        const rect = element.getBoundingClientRect();
+        const tooltipWidth = 280;
+        const padding = 20;
+
+        let left = rect.left;
+        let top = rect.bottom + 8;
+
+        // Prevent overflow on the right
+        if (left + tooltipWidth > window.innerWidth - padding) {
+            left = window.innerWidth - tooltipWidth - padding;
+        }
+
+        // Prevent overflow on the left
+        if (left < padding) {
+            left = padding;
+        }
+
+        setTooltipPos({ top, left });
+    };
+
+    return (
+        <div
+            className={assetStyles.tooltipContainer}
+            ref={iconRef}
+            onMouseEnter={(e) => {
+                setShowTooltip(true);
+                updatePosition(e.currentTarget);
+            }}
+            onMouseLeave={() => setShowTooltip(false)}
+            onClick={(e) => {
+                const newState = !showTooltip;
+                setShowTooltip(newState);
+                if (newState) updatePosition(e.currentTarget);
+            }}
+        >
+            <span className={assetStyles.infoIcon}>ℹ️</span>
+            {showTooltip && (
+                <div
+                    className={assetStyles.tooltip}
+                    style={{
+                        top: `${tooltipPos.top}px`,
+                        left: `${tooltipPos.left}px`
+                    }}
+                >
+                    {text}
+                </div>
+            )}
+        </div>
+    );
+}
 
 export default function AIConfig() {
     const searchParams = useSearchParams();
@@ -19,11 +78,31 @@ export default function AIConfig() {
     const [faceRef, setFaceRef] = useState(null);
     const [roomRef, setRoomRef] = useState(null);
     const [openers, setOpeners] = useState([]);
+    const [draggedIndex, setDraggedIndex] = useState(null);
 
     // Outreach State
     const [usernames, setUsernames] = useState('');
     const [outreachMessage, setOutreachMessage] = useState('');
     const [isSending, setIsSending] = useState(false);
+    const [countdown, setCountdown] = useState(null); // safely tracks seconds remaining
+
+    // Timer effect for countdown
+    useEffect(() => {
+        let timer;
+        if (countdown !== null && countdown > 0) {
+            timer = setInterval(() => {
+                setCountdown(prev => (prev > 0 ? prev - 1 : 0));
+            }, 1000);
+        }
+        return () => clearInterval(timer);
+    }, [countdown]);
+
+    // Format seconds into MM:SS
+    const formatTime = (seconds) => {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
+    };
 
     useEffect(() => {
         fetchAccounts();
@@ -139,6 +218,28 @@ export default function AIConfig() {
         }
     };
 
+    const handleDragStart = (e, index) => {
+        setDraggedIndex(index);
+        e.dataTransfer.effectAllowed = 'move';
+    };
+
+    const handleDragOver = (e, index) => {
+        e.preventDefault();
+        if (draggedIndex === null || draggedIndex === index) return;
+
+        const newOpeners = [...openers];
+        const draggedItem = newOpeners[draggedIndex];
+        newOpeners.splice(draggedIndex, 1);
+        newOpeners.splice(index, 0, draggedItem);
+
+        setOpeners(newOpeners);
+        setDraggedIndex(index);
+    };
+
+    const handleDragEnd = () => {
+        setDraggedIndex(null);
+    };
+
     const deleteAsset = async (type, filename, assetPath) => {
         if (!selectedAccountId) return;
 
@@ -175,7 +276,6 @@ export default function AIConfig() {
         }
     };
 
-    // Outreach Logic
     const handleStartOutreach = async () => {
         if (!selectedAccountId) return alert('Please select an account');
         if (!usernames.trim()) return alert('Please enter at least one username');
@@ -183,12 +283,24 @@ export default function AIConfig() {
         const userList = usernames.split(/[\n,]+/).map(u => u.trim()).filter(u => u);
         if (userList.length === 0) return alert('No valid usernames found');
 
-        setIsSending(true);
-        addLog(`[Outreach] Starting to ${userList.length} users...`);
+        // SAFETY: Random Daily Cap between 15 and 30
+        const dailyCap = Math.floor(Math.random() * (30 - 15 + 1)) + 15;
+        const targetList = userList.slice(0, dailyCap);
 
-        for (const user of userList) {
+        if (userList.length > dailyCap) {
+            alert(`SAFETY LIMIT: Sending to only first ${dailyCap} users to prevent ban. (Daily Cap: 15-30)`);
+        }
+
+        setIsSending(true);
+        addLog(`[Outreach] Starting safe blast to ${targetList.length} users...`);
+        addLog(`[Safety] Daily Cap set to: ${dailyCap} messages`);
+
+        for (let i = 0; i < targetList.length; i++) {
+            const user = targetList[i];
             const recipient = user.replace('@', '');
-            addLog(`[Outreach] Sending to @${recipient}...`);
+
+            // Send Message
+            addLog(`[Outreach] Sending to @${recipient} (${i + 1}/${targetList.length})...`);
 
             try {
                 const msgToSend = outreachMessage || "Hey! Saw you on my feed...";
@@ -213,12 +325,28 @@ export default function AIConfig() {
             } catch (err) {
                 addLog(`[Outreach] ❌ Error @${recipient}: ${err.message}`);
             }
-            // 2s delay
-            await new Promise(r => setTimeout(r, 2000));
+
+            // SAFETY: Delay logic (only if not the last message)
+            if (i < targetList.length - 1) {
+                // Random delay between 5 to 15 minutes (300 to 900 seconds)
+                const minDelay = 5 * 60;
+                const maxDelay = 15 * 60;
+                const delaySeconds = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
+
+                addLog(`[Safety] Waiting ${Math.floor(delaySeconds / 60)}m ${delaySeconds % 60}s before next...`);
+
+                setCountdown(delaySeconds);
+
+                // Wait for the delay
+                await new Promise(resolve => setTimeout(resolve, delaySeconds * 1000));
+
+                setCountdown(null);
+            }
         }
 
         setIsSending(false);
-        addLog('[Outreach] Batch complete.');
+        setCountdown(null);
+        addLog('[Outreach] Batch complete. Stay safe! 🛡️');
     };
 
     const toggleBot = async () => {
@@ -265,9 +393,9 @@ export default function AIConfig() {
                     <h1 className="title">AI Chatbot Configuration</h1>
                     <p className="subtitle">Manage per-account assets and selling personality</p>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginTop: '40px' }}>
+                    <div className={assetStyles.configGrid}>
 
-                        {/* LEFT COLUMN: Controls & Status */}
+                        {/* Section 1: Bot Control */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
                             <div className={styles.modal} style={{ margin: 0, width: '100%', maxWidth: 'none', background: 'rgba(255,255,255,0.03)' }}>
                                 <div className={styles.header}>
@@ -312,49 +440,9 @@ export default function AIConfig() {
                                     </div>
                                 </div>
                             </div>
-
-                            {/* Manual Outreach Section (Moved from separate page) */}
-                            <div className={styles.modal} style={{ margin: 0, width: '100%', maxWidth: 'none', background: 'rgba(255,255,255,0.03)' }}>
-                                <div className={styles.header}>
-                                    <h2>Manual Outreach</h2>
-                                </div>
-                                <div className={styles.form}>
-                                    <div className={styles.field}>
-                                        <label>Your sample chats (Optional)</label>
-                                        <textarea
-                                            value={outreachMessage}
-                                            onChange={e => setOutreachMessage(e.target.value)}
-                                            placeholder="Paste all sample chats here... The AI will adopt this vibe."
-                                            style={{ width: '100%', height: '60px', padding: '10px', borderRadius: '8px', background: '#333', color: 'white', border: '1px solid #555' }}
-                                        />
-                                        <div style={{ fontSize: '10px', color: '#888', marginTop: '4px' }}>
-                                            * This text is sent as the first message.
-                                        </div>
-                                    </div>
-
-                                    <div className={styles.field}>
-                                        <label>Target Usernames (One per line)</label>
-                                        <textarea
-                                            value={usernames}
-                                            onChange={e => setUsernames(e.target.value)}
-                                            placeholder="@user1&#10;@user2&#10;user3"
-                                            style={{ width: '100%', height: '100px', padding: '10px', borderRadius: '8px', background: '#333', color: 'white', border: '1px solid #555' }}
-                                        />
-                                    </div>
-
-                                    <button
-                                        onClick={handleStartOutreach}
-                                        disabled={isSending || !selectedAccountId}
-                                        className="btn btn-primary"
-                                        style={{ width: '100%', marginTop: '10px', opacity: isSending ? 0.7 : 1, background: '#6366f1' }}
-                                    >
-                                        {isSending ? 'Sending...' : 'Start Blast 🚀'}
-                                    </button>
-                                </div>
-                            </div>
                         </div>
 
-                        {/* RIGHT COLUMN: Account & Assets */}
+                        {/* Section 2: Bot Identity & Assets */}
                         <div className={styles.modal} style={{ margin: 0, width: '100%', maxWidth: 'none', background: 'rgba(255,255,255,0.03)' }}>
                             <div className={styles.header}>
                                 <h2>Bot Identity & Assets</h2>
@@ -363,7 +451,10 @@ export default function AIConfig() {
 
                                 {/* Account Selector */}
                                 <div className={styles.field}>
-                                    <label>Select Account to Configure</label>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                        <label style={{ margin: 0 }}>Select Account to Configure</label>
+                                        <InfoTooltip text="Choose which Telegram account you want to customize. Each account can have its own unique AI personality, photos, and conversation style." />
+                                    </div>
                                     <select
                                         className={assetStyles.accountSelector}
                                         value={selectedAccountId}
@@ -380,7 +471,10 @@ export default function AIConfig() {
 
                                 {/* Face Reference */}
                                 <div className={styles.field}>
-                                    <label>Model Face Reference (Mandatory)</label>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                        <label style={{ margin: 0 }}>Model Face Reference (Mandatory)</label>
+                                        <InfoTooltip text="Upload a clear photo of the model's face. The AI will use this to generate custom images when fans request photos. This ensures all generated content looks like the same person and maintains authenticity." />
+                                    </div>
                                     <div className={assetStyles.uploadZone} style={{ position: 'relative' }}>
                                         <input
                                             type="file"
@@ -391,7 +485,9 @@ export default function AIConfig() {
                                         />
                                         {faceRef ? (
                                             <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                                                <img src={faceRef} className={assetStyles.previewImage} alt="Face Ref" />
+                                                <label htmlFor="face-upload" style={{ cursor: 'pointer', display: 'block', width: '100%', height: '100%' }} title="Click to Replace">
+                                                    <img src={faceRef} className={assetStyles.previewImage} alt="Face Ref" />
+                                                </label>
                                                 <button
                                                     onClick={(e) => {
                                                         e.preventDefault();
@@ -428,30 +524,38 @@ export default function AIConfig() {
 
                                 {/* Opener Images */}
                                 <div className={styles.field}>
-                                    <label>Opener Images (Chat Library)</label>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                        <label style={{ margin: 0 }}>Opener Images (Chat Library)</label>
+                                        <InfoTooltip text="Upload teaser photos that the bot will randomly send when starting new conversations. These are your 'hello' images that hook fans right away and get them interested. The more variety, the better!" />
+                                    </div>
                                     <div className={assetStyles.openerGrid}>
                                         {openers.map((src, i) => (
-                                            <div key={i} className={assetStyles.openerItem} style={{ position: 'relative' }}>
-                                                <img src={src} alt={`Opener ${i}`} />
+                                            <div
+                                                key={i}
+                                                className={assetStyles.openerItem}
+                                                draggable
+                                                onDragStart={(e) => handleDragStart(e, i)}
+                                                onDragOver={(e) => handleDragOver(e, i)}
+                                                onDragEnd={handleDragEnd}
+                                                style={{
+                                                    opacity: draggedIndex === i ? 0.5 : 1,
+                                                    cursor: 'grab'
+                                                }}
+                                            >
+                                                <img
+                                                    src={src}
+                                                    alt={`Opener ${i + 1}`}
+                                                    draggable={false}
+                                                />
                                                 <button
-                                                    onClick={() => deleteAsset('opener', null, src)}
-                                                    style={{
-                                                        position: 'absolute',
-                                                        top: '5px',
-                                                        right: '5px',
-                                                        background: 'rgba(0,0,0,0.6)',
-                                                        border: 'none',
-                                                        borderRadius: '50%',
-                                                        width: '24px',
-                                                        height: '24px',
-                                                        cursor: 'pointer',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        padding: '4px'
+                                                    className={assetStyles.deleteBtn}
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        deleteAsset('opener', null, src);
                                                     }}
+                                                    title="Delete image"
                                                 >
-                                                    <TrashIcon />
+                                                    ✕
                                                 </button>
                                             </div>
                                         ))}
@@ -473,58 +577,63 @@ export default function AIConfig() {
                                     <small style={{ color: '#666' }}>Bot will randomly pick one of these to start conversations.</small>
                                 </div>
 
-                                {/* Room Background */}
-                                <div className={styles.field}>
-                                    <label>Room Background (Optional)</label>
-                                    <div className={assetStyles.uploadZone} style={{ position: 'relative' }}>
-                                        <input
-                                            type="file"
-                                            accept="image/*"
-                                            style={{ display: 'none' }}
-                                            id="room-upload"
-                                            onChange={(e) => e.target.files[0] && handleUpload('room', e.target.files[0])}
-                                        />
-                                        {roomRef ? (
-                                            <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                                                <img src={roomRef} className={assetStyles.previewImage} alt="Room BG" />
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        deleteAsset('room', null, roomRef);
-                                                    }}
-                                                    style={{
-                                                        position: 'absolute',
-                                                        top: '10px',
-                                                        right: '10px',
-                                                        background: 'rgba(0,0,0,0.6)',
-                                                        border: 'none',
-                                                        borderRadius: '50%',
-                                                        width: '32px',
-                                                        height: '32px',
-                                                        cursor: 'pointer',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        justifyContent: 'center',
-                                                        zIndex: 10
-                                                    }}
-                                                >
-                                                    <TrashIcon />
-                                                </button>
-                                            </div>
-                                        ) : (
-                                            <label htmlFor="room-upload" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', width: '100%' }}>
-                                                <div style={{ color: '#aaa', marginBottom: '8px' }}>🖼️</div>
-                                                <div style={{ color: '#aaa' }}>Click to upload Room Background</div>
-                                            </label>
-                                        )}
-                                    </div>
-                                </div>
-
 
                             </div>
                         </div>
 
+                        {/* Section 3: Automated Outreach */}
+                        <div className={styles.modal} style={{ margin: 0, width: '100%', maxWidth: 'none', background: 'rgba(255,255,255,0.03)' }}>
+                            <div className={styles.header}>
+                                <h2>Automated Outreach</h2>
+                            </div>
+                            <div className={styles.form}>
+                                <div className={styles.field}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                        <label style={{ margin: 0 }}>Your sample chats (Optional)</label>
+                                        <InfoTooltip text="Paste examples of your natural conversation style. The AI will learn from these to make automated messages sound authentic and match your personality." />
+                                    </div>
+                                    <textarea
+                                        value={outreachMessage}
+                                        onChange={e => setOutreachMessage(e.target.value)}
+                                        placeholder="Paste all sample chats here... The AI will adopt this vibe."
+                                        style={{ width: '100%', height: '60px', padding: '10px', borderRadius: '8px', background: '#333', color: 'white', border: '1px solid #555' }}
+                                    />
+                                    <div style={{ fontSize: '10px', color: '#888', marginTop: '4px' }}>
+                                        * This text is sent as the first message.
+                                    </div>
+                                </div>
+
+                                <div className={styles.field}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                        <label style={{ margin: 0 }}>Target Usernames (One per line)</label>
+                                        <InfoTooltip text="List Telegram usernames to automatically message. The system sends 15-30 messages per day with 5-15 minute delays between each to avoid bans and stay safe." />
+                                    </div>
+                                    <textarea
+                                        value={usernames}
+                                        onChange={e => setUsernames(e.target.value)}
+                                        placeholder="@user1&#10;@user2&#10;user3"
+                                        style={{ width: '100%', height: '100px', padding: '10px', borderRadius: '8px', background: '#333', color: 'white', border: '1px solid #555' }}
+                                    />
+                                </div>
+
+                                <button
+                                    onClick={handleStartOutreach}
+                                    disabled={isSending || !selectedAccountId}
+                                    className="btn btn-primary"
+                                    style={{ width: '100%', marginTop: '10px', opacity: isSending ? 0.7 : 1, background: '#6366f1' }}
+                                >
+                                    {isSending ? (countdown ? `Waiting ${formatTime(countdown)}...` : 'Sending...') : 'Start Blast 🚀'}
+                                </button>
+                                {isSending && countdown > 0 && (
+                                    <div style={{ marginTop: '8px', textAlign: 'center', fontSize: '12px', color: '#fbbf24' }}>
+                                        ⚠️ Safety Delay Active: Resumes in {formatTime(countdown)}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
+
+
                 </div>
             </div>
         </>
