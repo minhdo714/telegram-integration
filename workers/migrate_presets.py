@@ -2,7 +2,8 @@ import sqlite3
 import os
 
 def migrate():
-    db_path = os.path.join(os.getcwd(), 'telegram-integration/workers/users.db')
+    # Use path relative to this script
+    db_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.db')
     if not os.path.exists(db_path):
         print(f"Database not found at {db_path}")
         return

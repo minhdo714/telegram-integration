@@ -27,6 +27,13 @@ import sys
 import time
 import traceback
 from flask import send_from_directory
+from migrate_presets import migrate
+
+# Run database migrations on startup
+try:
+    migrate()
+except Exception as e:
+    print(f"Migration error: {e}")
 
 app = Flask(__name__)
 # Allow requests from production (Vercel) and development (localhost)
