@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-const WORKER_URL = process.env.RAILWAY_WORKER_URL || 'http://localhost:5000';
+const WORKER_URL = process.env.RAILWAY_WORKER_URL || 'http://127.0.0.1:5000';
 
 export async function GET(request) {
     const { searchParams } = new URL(request.url);

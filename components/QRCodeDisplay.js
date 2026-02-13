@@ -147,7 +147,19 @@ export default function QRCodeDisplay({ onSuccess, onError }) {
                 <div className={styles.success}>
                     <div className={styles.successIcon}>✅</div>
                     <h3>Successfully Scanned!</h3>
-                    <p>Completing setup...</p>
+                    <div style={{
+                        background: 'rgba(99, 102, 241, 0.1)',
+                        padding: '15px',
+                        borderRadius: '12px',
+                        border: '1px solid #4ade80',
+                        marginTop: '15px',
+                        textAlign: 'left'
+                    }}>
+                        <p style={{ fontWeight: 'bold', color: 'white', marginBottom: '5px', fontSize: '13px' }}>🔔 LAST STEP:</p>
+                        <p style={{ fontSize: '14px', lineHeight: '1.4', color: '#ddd' }}>
+                            Go to your <strong>main Telegram chat</strong> on your phone and <strong>verify the login</strong> to finish linking.
+                        </p>
+                    </div>
                 </div>
             )}
 

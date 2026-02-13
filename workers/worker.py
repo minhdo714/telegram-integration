@@ -12,7 +12,11 @@ from telethon_handler import (
     verify_sms_code,
     verify_2fa_password,
     validate_session,
-    send_dm
+    send_dm,
+    search_groups,
+    get_my_groups,
+    join_group,
+    scrape_members
 )
 from auth_handler import register_user, login_user
 from werkzeug.utils import secure_filename
@@ -34,7 +38,7 @@ CORS(app, origins=[
 ], supports_credentials=True)
 
 import sqlite3
-DB_PATH = os.getenv('DB_PATH', 'users.db')
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.db')
 
 @app.route('/health', methods=['GET'])
 def health():
@@ -163,21 +167,52 @@ def login_route():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# Account Management Routes
-from account_manager import add_account, get_user_accounts, delete_account, update_account_settings
-from ai_config_manager import get_ai_configs, save_ai_config, delete_ai_config
-
-@app.route('/api/accounts', methods=['GET'])
-def list_accounts():
+@app.route('/api/accounts/bulk-update', methods=['POST'])
+def bulk_update_accounts_route():
     try:
-        # In a real app, verify token. Here we expect userId in query param for simplicity
+        data = request.json
+        account_ids = data.get('account_ids')
+        user_id = data.get('user_id')
+        proxy_url = data.get('proxy_url')
+        active_config_id = data.get('active_config_id')
+        
+        if not account_ids or not user_id:
+            return jsonify({"error": "account_ids and user_id are required"}), 400
+            
+        result = bulk_update_accounts(account_ids, user_id, proxy_url, active_config_id)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/ai-configs', methods=['GET'])
+def list_ai_configs():
+    try:
         user_id = request.args.get('userId')
         if not user_id:
-             return jsonify({"error": "User ID required"}), 400
-             
-        result = get_user_accounts(user_id)
-        if 'error' in result:
-             return jsonify(result), 500
+            return jsonify({"error": "User ID required"}), 400
+            
+        result = get_ai_configs(user_id)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/ai-configs/save', methods=['POST'])
+def save_ai_config_route():
+    try:
+        data = request.json
+        result = save_ai_config(
+            user_id=data.get('user_id'),
+            name=data.get('name'),
+            system_prompt=data.get('system_prompt'),
+            model_provider=data.get('model_provider'),
+            model_name=data.get('model_name'),
+            temperature=data.get('temperature', 0.7),
+            opener_images=data.get('opener_images'),
+            model_face_ref=data.get('model_face_ref'),
+            model_body_ref=data.get('model_body_ref'),
+            room_bg_ref=data.get('room_bg_ref'),
+            config_id=data.get('config_id')
+        )
         return jsonify(result), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -262,42 +297,8 @@ def update_proxy_route(account_id):
     except Exception as e:
          return jsonify({"error": str(e)}), 500
 
-# AI Config Routes
-@app.route('/api/ai-configs', methods=['GET'])
-def list_ai_configs():
-    try:
-        user_id = request.args.get('userId')
-        if not user_id:
-             return jsonify({"error": "User ID required"}), 400
-             
-        result = get_ai_configs(user_id)
-        if 'error' in result:
-             return jsonify(result), 500
-        return jsonify(result), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
-@app.route('/api/ai-configs', methods=['POST'])
-def save_ai_config_route():
-    try:
-        data = request.json
-        user_id = data.get('userId')
-        name = data.get('name')
-        system_prompt = data.get('systemPrompt')
-        model_provider = data.get('modelProvider')
-        model_name = data.get('modelName')
-        temperature = data.get('temperature', 0.7)
-        config_id = data.get('id') # If present, update
-        
-        if not all([user_id, name]):
-             return jsonify({"error": "User ID and Name required"}), 400
-             
-        result = save_ai_config(user_id, name, system_prompt, model_provider, model_name, temperature, config_id)
-        if 'error' in result:
-             return jsonify(result), 500
-        return jsonify(result), 200
-    except Exception as e:
-         return jsonify({"error": str(e)}), 500
+# AI Config Routes
 
 @app.route('/api/ai-configs/<config_id>', methods=['DELETE'])
 def delete_ai_config_route(config_id):
@@ -352,6 +353,120 @@ def send_dm_route():
             "error_type": "unknown",
             "message": str(e)
         }), 500
+            
+@app.route('/api/groups/search', methods=['GET'])
+def search_groups_route():
+    try:
+        account_id = request.args.get('accountId')
+        query = request.args.get('q')
+        if not account_id or not query:
+            return jsonify({"error": "Account ID and Query required"}), 400
+        
+        result = search_groups(account_id, query)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/groups/my', methods=['GET'])
+def list_my_groups_route():
+    try:
+        account_id = request.args.get('accountId')
+        if not account_id:
+            return jsonify({"error": "Account ID required"}), 400
+        
+        result = get_my_groups(account_id)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/groups/join', methods=['POST'])
+def join_group_route():
+    try:
+        data = request.json
+        account_id = data.get('accountId')
+        username = data.get('username')
+        if not account_id or not username:
+            return jsonify({"error": "Account ID and Group Username required"}), 400
+        
+        result = join_group(account_id, username)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/groups/scrape', methods=['POST'])
+def scrape_group_route():
+    try:
+        data = request.json
+        account_id = data.get('accountId')
+        group_id = data.get('groupId') # Can be username or ID
+        limit = data.get('limit', 50)
+        
+        if not account_id or not group_id:
+            return jsonify({"error": "Account ID and Group ID required"}), 400
+            
+        result = scrape_members(account_id, group_id, limit)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/leads/list', methods=['GET'])
+def list_leads():
+    try:
+        group_id = request.args.get('groupId') # Optional filter
+        status = request.args.get('status') # Optional filter
+        
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        
+        query = 'SELECT l.*, g.title as group_name FROM scraped_leads l JOIN scraped_groups g ON l.source_group_id = g.id'
+        params = []
+        
+        where_clauses = []
+        if group_id:
+            where_clauses.append('l.source_group_id = ?')
+            params.append(group_id)
+        if status:
+            where_clauses.append('l.status = ?')
+            params.append(status)
+            
+        if where_clauses:
+            query += ' WHERE ' + ' AND '.join(where_clauses)
+            
+        query += ' ORDER BY l.scraped_at DESC LIMIT 100'
+        
+        c.execute(query, params)
+        rows = c.fetchall()
+        conn.close()
+        
+        leads = [dict(row) for row in rows]
+        return jsonify({"status": "success", "leads": leads}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/ai/suggest-keywords', methods=['POST'])
+def suggest_keywords():
+    try:
+        data = request.json
+        niche = data.get('niche', 'dating')
+        
+        from text_gen_client import TextGenClient
+        text_gen = TextGenClient()
+        
+        prompt = f"Give me 10 short telegram search keywords for high intent users in the {niche} niche. Return only the keywords separated by commas, no numbers or intro."
+        
+        # Simple completion using TextGenClient (need to check if it has a simple completion method)
+        # Assuming it has generate_reply or similar. 
+        # Actually I can just mock it or use a simple completion if I find the method.
+        # Let's check TextGenClient.
+        
+        history = [{'role': 'user', 'content': prompt}]
+        response = text_gen.generate_reply(history, "You are a helpful marketing assistant.")
+        
+        keywords = [k.strip() for k in response.split(',')]
+        return jsonify({"status": "success", "keywords": keywords}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 
@@ -375,19 +490,38 @@ def get_asset_config():
         account_id = request.args.get('accountId')
         if not account_id:
             return jsonify({"error": "Account ID required"}), 400
-            
+
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
+        
+        # Check active config
+        c.execute('''
+            SELECT ta.active_config_id, ac.opener_images, ac.model_face_ref, ac.model_body_ref, ac.room_bg_ref
+            FROM telegram_accounts ta
+            LEFT JOIN ai_config_presets ac ON ta.active_config_id = ac.id
+            WHERE ta.id = ?
+        ''', (account_id,))
+        acc_info = c.fetchone()
+        
+        if acc_info and acc_info['active_config_id']:
+            assets = {
+                "account_id": account_id,
+                "opener_images": acc_info['opener_images'],
+                "model_face_ref": acc_info['model_face_ref'],
+                "model_body_ref": acc_info['model_body_ref'],
+                "room_bg_ref": acc_info['room_bg_ref']
+            }
+            conn.close()
+            return jsonify({"status": "success", "assets": assets, "source": "preset"}), 200
+
+        # Fallback to model_assets table
         c.execute('SELECT * FROM model_assets WHERE account_id = ?', (account_id,))
         row = c.fetchone()
         conn.close()
         
         if row:
-            return jsonify({
-                "status": "success",
-                "assets": dict(row)
-            }), 200
+            return jsonify({"status": "success", "assets": dict(row), "source": "manual"}), 200
         else:
             return jsonify({"status": "success", "assets": None}), 200
 

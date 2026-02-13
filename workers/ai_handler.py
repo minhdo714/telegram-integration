@@ -132,8 +132,8 @@ class AIHandler:
                 response['text'] = "i'm loving this vibe... quick question tho, what's usually your type? like are you into the whole innocent student thing, or maybe something more bossy? 😉"
                 new_state = STATE_PREF_ASKED
             else:
-                # Continue Small Talk - Enhance prompt
-                system_prompt = (
+                # Continue Small Talk - Use preset prompt if available
+                system_prompt = assets.get('system_prompt') if assets and assets.get('system_prompt') else (
                     "You are a flirty, fun, and real OF model. "
                     "Your goal is to build a connection. "
                     "Be playfully teasing but keep it grounded. "
@@ -143,11 +143,15 @@ class AIHandler:
                     "Be articulate and engaging. "
                     "You can write longer sentences if needed to be more expressive, but keep it natural."
                 )
+                
                 # Increase context limit to start avoiding repetition
                 history = self._get_conversation_history(session['id'], limit=50)
                 history.append({'role': 'user', 'content': message_text})
                 
-                response['text'] = self.text_gen.generate_reply(history, system_prompt)
+                # Determine model to use
+                model_name = assets.get('model_name') if assets and assets.get('model_name') else None
+                
+                response['text'] = self.text_gen.generate_reply(history, system_prompt, model=model_name)
                 new_state = STATE_SMALL_TALK
 
         elif current_state == STATE_PREF_ASKED:
@@ -326,12 +330,40 @@ class AIHandler:
             conn = sqlite3.connect(DB_PATH)
             conn.row_factory = sqlite3.Row
             c = conn.cursor()
+            
+            # 1. Check if account has an active preset
+            c.execute('''
+                SELECT ta.active_config_id, ac.opener_images, ac.model_face_ref, ac.model_body_ref, ac.room_bg_ref,
+                       ac.system_prompt, ac.temperature, ac.model_name, ac.model_provider
+                FROM telegram_accounts ta
+                LEFT JOIN ai_config_presets ac ON ta.active_config_id = ac.id
+                WHERE ta.id = ?
+            ''', (account_id,))
+            acc_info = c.fetchone()
+            
+            if acc_info and acc_info['active_config_id']:
+                assets = {
+                    "account_id": account_id,
+                    "opener_images": acc_info['opener_images'],
+                    "model_face_ref": acc_info['model_face_ref'],
+                    "model_body_ref": acc_info['model_body_ref'],
+                    "room_bg_ref": acc_info['room_bg_ref'],
+                    "system_prompt": acc_info['system_prompt'],
+                    "temperature": acc_info['temperature'],
+                    "model_name": acc_info['model_name'],
+                    "model_provider": acc_info['model_provider']
+                }
+                conn.close()
+                return assets
+
+            # 2. Fallback to model_assets
             c.execute('SELECT * FROM model_assets WHERE account_id = ?', (account_id,))
             assets = c.fetchone()
             conn.close()
             return dict(assets) if assets else None
         except Exception as e:
             print(f"Error fetching assets: {e}")
+            return None
             
     def _reset_session(self, session_id):
         try:

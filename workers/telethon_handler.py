@@ -1,12 +1,17 @@
-from telethon import TelegramClient, events
+from telethon import TelegramClient, events, functions, types
 from telethon.tl.functions.auth import ExportLoginTokenRequest, ImportLoginTokenRequest
-from telethon.errors import SessionPasswordNeededError, FloodWaitError
+from telethon.tl.functions.contacts import SearchRequest
+from telethon.tl.functions.channels import JoinChannelRequest, GetParticipantsRequest
+from telethon.tl.functions.messages import GetDialogsRequest
+from telethon.tl.types import ChannelParticipantsSearch, UserStatusOnline, UserStatusRecently, UserStatusOffline, InputMessagesFilterChatPhotos
+from telethon.errors import SessionPasswordNeededError, FloodWaitError, ChatWriteForbiddenError, UserIsBlockedError
 from telethon.sessions import StringSession
 import asyncio
 import os
 import io
 import qrcode
 import base64
+import traceback
 from github_session_manager import upload_session_to_github, download_session_from_github
 from sheets_connector import save_account_to_sheets, update_job_status
 from account_manager import add_account
@@ -580,6 +585,14 @@ def validate_session(account_id):
                 if await client.is_user_authorized():
                     me = await client.get_me()
                     await client.disconnect()
+                    
+                    # Update status in DB to ensure it's marked active
+                    conn = sqlite3.connect(DB_PATH)
+                    c = conn.cursor()
+                    c.execute('UPDATE telegram_accounts SET session_status = "active" WHERE id = ?', (account_id,))
+                    conn.commit()
+                    conn.close()
+                    
                     return {
                         'status': 'valid',
                         'accountId': account_id,
@@ -588,9 +601,27 @@ def validate_session(account_id):
                     }
                 else:
                     await client.disconnect()
-                    return {'status': 'invalid', 'reason': 'not_authorized', 'message': 'Session is not authorized'}
+                    
+                    # Update status in DB
+                    conn = sqlite3.connect(DB_PATH)
+                    c = conn.cursor()
+                    c.execute('UPDATE telegram_accounts SET session_status = "expired" WHERE id = ?', (account_id,))
+                    conn.commit()
+                    conn.close()
+                    
+                    return {'status': 'invalid', 'reason': 'not_authorized', 'message': 'Session is not authorized. Please re-link.'}
             except Exception as e:
                 await client.disconnect()
+                
+                # If error is a session error, mark as expired
+                error_msg = str(e).lower()
+                if 'unauthorized' in error_msg or 'revoked' in error_msg:
+                    conn = sqlite3.connect(DB_PATH)
+                    c = conn.cursor()
+                    c.execute('UPDATE telegram_accounts SET session_status = "expired" WHERE id = ?', (account_id,))
+                    conn.commit()
+                    conn.close()
+                
                 raise e
         
         except Exception as e:
@@ -684,20 +715,30 @@ def send_dm(account_id, recipient, message):
                         conn_db = sqlite3.connect(DB_PATH)
                         c_db = conn_db.cursor()
                         
-                        # Check if session exists
-                        c_db.execute('SELECT id FROM chat_sessions WHERE account_id = ? AND remote_user_id = ?', (account_id, recipient_id))
-                        existing_session = c_db.fetchone()
-                        
-                        if existing_session:
-                            # Update existing
-                            c_db.execute('UPDATE chat_sessions SET last_message_at = CURRENT_TIMESTAMP WHERE id = ?', (existing_session[0],))
-                        else:
-                            # Create new session with STATE_OPENER_SENT (assuming outreach is like an opener)
-                            c_db.execute('''
-                                INSERT INTO chat_sessions (account_id, remote_user_id, username, state)
-                                VALUES (?, ?, ?, ?)
-                            ''', (account_id, recipient_id, recipient_username, 'OPENER_SENT'))
+                        # Update scraped_leads and outreach_history
+                        try:
+                            # Try to find lead by telegram_id or username
+                            c_db.execute('SELECT id FROM scraped_leads WHERE telegram_id = ? OR (username IS NOT NULL AND username = ?)', (str(recipient_id), recipient_username))
+                            lead = c_db.fetchone()
                             
+                            if lead:
+                                lead_id = lead[0]
+                                # Mark as blasted
+                                c_db.execute('UPDATE scraped_leads SET status = "blasted" WHERE id = ?', (lead_id,))
+                                # Record in history
+                                c_db.execute('''
+                                    INSERT INTO outreach_history (account_id, lead_id, telegram_id, username, status)
+                                    VALUES (?, ?, ?, ?, ?)
+                                ''', (account_id, lead_id, str(recipient_id), recipient_username, 'sent'))
+                            else:
+                                # Not a known lead? Still log the history
+                                c_db.execute('''
+                                    INSERT INTO outreach_history (account_id, telegram_id, username, status)
+                                    VALUES (?, ?, ?, ?)
+                                ''', (account_id, str(recipient_id), recipient_username, 'sent'))
+                        except Exception as h_e:
+                            print(f"Warning: Failed to log outreach history: {h_e}")
+
                         conn_db.commit()
                         conn_db.close()
                     except Exception as db_e:
@@ -770,3 +811,224 @@ def send_dm(account_id, recipient, message):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     return loop.run_until_complete(send_message())
+
+async def get_client(account_id):
+    """Helper to get an authorized Telethon client for an account"""
+    import sqlite3
+    from auth_handler import DB_PATH
+    
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('SELECT session_string, proxy_url FROM telegram_accounts WHERE id = ?', (account_id,))
+    result = c.fetchone()
+    conn.close()
+    
+    if not result or not result[0]:
+        return None, "Session not found"
+        
+    session_data = result[0]
+    proxy_url = result[1]
+    proxy = parse_proxy(proxy_url)
+
+    if isinstance(session_data, bytes):
+        session_data = session_data.decode('utf-8')
+    
+    print(f"DEBUG: get_client for {account_id}")
+    client = TelegramClient(StringSession(session_data), API_ID, API_HASH, proxy=proxy)
+    await client.connect()
+    print(f"DEBUG: client connected")
+    
+    if not await client.is_user_authorized():
+        print(f"DEBUG: client NOT authorized")
+        await client.disconnect()
+        
+        # Update status in DB
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute('UPDATE telegram_accounts SET session_status = "expired" WHERE id = ?', (account_id,))
+        conn.commit()
+        conn.close()
+        
+        return None, "Session not authorized"
+        
+    print(f"DEBUG: client authorized as {(await client.get_me()).username}")
+    return client, None
+
+def search_groups(account_id, query):
+    """Search for public groups/channels by query"""
+    async def run():
+        client, error = await get_client(account_id)
+        if error: return {"status": "error", "message": error}
+        
+        try:
+            # Search for chats
+            result = await client(functions.contacts.SearchRequest(
+                q=query,
+                limit=20
+            ))
+            
+            groups = []
+            for chat in result.chats:
+                # Include supergroups and channels
+                is_group = getattr(chat, 'megagroup', False) or not getattr(chat, 'broadcast', False)
+                
+                groups.append({
+                    'id': chat.id,
+                    'title': chat.title,
+                    'username': getattr(chat, 'username', None),
+                    'member_count': getattr(chat, 'participants_count', 0),
+                    'is_public': getattr(chat, 'username', None) is not None,
+                    'type': 'supergroup' if getattr(chat, 'megagroup', False) else ('channel' if getattr(chat, 'broadcast', False) else 'group')
+                })
+            
+            await client.disconnect()
+            return {"status": "success", "groups": groups}
+        except Exception as e:
+            await client.disconnect()
+            return {"status": "error", "message": str(e)}
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    return loop.run_until_complete(run())
+
+def get_my_groups(account_id):
+    """Get groups/channels the account has already joined"""
+    async def run():
+        client, error = await get_client(account_id)
+        if error: return {"status": "error", "message": error}
+        
+        try:
+            dialogs = await client.get_dialogs()
+            groups = []
+            for d in dialogs:
+                if d.is_group or d.is_channel:
+                    groups.append({
+                        'id': d.id,
+                        'title': d.title,
+                        'username': getattr(d.entity, 'username', None),
+                        'member_count': getattr(d.entity, 'participants_count', 0)
+                    })
+            
+            await client.disconnect()
+            return {"status": "success", "groups": groups}
+        except Exception as e:
+            await client.disconnect()
+            return {"status": "error", "message": str(e)}
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    return loop.run_until_complete(run())
+
+def join_group(account_id, group_username):
+    """Join a group or channel by username"""
+    async def run():
+        client, error = await get_client(account_id)
+        if error: return {"status": "error", "message": error}
+        
+        try:
+            await client(JoinChannelRequest(group_username))
+            await client.disconnect()
+            return {"status": "success"}
+        except Exception as e:
+            await client.disconnect()
+            return {"status": "error", "message": str(e)}
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    return loop.run_until_complete(run())
+
+def scrape_members(account_id, group_id, limit=50):
+    """Scrape active members from a group and save to DB"""
+    async def run():
+        client, error = await get_client(account_id)
+        if error: return {"status": "error", "message": error}
+        
+        try:
+            print(f"DEBUG: Resolving entity {group_id}")
+            entity = await client.get_entity(group_id)
+            print(f"DEBUG: Entity resolved: {entity.title}")
+            
+            # Save group info to DB first
+            import sqlite3
+            from auth_handler import DB_PATH
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            
+            c.execute('''
+                INSERT OR IGNORE INTO scraped_groups (telegram_id, title, username, member_count)
+                VALUES (?, ?, ?, ?)
+            ''', (str(entity.id), entity.title, getattr(entity, 'username', None), getattr(entity, 'participants_count', 0)))
+            
+            c.execute('SELECT user_id FROM telegram_accounts WHERE id = ?', (account_id,))
+            user_id_row = c.fetchone()
+            real_user_id = user_id_row[0] if user_id_row else 1
+            
+            c.execute('SELECT id FROM scraped_groups WHERE telegram_id = ?', (str(entity.id),))
+            group_db_id = c.fetchone()[0]
+            
+            # Scrape participants
+            print(f"DEBUG: Getting participants for {entity.title}...")
+            participants = await client.get_participants(entity, limit=limit)
+            print(f"DEBUG: Found {len(participants)} total participants (including bots/hidden)")
+            
+            leads_added = 0
+            for p in participants:
+                if p.bot: continue
+                
+                # Filter for active users (Relaxed filter: Anyone with a username/phone or recent status)
+                is_active = True # Default to true for now to maximize leads
+                if isinstance(p.status, types.UserStatusLastMonth):
+                    is_active = False # Too inactive
+                
+                if not is_active: continue
+                
+                try:
+                    c.execute('''
+                        INSERT OR IGNORE INTO scraped_leads (user_id, telegram_id, username, first_name, last_name, source_group_id, last_seen)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ''', (real_user_id, str(p.id), p.username, p.first_name, p.last_name, group_db_id, str(p.status) if p.status else None))
+                    if c.rowcount > 0:
+                        leads_added += 1
+                except Exception as e:
+                    print(f"DEBUG: Failed to insert lead {p.id}: {e}")
+                    pass
+            
+            conn.commit()
+            conn.close()
+            
+            await client.disconnect()
+            return {"status": "success", "leads_added": leads_added}
+        except Exception as e:
+            traceback.print_exc()
+            await client.disconnect()
+            return {"status": "error", "message": str(e)}
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    return loop.run_until_complete(run())
+
+def logout_account(account_id):
+    """Log out of a Telegram account to revoke the session"""
+    async def run():
+        # This will use the authorized client (with proxy if set)
+        client, error = await get_client(account_id)
+        if error:
+            print(f"DEBUG: logout_account failed to get client: {error}")
+            return {"status": "error", "message": error}
+        
+        try:
+            print(f"DEBUG: Logging out account {account_id}")
+            # log_out() revokes the session on Telegram's servers
+            await client.log_out()
+            print(f"DEBUG: Successfully logged out account {account_id}")
+            return {"status": "success"}
+        except Exception as e:
+            print(f"ERROR: Failed to log out account {account_id}: {str(e)}")
+            return {"status": "error", "message": str(e)}
+        finally:
+            if client:
+                await client.disconnect()
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    return loop.run_until_complete(run())

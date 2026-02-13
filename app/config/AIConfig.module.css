@@ -192,3 +192,227 @@
         padding: 10px 12px;
     }
 }
+
+/* Discovery & Outreach Styles */
+.tabs {
+    display: none;
+    /* Removing tabs as per request */
+}
+
+/* Info Icon & Tooltips */
+.tooltipContainer {
+    display: inline-flex;
+    position: relative;
+    cursor: pointer;
+    z-index: 1000;
+}
+
+.infoIcon {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    font-size: 10px;
+    transition: all 0.2s;
+}
+
+.infoIcon:hover {
+    background: var(--color-primary);
+    transform: scale(1.1);
+}
+
+.tooltip {
+    position: fixed;
+    background: #222;
+    color: #fff;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 13px;
+    width: 280px;
+    line-height: 1.5;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    pointer-events: none;
+    z-index: 10001;
+    animation: fadeInScale 0.2s ease-out;
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.discoveryPanel {
+    animation: fadeIn 0.3s ease;
+}
+
+.discoveryPanel h3 {
+    font-size: 18px;
+    margin-bottom: 20px;
+    color: #fff;
+}
+
+.groupGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    max-height: 280px;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+.groupCard {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: transform 0.2s;
+}
+
+.groupCard:hover {
+    transform: translateY(-2px);
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+.groupInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.groupInfo strong {
+    font-size: 14px;
+    color: #fff;
+}
+
+.groupInfo span {
+    font-size: 12px;
+    color: #888;
+}
+
+.searchInput {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 12px;
+    color: #fff;
+    outline: none;
+}
+
+.searchInput:focus {
+    border-color: var(--color-primary);
+}
+
+.keywordGrid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.keywordPill {
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    color: #a5b4fc;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.keywordPill:hover {
+    background: var(--color-primary);
+    color: #fff;
+    transform: scale(1.05);
+}
+
+.resultList {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    padding: 8px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.resultItem {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.resultItem:last-child {
+    border-bottom: none;
+}
+
+.leadTableContainer {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    overflow-y: auto;
+    max-height: 520px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.leadTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.leadTable th {
+    text-align: left;
+    padding: 12px 16px;
+    background: #1a1a1a;
+    /* Opaque background for sticky */
+    color: #666;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.leadTable td {
+    padding: 12px 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    color: #ddd;
+}
+
+.statusBadge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+.statusBadge.new {
+    background: rgba(99, 102, 241, 0.2);
+    color: #a5b4fc;
+}
+
+.statusBadge.blasted {
+    background: rgba(46, 213, 115, 0.2);
+    color: #2ed573;
+}
+
+.statusBadge.skipped {
+    background: rgba(255, 71, 87, 0.2);
+    color: #ff4757;
+}

@@ -1,18 +1,22 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import AccountCard from './AccountCard';
-import AIConfigModal from './AIConfigModal';
 import ProxySettingsModal from './ProxySettingsModal';
 import styles from './AccountsList.module.css';
 
 export default function AccountsList({ onAddAccount }) {
     const [accounts, setAccounts] = useState([]);
     const [loading, setLoading] = useState(true);
+    const router = useRouter();
 
     // Modal States
-    const [aiConfigAccountId, setAiConfigAccountId] = useState(null);
     const [proxyAccount, setProxyAccount] = useState(null);
+
+    const handleConfigureAI = (accountId) => {
+        router.push(`/config?accountId=${accountId}`);
+    };
 
     useEffect(() => {
         fetchAccounts();
@@ -179,20 +183,13 @@ export default function AccountsList({ onAddAccount }) {
                         onDisconnect={handleDisconnect}
                         onValidate={handleValidate}
                         onReLink={handleReLink}
-                        onConfigureAI={setAiConfigAccountId}
+                        onConfigureAI={() => handleConfigureAI(account.id)}
                         onConfigureProxy={setProxyAccount}
                     />
                 ))}
             </div>
 
             {/* Modals */}
-            <AIConfigModal
-                isOpen={!!aiConfigAccountId}
-                onClose={() => setAiConfigAccountId(null)}
-                accountId={aiConfigAccountId}
-                onAssign={fetchAccounts}
-            />
-
             <ProxySettingsModal
                 isOpen={!!proxyAccount}
                 onClose={() => setProxyAccount(null)}

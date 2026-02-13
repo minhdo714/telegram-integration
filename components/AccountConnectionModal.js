@@ -9,7 +9,7 @@ import styles from './AccountConnectionModal.module.css';
 
 export default function AccountConnectionModal({ isOpen, onClose, onSuccess }) {
     const [activeTab, setActiveTab] = useState('qr'); // 'qr' or 'sms'
-    const [smsStep, setSmsStep] = useState('phone'); // 'phone', 'code', '2fa'
+    const [smsStep, setSmsStep] = useState('phone'); // 'phone', 'code', '2fa', 'success'
     const [sessionId, setSessionId] = useState(null);
     const [phoneNumber, setPhoneNumber] = useState('');
     const [phoneHash, setPhoneHash] = useState('');
@@ -19,7 +19,10 @@ export default function AccountConnectionModal({ isOpen, onClose, onSuccess }) {
     if (!isOpen) return null;
 
     const handleQRSuccess = async (accountData) => {
-        toast.success('Account connected successfully!');
+        toast.success('Account connected! Please check your Telegram app and "Confirm" this login if prompted.', {
+            duration: 10000,
+            icon: '🔔'
+        });
         onSuccess(accountData);
     };
 
@@ -72,7 +75,7 @@ export default function AccountConnectionModal({ isOpen, onClose, onSuccess }) {
                     setSmsStep('2fa');
                     toast('2FA required. Please enter your password.');
                 } else {
-                    toast.success('Account connected successfully!');
+                    setSmsStep('success');
                     onSuccess(data.account);
                 }
             } else {
@@ -97,7 +100,7 @@ export default function AccountConnectionModal({ isOpen, onClose, onSuccess }) {
             const data = await response.json();
 
             if (response.ok) {
-                toast.success('Account connected successfully!');
+                setSmsStep('success');
                 onSuccess(data.account);
             } else {
                 toast.error(data.error || 'Invalid password');
@@ -196,6 +199,33 @@ export default function AccountConnectionModal({ isOpen, onClose, onSuccess }) {
                                             </button>
                                         </div>
                                     </form>
+                                </div>
+                            )}
+                            {smsStep === 'success' && (
+                                <div className={styles.successStep}>
+                                    <div className={styles.stepIcon}>✅</div>
+                                    <h3>Account Linked!</h3>
+                                    <div style={{
+                                        background: 'rgba(99, 102, 241, 0.1)',
+                                        padding: '20px',
+                                        borderRadius: '12px',
+                                        border: '1px solid var(--color-primary)',
+                                        marginTop: '20px',
+                                        textAlign: 'left'
+                                    }}>
+                                        <p style={{ fontWeight: 'bold', color: 'white', marginBottom: '10px' }}>⚠️ CRITICAL LAST STEP:</p>
+                                        <p style={{ fontSize: '15px', lineHeight: '1.5' }}>
+                                            Go to your <strong>main Telegram chat list</strong> on your phone.
+                                            You will see a message from Telegram. Open it and <strong>verify that it is you</strong> to finish linking to the bot.
+                                        </p>
+                                    </div>
+                                    <button
+                                        className="btn btn-primary"
+                                        style={{ width: '100%', marginTop: '24px' }}
+                                        onClick={onClose}
+                                    >
+                                        Got it!
+                                    </button>
                                 </div>
                             )}
                         </div>

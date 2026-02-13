@@ -10,7 +10,10 @@ import Pricing from '@/components/Pricing';
 import Testimonials from '@/components/Testimonials';
 import Footer from '@/components/Footer';
 
+import { useRouter } from 'next/navigation';
+
 export default function Home() {
+    const router = useRouter();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isMessageComposerOpen, setIsMessageComposerOpen] = useState(false);
     const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -18,6 +21,7 @@ export default function Home() {
     const handleAccountAdded = () => {
         setIsModalOpen(false);
         setRefreshTrigger(prev => prev + 1);
+        router.push('/config');
     };
 
     return (

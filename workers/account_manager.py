@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 # Ensure environment variables are loaded, just in case
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../.env"))
 
-DB_PATH = os.getenv('DB_PATH', 'users.db')
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.db')
 
 def add_account(user_id, phone_number, session_string, telegram_user_id=None, telegram_username=None, 
                 first_name=None, last_name=None, account_ownership='user_owned', session_status='active',
@@ -158,35 +158,12 @@ def delete_account(account_id, user_id):
         
         # Try to log out from Telegram
         try:
-            from telethon.sync import TelegramClient
-            from telethon.sessions import StringSession
-            import os
-            
-            API_ID = int(os.getenv('TELEGRAM_API_ID'))
-            API_HASH = os.getenv('TELEGRAM_API_HASH')
-            
-            # Handle Proxy for logout if present
-            proxy = None
-            if account['proxy_url']:
-                 # Simple parsing: http://user:pass@host:port or http://host:port
-                 # For now, let's just try without proxy for logout or standard connection
-                 # Parsing proxy string for Telethon is complex, skipping for deletion safety
-                 pass
-
-            # Create client with the session string
-            client = TelegramClient(
-                StringSession(account['session_string']), 
-                API_ID, 
-                API_HASH
-            )
-            # Connect with timeout to avoid hanging if proxy needed but not used
-            client.connect()
-            
-            if client.is_user_authorized():
-                client.log_out()  # Properly log out from Telegram
-                print(f"Successfully logged out from Telegram for account {account['phone_number']}")
-            
-            client.disconnect()
+            from telethon_handler import logout_account
+            logout_result = logout_account(account_id)
+            if logout_result.get('status') == 'success':
+                print(f"Successfully logged out from Telegram for account {account_id}")
+            else:
+                print(f"Warning: logout_account returned error: {logout_result.get('message')}")
         except Exception as e:
             # If logout fails (session already invalid, etc.), continue with deletion
             print(f"Warning: Could not log out from Telegram: {str(e)}")
@@ -199,3 +176,39 @@ def delete_account(account_id, user_id):
         return {'status': 'success', 'message': 'Account disconnected and logged out from Telegram'}
     except Exception as e:
         return {'error': str(e)}
+
+def bulk_update_accounts(account_ids, user_id, proxy_url=None, active_config_id=None):
+    """Update settings for multiple accounts at once"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        
+        updates = []
+        params = []
+        
+        if proxy_url is not None:
+            updates.append("proxy_url = ?")
+            params.append(proxy_url)
+            
+        if active_config_id is not None:
+            updates.append("active_config_id = ?")
+            params.append(active_config_id)
+            
+        if not updates:
+            conn.close()
+            return {'status': 'success', 'message': 'No updates provided'}
+            
+        placeholder = ', '.join(['?'] * len(account_ids))
+        query = f"UPDATE telegram_accounts SET {', '.join(updates)} WHERE id IN ({placeholder}) AND user_id = ?"
+        params.extend(account_ids)
+        params.append(user_id)
+        
+        c.execute(query, tuple(params))
+        conn.commit()
+        conn.close()
+        
+        return {'status': 'success', 'updated_count': c.rowcount}
+    except Exception as e:
+        print(f"Error in bulk_update_accounts: {e}")
+        return {'error': str(e)}
+

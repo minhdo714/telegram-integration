@@ -4,7 +4,7 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../.env"))
-DB_PATH = os.getenv('DB_PATH', 'users.db')
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.db')
 
 def get_ai_configs(user_id):
     """Get all AI config presets for a user"""
@@ -21,7 +21,9 @@ def get_ai_configs(user_id):
     except Exception as e:
         return {'error': str(e)}
 
-def save_ai_config(user_id, name, system_prompt, model_provider, model_name, temperature, config_id=None):
+def save_ai_config(user_id, name, system_prompt, model_provider, model_name, temperature, 
+                   opener_images=None, model_face_ref=None, model_body_ref=None, room_bg_ref=None,
+                   config_id=None):
     """Create or Update an AI config preset"""
     try:
         conn = sqlite3.connect(DB_PATH)
@@ -30,15 +32,20 @@ def save_ai_config(user_id, name, system_prompt, model_provider, model_name, tem
         if config_id:
             # Update
             c.execute('''UPDATE ai_config_presets SET 
-                         name = ?, system_prompt = ?, model_provider = ?, model_name = ?, temperature = ?
+                         name = ?, system_prompt = ?, model_provider = ?, model_name = ?, temperature = ?,
+                         opener_images = ?, model_face_ref = ?, model_body_ref = ?, room_bg_ref = ?
                          WHERE id = ? AND user_id = ?''',
-                      (name, system_prompt, model_provider, model_name, temperature, config_id, user_id))
+                      (name, system_prompt, model_provider, model_name, temperature, 
+                       opener_images, model_face_ref, model_body_ref, room_bg_ref,
+                       config_id, user_id))
         else:
             # Insert
             c.execute('''INSERT INTO ai_config_presets 
-                         (user_id, name, system_prompt, model_provider, model_name, temperature)
-                         VALUES (?, ?, ?, ?, ?, ?)''',
-                      (user_id, name, system_prompt, model_provider, model_name, temperature))
+                         (user_id, name, system_prompt, model_provider, model_name, temperature,
+                          opener_images, model_face_ref, model_body_ref, room_bg_ref)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                      (user_id, name, system_prompt, model_provider, model_name, temperature,
+                       opener_images, model_face_ref, model_body_ref, room_bg_ref))
             new_id = c.lastrowid
             
         conn.commit()
