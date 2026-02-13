@@ -72,6 +72,7 @@ export default function Navigation() {
 
                     {isLoggedIn ? (
                         <>
+                            <Link href="/accounts" className="nav-link">Tele Accounts</Link>
                             <Link href="/config" className="nav-link">AI Config</Link>
                             <button onClick={() => scrollToSection('accounts')} className="btn btn-primary" style={{ padding: '0.5rem 1.5rem' }}>
                                 My Account
@@ -125,9 +126,13 @@ export default function Navigation() {
                     <button onClick={() => scrollToSection('faq')} className="nav-link">FAQ</button>
 
                     {isLoggedIn ? (
-                        <button onClick={() => scrollToSection('accounts')} className="btn btn-primary">
-                            My Account
-                        </button>
+                        <>
+                            <Link href="/accounts" className="nav-link" style={{ textAlign: 'center' }}>Tele Accounts</Link>
+                            <Link href="/config" className="nav-link" style={{ textAlign: 'center' }}>AI Config</Link>
+                            <button onClick={() => scrollToSection('accounts')} className="btn btn-primary">
+                                My Account
+                            </button>
+                        </>
                     ) : (
                         <>
                             <Link href="/login?mode=login" className="nav-link" style={{ textAlign: 'center' }}>Log In</Link>

@@ -15,7 +15,7 @@ export default function DashboardSidebar({ onNewProfile }) {
     const pathname = usePathname();
 
     const menuItems = [
-        { id: 'profiles', label: 'Profiles', icon: <FiUsers />, href: '/accounts' },
+        { id: 'profiles', label: 'Tele Accounts', icon: <FiUsers />, href: '/accounts' },
         { id: 'groups', label: 'Groups', icon: <FiLayers />, href: '/groups' },
         { id: 'proxies', label: 'Proxies', icon: <FiGlobe />, href: '/proxies' },
         { id: 'ai-config', label: 'Config AI', icon: <FiSettings />, href: '/config' },
