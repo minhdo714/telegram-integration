@@ -1,18 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Image from 'next/image';
-import AccountsList from '@/components/AccountsList';
 import AccountConnectionModal from '@/components/AccountConnectionModal';
 import MessageComposer from '@/components/MessageComposer';
 import Navigation from '@/components/Navigation';
 import Pricing from '@/components/Pricing';
 import Testimonials from '@/components/Testimonials';
 import Footer from '@/components/Footer';
-
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-export default function Home() {
+function HomeContent() {
     const router = useRouter();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isMessageComposerOpen, setIsMessageComposerOpen] = useState(false);
@@ -321,18 +320,55 @@ export default function Home() {
                     </div>
                 </section>
 
-                {/* Accounts Section */}
-                <section className="accounts-section" id="accounts" style={{ padding: '5rem 0' }}>
-                    <div className="container">
-                        <h2 style={{
+                {/* Dashboard Shortcut Section (Replacing Old AccountsList) */}
+                <section className="accounts-section" id="accounts" style={{
+                    padding: '5rem 0',
+                    background: '#0f172a'
+                }}>
+                    <div className="container" style={{ display: 'flex', justifyContent: 'center' }}>
+                        <div className="card" style={{
                             textAlign: 'center',
-                            fontSize: '2rem',
-                            marginBottom: '3rem',
-                            fontWeight: 'bold'
+                            padding: '4rem 2rem',
+                            background: 'rgba(255, 255, 255, 0.03)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            borderRadius: '24px',
+                            backdropFilter: 'blur(20px)',
+                            maxWidth: '800px',
+                            width: '100%'
                         }}>
-                            Your Connected Telegram Accounts
-                        </h2>
-                        <AccountsList key={refreshTrigger} onAddAccount={() => setIsModalOpen(true)} />
+                            <div style={{ fontSize: '4rem', marginBottom: '1.5rem' }}>🚀</div>
+                            <h2 style={{
+                                fontSize: '2.5rem',
+                                color: 'white',
+                                marginBottom: '1rem',
+                                fontWeight: 'bold'
+                            }}>
+                                Welcome to Your <span className="gradient-text">Command Center</span>
+                            </h2>
+                            <p style={{
+                                fontSize: '1.2rem',
+                                color: 'rgba(255, 255, 255, 0.7)',
+                                maxWidth: '600px',
+                                margin: '0 auto 2.5rem'
+                            }}>
+                                Manage your Telegram accounts, proxies, and AI personas all in one place.
+                                Scale your automated outreach with our premium dashboard.
+                            </p>
+                            <Link href="/accounts" style={{
+                                display: 'inline-block',
+                                background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%)',
+                                color: 'white',
+                                padding: '1rem 3rem',
+                                borderRadius: '12px',
+                                fontWeight: 'bold',
+                                fontSize: '1.1rem',
+                                textDecoration: 'none',
+                                transition: 'transform 0.2s',
+                                boxShadow: '0 10px 30px rgba(99, 102, 241, 0.2)'
+                            }}>
+                                Open Tele Accounts Dashboard
+                            </Link>
+                        </div>
                     </div>
                 </section>
 
@@ -348,6 +384,14 @@ export default function Home() {
                 <Footer />
             </div>
         </>
+    );
+}
+
+export default function Home() {
+    return (
+        <Suspense fallback={<div style={{ background: '#05050a', minHeight: '100vh' }}></div>}>
+            <HomeContent />
+        </Suspense>
     );
 }
 

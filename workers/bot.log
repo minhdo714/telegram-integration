@@ -9685,3 +9685,186 @@ NameError: name 'mimetypes' is not defined. Did you forget to import 'mimetypes'
 2026-02-10 14:35:18,514 - telethon.client.updates - INFO - Got difference for channel 1891392293 updates
 2026-02-10 14:38:18,432 - telethon.client.updates - INFO - Got difference for channel 1546800315 updates
 2026-02-10 14:40:18,437 - telethon.client.updates - INFO - Got difference for channel 1891392293 updates
+2026-02-12 14:07:48,843 - __main__ - INFO - Bot Runner starting...
+2026-02-12 14:07:49,007 - __main__ - INFO - Importing Telethon...
+2026-02-12 14:07:49,166 - telethon.crypto.libssl - INFO - Failed to load SSL library: <class 'OSError'> (no library called "ssl" found)
+2026-02-12 14:07:49,166 - telethon.crypto.aes - INFO - cryptg module not installed and libssl not found, falling back to (slower) Python encryption
+2026-02-12 14:07:49,244 - __main__ - INFO - Importing Handlers...
+2026-02-12 14:07:50,528 - text_gen_client - INFO - TextGenClient: OpenRouter Live Mode (nousresearch/hermes-3-llama-3.1-405b)
+2026-02-12 14:07:50,532 - __main__ - INFO - Starting Bot Runner with Dynamic Monitoring...
+2026-02-12 14:07:50,533 - __main__ - INFO - Found new active account 9. Starting bot...
+2026-02-12 14:07:50,533 - __main__ - INFO - Starting bot for account 9
+2026-02-12 14:07:50,533 - __main__ - INFO - API_ID present: True
+2026-02-12 14:07:50,533 - __main__ - INFO - Session string length: 353
+2026-02-12 14:07:50,658 - telethon.network.mtprotosender - INFO - Connecting to 149.154.175.56:443/TcpFull...
+2026-02-12 14:07:50,792 - telethon.network.mtprotosender - INFO - Connection to 149.154.175.56:443/TcpFull complete!
+2026-02-12 14:07:51,624 - __main__ - INFO - Account 9 is_verified: False
+2026-02-12 14:07:51,624 - __main__ - WARNING - Account 9 not authorized. Skipping.
+2026-02-12 14:07:51,625 - __main__ - WARNING - Bot task for account 9 exited.
+2026-02-12 15:15:21,794 - __main__ - INFO - Bot Runner starting...
+2026-02-12 15:15:21,949 - __main__ - INFO - Importing Telethon...
+2026-02-12 15:15:22,087 - telethon.crypto.libssl - INFO - Failed to load SSL library: <class 'OSError'> (no library called "ssl" found)
+2026-02-12 15:15:22,088 - telethon.crypto.aes - INFO - cryptg module not installed and libssl not found, falling back to (slower) Python encryption
+2026-02-12 15:15:22,151 - __main__ - INFO - Importing Handlers...
+2026-02-12 15:15:22,971 - text_gen_client - INFO - TextGenClient: OpenRouter Live Mode (nousresearch/hermes-3-llama-3.1-405b)
+2026-02-12 15:15:22,972 - __main__ - INFO - Starting Bot Runner with Dynamic Monitoring...
+2026-02-12 18:15:19,642 - __main__ - INFO - Bot Runner starting...
+2026-02-12 18:15:19,834 - __main__ - INFO - Importing Telethon...
+2026-02-12 18:15:19,991 - telethon.crypto.libssl - INFO - Failed to load SSL library: <class 'OSError'> (no library called "ssl" found)
+2026-02-12 18:15:19,991 - telethon.crypto.aes - INFO - cryptg module not installed and libssl not found, falling back to (slower) Python encryption
+2026-02-12 18:15:20,067 - __main__ - INFO - Importing Handlers...
+2026-02-12 18:15:20,909 - text_gen_client - INFO - TextGenClient: OpenRouter Live Mode (nousresearch/hermes-3-llama-3.1-405b)
+2026-02-12 18:15:20,910 - __main__ - INFO - Starting Bot Runner with Dynamic Monitoring...
+2026-02-12 18:15:20,911 - __main__ - INFO - Found new active account 9. Starting bot...
+2026-02-12 18:15:20,911 - __main__ - INFO - Starting bot for account 9
+2026-02-12 18:15:20,911 - __main__ - INFO - API_ID present: True
+2026-02-12 18:15:20,911 - __main__ - INFO - Session string length: 353
+2026-02-12 18:15:21,014 - telethon.network.mtprotosender - INFO - Connecting to 149.154.175.56:443/TcpFull...
+2026-02-12 18:15:21,099 - telethon.network.mtprotosender - INFO - Connection to 149.154.175.56:443/TcpFull complete!
+2026-02-12 18:15:21,814 - __main__ - INFO - Account 9 is_verified: True
+2026-02-12 18:15:21,814 - __main__ - INFO - Bot started for account 9
+2026-02-12 18:15:21,814 - __main__ - WARNING - Bot task for account 9 exited.
+2026-02-12 18:30:22,143 - telethon.client.updates - INFO - Got difference for channel 1546800315 updates
+2026-02-12 18:45:22,053 - telethon.client.updates - INFO - Got difference for account updates
+2026-02-12 18:45:22,673 - telethon.client.updates - INFO - Got difference for channel 2610625394 updates
+2026-02-12 18:47:12,243 - telethon.client.updates - INFO - Got difference for channel 1546800315 updates
+2026-02-12 18:49:22,780 - telethon.client.updates - INFO - Got difference for channel 1891392293 updates
+2026-02-12 18:49:37,126 - telethon.client.updates - INFO - Got difference for channel 3234862355 updates
+2026-02-12 18:50:41,364 - telethon.network.connection.connection - WARNING - Server closed the connection: [WinError 10054] An existing connection was forcibly closed by the remote host
+2026-02-12 18:50:41,365 - telethon.network.mtprotosender - INFO - Connection closed while receiving data: [WinError 10054] An existing connection was forcibly closed by the remote host
+2026-02-12 18:50:41,365 - telethon.network.mtprotosender - INFO - Closing current connection to begin reconnect...
+2026-02-12 18:50:41,366 - telethon.network.connection.connection - INFO - <class 'ConnectionResetError'> during disconnect: [WinError 10054] An existing connection was forcibly closed by the remote host
+2026-02-12 18:50:41,366 - telethon.network.mtprotosender - INFO - Connecting to 149.154.175.56:443/TcpFull...
+2026-02-12 18:50:51,372 - telethon.network.mtprotosender - WARNING - Attempt 1 at connecting failed: TimeoutError: 
+2026-02-12 18:50:56,455 - telethon.network.mtprotosender - INFO - Connection to 149.154.175.56:443/TcpFull complete!
+2026-02-12 18:51:27,944 - telethon.client.updates - INFO - Got difference for channel 2610625394 updates
+2026-02-12 18:52:22,801 - telethon.client.updates - INFO - Got difference for channel 1891392293 updates
+2026-02-12 18:52:28,468 - telethon.client.updates - INFO - Got difference for channel 2610625394 updates
+2026-02-12 18:54:22,808 - telethon.client.updates - INFO - Got difference for channel 1546800315 updates
+2026-02-12 19:00:22,186 - telethon.client.updates - INFO - Got difference for account updates
+2026-02-12 19:00:22,285 - telethon.client.updates - INFO - Got difference for channel 1982258526 updates
+2026-02-12 19:00:22,793 - telethon.client.updates - INFO - Got difference for channel 2610625394 updates
+2026-02-12 19:04:22,570 - telethon.client.updates - INFO - Got difference for channel 1546800315 updates
+2026-02-12 19:09:35,921 - telethon.client.updates - INFO - Got difference for channel 2610625394 updates
+2026-02-12 19:12:22,959 - telethon.client.updates - INFO - Got difference for channel 1546800315 updates
+2026-02-12 19:15:19,281 - telethon.client.updates - INFO - Got difference for channel 1546800315 updates
+2026-02-12 19:15:22,291 - telethon.client.updates - INFO - Got difference for account updates
+2026-02-12 19:15:22,501 - telethon.client.updates - INFO - Got difference for channel 1982258526 updates
+2026-02-12 19:19:23,017 - telethon.client.updates - INFO - Got difference for channel 1891392293 updates
+2026-02-12 19:19:33,144 - telethon.client.updates - INFO - Got difference for channel 2610625394 updates
+2026-02-12 19:19:37,354 - telethon.client.updates - INFO - Got difference for channel 3234862355 updates
+2026-02-12 19:20:38,753 - telethon.client.updates - INFO - Got difference for channel 1891392293 updates
+2026-02-12 19:21:22,976 - telethon.client.updates - INFO - Got difference for channel 1546800315 updates
+2026-02-12 19:23:12,662 - telethon.client.updates - INFO - Got difference for channel 1546800315 updates
+2026-02-12 19:26:23,074 - telethon.client.updates - INFO - Got difference for channel 1546800315 updates
+2026-02-12 19:26:23,878 - telethon.client.updates - INFO - Got difference for channel 2610625394 updates
+2026-02-12 19:30:22,444 - telethon.client.updates - INFO - Got difference for account updates
+2026-02-12 19:30:22,543 - telethon.client.updates - INFO - Got difference for channel 2610625394 updates
+2026-02-12 19:30:22,626 - telethon.client.updates - INFO - Got difference for channel 2107172851 updates
+2026-02-12 19:30:22,802 - telethon.client.updates - INFO - Got difference for channel 1982258526 updates
+2026-02-12 19:32:23,116 - telethon.client.updates - INFO - Got difference for channel 1546800315 updates
+2026-02-12 19:32:29,885 - telethon.client.updates - INFO - Got difference for channel 2610625394 updates
+2026-02-12 19:34:23,135 - telethon.client.updates - INFO - Got difference for channel 1546800315 updates
+2026-02-12 19:34:25,174 - telethon.client.updates - INFO - Got difference for channel 2610625394 updates
+2026-02-12 19:35:08,674 - telethon.client.updates - INFO - Got difference for account updates
+2026-02-12 19:35:08,714 - __main__ - INFO - Simulating typing for 5.89s...
+2026-02-12 19:35:14,829 - telethon.client.uploads - INFO - Uploading file of 1599103 bytes in 13 chunks of 131072
+2026-02-12 19:35:16,228 - __main__ - INFO - Received message from donny914 (8154274020) on account 9: Hi
+2026-02-12 19:35:16,936 - httpx - INFO - HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+2026-02-12 19:35:19,811 - __main__ - INFO - Simulating typing for 17.05s...
+2026-02-12 19:35:23,903 - telethon.client.updates - INFO - Got difference for channel 2107172851 updates
+2026-02-12 19:35:24,302 - __main__ - INFO - [OK] Sent image: E:\Projects\Webapp_OF management\telegram-integration\workers\uploads\9/opener/1770724732_562854494_782713381319638_787698311035692371_n_Crop.jpg
+2026-02-12 19:35:37,094 - __main__ - INFO - [OK] Sent text reply: i'm flattered you want to see more of me, but let'...
+2026-02-12 19:35:38,953 - telethon.client.updates - INFO - Got difference for channel 1891392293 updates
+2026-02-12 19:35:54,475 - telethon.client.updates - INFO - Got difference for channel 3234862355 updates
+2026-02-12 19:36:32,894 - __main__ - INFO - Received message from donny914 (8154274020) on account 9: Can I see you in a bikini with a dildo that is clearly halfway in you anus
+2026-02-12 19:36:32,907 - __main__ - INFO - Simulating typing for 11.51s...
+2026-02-12 19:36:44,621 - __main__ - INFO - [OK] Sent text reply: i'm loving this vibe... quick question tho, what's...
+2026-02-12 19:37:04,417 - __main__ - INFO - Received message from donny914 (8154274020) on account 9: Can I see you naked  with a dildo that is clearly halfway in you anus
+2026-02-12 19:37:04,429 - __main__ - INFO - Simulating typing for 9.87s...
+2026-02-12 19:37:14,490 - __main__ - INFO - [OK] Sent text reply: ooh okay, let me take a quick pic for u... might t...
+2026-02-12 19:37:14,491 - __main__ - INFO - Starting async image generation for prompt: Can I see you naked  with a dildo that is clearly halfway in you anus
+2026-02-12 19:37:14,491 - __main__ - INFO - Face path provided: E:\Projects\Webapp_OF management\telegram-integration\workers\uploads\9\face\1770724717_471818050_10162152525192232_8498330577117918584_n.jpg
+2026-02-12 19:37:14,492 - kie_client - INFO - Processing reference image for Edit: E:\Projects\Webapp_OF management\telegram-integration\workers\uploads\9\face\1770724717_471818050_10162152525192232_8498330577117918584_n.jpg
+2026-02-12 19:37:15,540 - kie_client - INFO - Image uploaded successfully: https://tempfile.redpandaai.co/kieai/154790/telegram_bot_uploads/1770724717_471818050_10162152525192232_8498330577117918584_n.jpg
+2026-02-12 19:37:15,540 - kie_client - INFO - Attempting Seedream 4.5 Edit generation...
+2026-02-12 19:37:16,247 - kie_client - INFO - Task creation response status: 200
+2026-02-12 19:37:16,247 - kie_client - INFO - Task creation response body: {"code":200,"msg":"success","data":{"taskId":"4957058480a2f40067843ab78eff29c5","recordId":"4957058480a2f40067843ab78eff29c5"}}
+2026-02-12 19:37:16,248 - kie_client - INFO - Task creation JSON: {
+  "code": 200,
+  "msg": "success",
+  "data": {
+    "taskId": "4957058480a2f40067843ab78eff29c5",
+    "recordId": "4957058480a2f40067843ab78eff29c5"
+  }
+}
+2026-02-12 19:37:16,248 - kie_client - INFO - Edit Task Created: 4957058480a2f40067843ab78eff29c5
+2026-02-12 19:37:16,248 - kie_client - INFO - Full data object: {
+  "taskId": "4957058480a2f40067843ab78eff29c5",
+  "recordId": "4957058480a2f40067843ab78eff29c5"
+}
+2026-02-12 19:37:16,248 - kie_client - INFO - Polling Kie.ai task 4957058480a2f40067843ab78eff29c5...
+2026-02-12 19:37:16,248 - kie_client - INFO - Poll URL: https://api.kie.ai/api/v1/jobs/recordInfo?taskId=4957058480a2f40067843ab78eff29c5
+2026-02-12 19:37:16,574 - kie_client - INFO - Poll #1: Status Code 200
+2026-02-12 19:37:16,574 - kie_client - INFO - Poll #1: Response keys: dict_keys(['code', 'msg', 'data'])
+2026-02-12 19:37:16,574 - kie_client - INFO - Poll #1: State = waiting
+2026-02-12 19:37:16,574 - kie_client - INFO - Poll #1: State 'waiting' - continuing to poll...
+2026-02-12 19:37:18,885 - kie_client - INFO - Poll #2: Status Code 200
+2026-02-12 19:37:18,885 - kie_client - INFO - Poll #2: Response keys: dict_keys(['code', 'msg', 'data'])
+2026-02-12 19:37:18,885 - kie_client - INFO - Poll #2: State = waiting
+2026-02-12 19:37:18,885 - kie_client - INFO - Poll #2: State 'waiting' - continuing to poll...
+2026-02-12 19:37:21,251 - kie_client - INFO - Poll #3: Status Code 200
+2026-02-12 19:37:21,251 - kie_client - INFO - Poll #3: Response keys: dict_keys(['code', 'msg', 'data'])
+2026-02-12 19:37:21,252 - kie_client - INFO - Poll #3: State = waiting
+2026-02-12 19:37:21,252 - kie_client - INFO - Poll #3: State 'waiting' - continuing to poll...
+2026-02-12 19:37:23,859 - kie_client - INFO - Poll #4: Status Code 200
+2026-02-12 19:37:23,860 - kie_client - INFO - Poll #4: Response keys: dict_keys(['code', 'msg', 'data'])
+2026-02-12 19:37:23,860 - kie_client - INFO - Poll #4: State = waiting
+2026-02-12 19:37:23,860 - kie_client - INFO - Poll #4: State 'waiting' - continuing to poll...
+2026-02-12 19:37:26,207 - kie_client - INFO - Poll #5: Status Code 200
+2026-02-12 19:37:26,207 - kie_client - INFO - Poll #5: Response keys: dict_keys(['code', 'msg', 'data'])
+2026-02-12 19:37:26,207 - kie_client - INFO - Poll #5: State = waiting
+2026-02-12 19:37:26,207 - kie_client - INFO - Poll #5: State 'waiting' - continuing to poll...
+2026-02-12 19:37:28,873 - kie_client - INFO - Poll #6: Status Code 200
+2026-02-12 19:37:28,873 - kie_client - INFO - Poll #6: Response keys: dict_keys(['code', 'msg', 'data'])
+2026-02-12 19:37:28,873 - kie_client - INFO - Poll #6: State = waiting
+2026-02-12 19:37:28,873 - kie_client - INFO - Poll #6: State 'waiting' - continuing to poll...
+2026-02-12 19:37:31,207 - kie_client - INFO - Poll #7: Status Code 200
+2026-02-12 19:37:31,207 - kie_client - INFO - Poll #7: Response keys: dict_keys(['code', 'msg', 'data'])
+2026-02-12 19:37:31,207 - kie_client - INFO - Poll #7: State = waiting
+2026-02-12 19:37:31,207 - kie_client - INFO - Poll #7: State 'waiting' - continuing to poll...
+2026-02-12 19:37:33,522 - kie_client - INFO - Poll #8: Status Code 200
+2026-02-12 19:37:33,522 - kie_client - INFO - Poll #8: Response keys: dict_keys(['code', 'msg', 'data'])
+2026-02-12 19:37:33,523 - kie_client - INFO - Poll #8: State = waiting
+2026-02-12 19:37:33,523 - kie_client - INFO - Poll #8: State 'waiting' - continuing to poll...
+2026-02-12 19:37:35,877 - kie_client - INFO - Poll #9: Status Code 200
+2026-02-12 19:37:35,877 - kie_client - INFO - Poll #9: Response keys: dict_keys(['code', 'msg', 'data'])
+2026-02-12 19:37:35,877 - kie_client - INFO - Poll #9: State = waiting
+2026-02-12 19:37:35,877 - kie_client - INFO - Poll #9: State 'waiting' - continuing to poll...
+2026-02-12 19:37:38,286 - kie_client - INFO - Poll #10: Status Code 200
+2026-02-12 19:37:38,286 - kie_client - INFO - Poll #10: Response keys: dict_keys(['code', 'msg', 'data'])
+2026-02-12 19:37:38,286 - kie_client - INFO - Poll #10: State = waiting
+2026-02-12 19:37:38,286 - kie_client - INFO - Poll #10: State 'waiting' - continuing to poll...
+2026-02-12 19:37:40,574 - kie_client - INFO - Poll #11: Status Code 200
+2026-02-12 19:37:40,574 - kie_client - INFO - Poll #11: Response keys: dict_keys(['code', 'msg', 'data'])
+2026-02-12 19:37:40,574 - kie_client - INFO - Poll #11: State = waiting
+2026-02-12 19:37:40,574 - kie_client - INFO - Poll #11: State 'waiting' - continuing to poll...
+2026-02-12 19:37:42,921 - kie_client - INFO - Poll #12: Status Code 200
+2026-02-12 19:37:42,921 - kie_client - INFO - Poll #12: Response keys: dict_keys(['code', 'msg', 'data'])
+2026-02-12 19:37:42,921 - kie_client - INFO - Poll #12: State = waiting
+2026-02-12 19:37:42,921 - kie_client - INFO - Poll #12: State 'waiting' - continuing to poll...
+2026-02-12 19:37:45,305 - kie_client - INFO - Poll #13: Status Code 200
+2026-02-12 19:37:45,305 - kie_client - INFO - Poll #13: Response keys: dict_keys(['code', 'msg', 'data'])
+2026-02-12 19:37:45,305 - kie_client - INFO - Poll #13: State = waiting
+2026-02-12 19:37:45,305 - kie_client - INFO - Poll #13: State 'waiting' - continuing to poll...
+2026-02-12 19:37:47,922 - kie_client - INFO - Poll #14: Status Code 200
+2026-02-12 19:37:47,922 - kie_client - INFO - Poll #14: Response keys: dict_keys(['code', 'msg', 'data'])
+2026-02-12 19:37:47,922 - kie_client - INFO - Poll #14: State = success
+2026-02-12 19:37:47,922 - kie_client - INFO - Poll #14: SUCCESS with resultJson: {"resultUrls":["https://tempfile.aiquickdraw.com/f/a1113b75-dde0-43ba-86db-99885743b6b5_0.jpg"]}
+2026-02-12 19:37:47,922 - kie_client - INFO - Poll #14: Extracted URL: https://tempfile.aiquickdraw.com/f/a1113b75-dde0-43ba-86db-99885743b6b5_0.jpg
+2026-02-12 19:37:47,924 - __main__ - INFO - Generation completed. Result: {'url': 'https://tempfile.aiquickdraw.com/f/a1113b75-dde0-43ba-86db-99885743b6b5_0.jpg', 'revised_prompt': ''}
+2026-02-12 19:37:47,924 - __main__ - INFO - Image generated successfully: https://tempfile.aiquickdraw.com/f/a1113b75-dde0-43ba-86db-99885743b6b5_0.jpg
+2026-02-12 19:37:47,924 - __main__ - INFO - Attempting to send image to chat 8154274020
+2026-02-12 19:37:48,625 - telethon.client.updates - INFO - Got difference for channel 1546800315 updates
+2026-02-12 19:37:49,119 - __main__ - INFO - [OK] Image sent successfully!
+2026-02-12 19:37:59,082 - telethon.client.updates - INFO - Got difference for channel 1546800315 updates

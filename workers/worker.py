@@ -174,6 +174,19 @@ def login_route():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/accounts/list', methods=['GET'])
+def list_accounts_route():
+    try:
+        user_id = request.args.get('userId')
+        if not user_id:
+            return jsonify({"error": "User ID required"}), 400
+        
+        from account_manager import get_user_accounts
+        result = get_user_accounts(user_id)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/accounts/bulk-update', methods=['POST'])
 def bulk_update_accounts_route():
     try:

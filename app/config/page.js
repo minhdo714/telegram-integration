@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import Navigation from '@/components/Navigation';
@@ -68,7 +68,7 @@ function InfoTooltip({ text }) {
     );
 }
 
-export default function AIConfig() {
+function AIConfigContent() {
     const searchParams = useSearchParams();
     const [accounts, setAccounts] = useState([]);
     const [selectedAccountId, setSelectedAccountId] = useState(searchParams.get('accountId') || '');
@@ -1171,5 +1171,24 @@ export default function AIConfig() {
                 />
             </div >
         </>
+    );
+}
+
+export default function AIConfig() {
+    return (
+        <Suspense fallback={
+            <div style={{
+                minHeight: '100vh',
+                background: '#0a0a14',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white'
+            }}>
+                Loading AI Configuration...
+            </div>
+        }>
+            <AIConfigContent />
+        </Suspense>
     );
 }
