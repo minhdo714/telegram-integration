@@ -52,6 +52,16 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.db')
 def health():
     return jsonify({"status": "healthy", "service": "telegram-worker"}), 200
 
+@app.route('/debug/routes', methods=['GET'])
+def debug_routes():
+    import urllib
+    output = []
+    for rule in app.url_map.iter_rules():
+        methods = ','.join(rule.methods)
+        line = f"{rule.endpoint} ({methods}) -> {rule}"
+        output.append(line)
+    return jsonify({"routes": sorted(output)})
+
 @app.route('/debug/env', methods=['GET'])
 def debug_env():
     """Debug endpoint to check environment variables"""
