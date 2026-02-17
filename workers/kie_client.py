@@ -21,7 +21,8 @@ class KieClient:
             self.logger.warning("KIE_API_KEY not found. Image generation will fail.")
 
         # Add FileHandler for debugging
-        fh = logging.FileHandler('kie_debug.log')
+        kie_log_path = '/tmp/kie_debug.log' if os.name != 'nt' else 'kie_debug.log'
+        fh = logging.FileHandler(kie_log_path)
         fh.setLevel(logging.INFO)
         formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         fh.setFormatter(formatter)

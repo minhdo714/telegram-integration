@@ -11,11 +11,13 @@ from dotenv import load_dotenv
 from ai_handler import AIHandler
 
 # Configure logging
+bot_log_path = '/tmp/bot.log' if os.name != 'nt' else os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bot.log')
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bot.log')),
+        logging.FileHandler(bot_log_path),
         logging.StreamHandler(sys.stdout)
     ]
 )

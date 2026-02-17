@@ -64,7 +64,8 @@ class AIHandler:
         new_state = current_state
         
         # Reconstruct absolute paths
-        upload_base = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+        # Reconstruct absolute paths
+        upload_base = '/tmp/uploads' if os.name != 'nt' else os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
         
         if just_created:
             # Check for reset command on first message (unlikely but possible if re-created immediately)
@@ -156,12 +157,12 @@ class AIHandler:
                    # FAST TRACK: Jump to Image Generation
                     preference = message_text
                     
-                    # 1. Asset Lookup (copied from PREF_ASKED)
-                    face_path = None
-                    if assets and assets.get('model_face_ref'):
-                         # Reconstruct path
-                         upload_base = os.path.join(os.path.dirname(__file__), 'uploads')
-                         face_path = os.path.join(upload_base, str(session['account_id']), 'face', os.path.basename(assets['model_face_ref']))
+                     # 1. Asset Lookup (copied from PREF_ASKED)
+                     face_path = None
+                     if assets and assets.get('model_face_ref'):
+                          # Reconstruct path - use the same logic as above
+                          upload_base = '/tmp/uploads' if os.name != 'nt' else os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+                          face_path = os.path.join(upload_base, str(session['account_id']), 'face', os.path.basename(assets['model_face_ref']))
                     
                     # 2. Text Generation for Image Description
                     img_system_prompt = (
@@ -274,6 +275,7 @@ class AIHandler:
                         f.write(f"[{datetime.now()}] DEBUG: model_face_ref key MISSING\n")
                     
                 if assets.get('room_bg_ref'):
+                    # Reuse the same relative logic from DB but with production-safe base
                     room_path = os.path.join(upload_base, assets['room_bg_ref'])
             else:
                 print("DEBUG: No assets found for account")

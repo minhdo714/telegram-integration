@@ -986,6 +986,13 @@ def get_bot_logs():
             with open(log_file, 'r') as f:
                 logs.append("=== BOT.LOG ===")
                 logs.extend(f.read().split('\n')[-50:])
+
+        # Check Kie Debug Log
+        kie_log = '/tmp/kie_debug.log' if os.name != 'nt' else 'kie_debug.log'
+        if os.path.exists(kie_log):
+            with open(kie_log, 'r') as f:
+                logs.append("=== KIE_DEBUG.LOG ===")
+                logs.extend(f.read().split('\n')[-50:])
         
         if not logs:
              return jsonify({"logs": ["No logs found."]}), 200
