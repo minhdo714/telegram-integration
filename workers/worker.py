@@ -5,6 +5,17 @@ from dotenv import load_dotenv
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../.env"))
 
+import logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("worker.log"),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
+
 from telethon_handler import (
     initiate_qr_login,
     check_qr_status,
@@ -934,6 +945,13 @@ def get_bot_logs():
                 if content:
                     logs.append("=== STDOUT ===")
                     logs.extend(content.split('\n')[-20:])
+
+        # Check Worker Log (Flask)
+        worker_log = os.path.join(os.path.dirname(__file__), 'worker.log')
+        if os.path.exists(worker_log):
+            with open(worker_log, 'r') as f:
+                logs.append("=== WORKER.LOG ===")
+                logs.extend(f.read().split('\n')[-50:])
 
         # Check App Log
         log_file = '/tmp/bot.log' if os.name != 'nt' else os.path.join(os.path.dirname(__file__), 'bot.log')
