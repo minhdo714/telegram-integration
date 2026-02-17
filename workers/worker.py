@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../.env"))
 
 import logging
-worker_log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "worker.log")
+worker_log_path = '/tmp/worker.log' if os.name != 'nt' else os.path.join(os.path.dirname(os.path.abspath(__file__)), "worker.log")
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
