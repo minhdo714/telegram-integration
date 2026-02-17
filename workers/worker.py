@@ -90,7 +90,7 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.db')
 
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({"status": "healthy", "service": "telegram-worker", "version": "1.4.1-path-fixes"}), 200
+    return jsonify({"status": "healthy", "service": "telegram-worker", "version": "1.4.2-log-limits"}), 200
 
 @app.route('/debug/routes', methods=['GET'])
 def debug_routes():
@@ -963,7 +963,7 @@ def get_bot_logs():
                 content = f.read().strip()
                 if content:
                     logs.append("=== STDERR ===")
-                    logs.extend(content.split('\n')[-20:])
+                    logs.extend(content.split('\n')[-500:])
 
         # Check STDOUT
         out_log = '/tmp/bot_out.log' if os.name != 'nt' else 'bot_out.log'
@@ -972,27 +972,27 @@ def get_bot_logs():
                 content = f.read().strip()
                 if content:
                     logs.append("=== STDOUT ===")
-                    logs.extend(content.split('\n')[-20:])
+                    logs.extend(content.split('\n')[-500:])
 
         # Check Worker Log (Flask)
         if os.path.exists(worker_log_path):
             with open(worker_log_path, 'r') as f:
                 logs.append("=== WORKER.LOG ===")
-                logs.extend(f.read().split('\n')[-50:])
+                logs.extend(f.read().split('\n')[-500:])
 
         # Check App Log
         log_file = '/tmp/bot.log' if os.name != 'nt' else os.path.join(os.path.dirname(__file__), 'bot.log')
         if os.path.exists(log_file):
             with open(log_file, 'r') as f:
                 logs.append("=== BOT.LOG ===")
-                logs.extend(f.read().split('\n')[-50:])
+                logs.extend(f.read().split('\n')[-500:])
 
         # Check Kie Debug Log
         kie_log = '/tmp/kie_debug.log' if os.name != 'nt' else 'kie_debug.log'
         if os.path.exists(kie_log):
             with open(kie_log, 'r') as f:
                 logs.append("=== KIE_DEBUG.LOG ===")
-                logs.extend(f.read().split('\n')[-50:])
+                logs.extend(f.read().split('\n')[-500:])
         
         if not logs:
              return jsonify({"logs": ["No logs found."]}), 200
