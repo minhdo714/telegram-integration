@@ -9,7 +9,7 @@ export async function POST(request) {
             return NextResponse.json({ status: 'error', message: 'accountIds is required and must be an array' }, { status: 400 });
         }
 
-        const WORKER_URL = (process.env.RAILWAY_WORKER_URL || 'http://localhost:5000').trim().replace(/\/$/, '');
+        import { WORKER_URL } from '@/lib/worker-url';
 
         const response = await fetch(`${WORKER_URL}/api/accounts/bulk-update`, {
             method: 'POST',
