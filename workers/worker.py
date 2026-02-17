@@ -90,7 +90,38 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.db')
 
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({"status": "healthy", "service": "telegram-worker", "version": "1.4.3-fix-syntax"}), 200
+    return jsonify({"status": "healthy", "service": "telegram-worker", "version": "1.4.4-auth-fix"}), 200
+
+@app.route('/debug/env', methods=['GET'])
+def debug_env():
+    """Diagnostic endpoint to check for presence of env vars in production"""
+    keys = list(os.environ.keys())
+    # Identify critical keys we want to check
+    critical_keys = [
+        'TELEGRAM_API_ID', 'TELEGRAM_API_HASH', 
+        'OPENAI_API_KEY', 'KIE_API_KEY', 
+        'RAILWAY_WORKER_URL', 'NODE_ENV'
+    ]
+    
+    status = {}
+    for key in critical_keys:
+        val = os.getenv(key)
+        if val:
+            # Mask value but show first/last chars
+            if len(val) > 8:
+                masked = val[:4] + "..." + val[-4:]
+            else:
+                masked = "***"
+            status[key] = f"PRESENT ({masked})"
+        else:
+            status[key] = "MISSING"
+            
+    return jsonify({
+        "all_keys_count": len(keys),
+        "critical_keys_status": status,
+        "os_name": os.name,
+        "cwd": os.getcwd()
+    }), 200
 
 @app.route('/debug/routes', methods=['GET'])
 def debug_routes():

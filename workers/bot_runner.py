@@ -114,14 +114,16 @@ async def start_bot(account_id, session_string):
             session_string = session_string.decode('utf-8')
             
         client = TelegramClient(StringSession(session_string), API_ID, API_HASH, sequential_updates=True)
-        await client.start()
+        
+        logger.info(f"Connecting client for account {account_id}...")
+        await client.connect()
         
         if not await client.is_user_authorized():
-            logger.warning(f"Account {account_id} not authorized.")
+            logger.error(f"Account {account_id} NOT AUTHORIZED. Session string may be invalid or expired. Skipping.")
             return
 
         me = await client.get_me()
-        logger.info(f"Listening for Account {account_id} as {me.username}")
+        logger.info(f"SUCCESS: Listening for Account {account_id} as {me.username} ({me.id})")
 
         processed_msg_ids = set()
 
