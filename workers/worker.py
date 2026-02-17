@@ -90,7 +90,7 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.db')
 
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({"status": "healthy", "service": "telegram-worker", "version": "1.4.4-auth-fix"}), 200
+    return jsonify({"status": "healthy", "service": "telegram-worker", "version": "1.4.5-clean-debug"}), 200
 
 @app.route('/debug/env', methods=['GET'])
 def debug_env():
@@ -133,23 +133,6 @@ def debug_routes():
         output.append(line)
     return jsonify({"routes": sorted(output)})
 
-@app.route('/debug/env', methods=['GET'])
-def debug_env():
-    """Debug endpoint to check environment variables and file version"""
-    import os, time
-    from datetime import datetime
-    file_path = os.path.abspath(__file__)
-    mod_time = datetime.fromtimestamp(os.path.getmtime(file_path)).strftime('%Y-%m-%d %H:%M:%S')
-    
-    return jsonify({
-        "file_path": file_path,
-        "file_mod_time": mod_time,
-        "has_telegram_api_id": os.getenv('TELEGRAM_API_ID') is not None,
-        "has_telegram_api_hash": os.getenv('TELEGRAM_API_HASH') is not None,
-        "has_github_token": os.getenv('GITHUB_TOKEN') is not None,
-        "has_kie_api_key": os.getenv('KIE_API_KEY') is not None,
-        "telegram_api_id_value": os.getenv('TELEGRAM_API_ID', 'NOT_SET')[:5] + "..." if os.getenv('TELEGRAM_API_ID') else "NOT_SET"
-    }), 200
 
 @app.route('/api/qr-login/initiate', methods=['POST'])
 def qr_login_initiate():
