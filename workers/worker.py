@@ -6,15 +6,17 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../.env"))
 
 import logging
+worker_log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "worker.log")
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("worker.log"),
+        logging.FileHandler(worker_log_path),
         logging.StreamHandler(sys.stdout)
     ]
 )
 logger = logging.getLogger(__name__)
+logger.info(f"Worker starting with log path: {worker_log_path}")
 
 from telethon_handler import (
     initiate_qr_login,
@@ -700,24 +702,24 @@ def save_assets_route():
 
 @app.route('/api/assets/upload', methods=['POST'])
 def upload_file():
-    print(f"[WORKER] Received upload request: {request.form}")
+    logger.info(f"Received upload request: {request.form}")
     try:
         if 'file' not in request.files:
-            print("[WORKER] Error: No file part in request")
+            logger.error("No file part in request")
             return jsonify({"error": "No file part"}), 400
         
         file = request.files['file']
         account_id = request.form.get('accountId')
         asset_type = request.form.get('type') # 'face', 'room', 'opener'
         
-        print(f"[WORKER] Uploading {asset_type} for account {account_id}, filename: {file.filename}")
+        logger.info(f"Uploading {asset_type} for account {account_id}, filename: {file.filename}")
         
         if file.filename == '':
-            print("[WORKER] Error: No selected file")
+            logger.error("No selected file")
             return jsonify({"error": "No selected file"}), 400
             
         if not account_id:
-             print("[WORKER] Error: Account ID missing")
+             logger.error("Account ID missing")
              return jsonify({"error": "Account ID required"}), 400
              
         if file and allowed_file(file.filename):
@@ -729,12 +731,12 @@ def upload_file():
                 os.makedirs(account_folder)
                 
             save_path = os.path.join(account_folder, filename)
-            print(f"[WORKER] Saving to: {save_path}")
+            logger.info(f"Saving to: {save_path}")
             file.save(save_path)
             
             # Update Database
             relative_path = f"{account_id}/{asset_type}/{filename}"
-            print(f"[WORKER] Updating DB with relative_path: {relative_path}")
+            logger.info(f"Updating DB with relative_path: {relative_path}")
             
             conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
@@ -778,7 +780,7 @@ def upload_file():
                     c.execute('INSERT INTO model_assets (user_id, account_id, opener_images) VALUES (?, ?, ?)', (user_id, account_id, json_list))
 
             conn.commit()
-            print(f"[WORKER] Assets updated for type {asset_type}")
+            logger.info(f"Assets updated for type {asset_type}")
             conn.close()
 
             return jsonify({
@@ -787,12 +789,11 @@ def upload_file():
                 "filename": filename
             }), 200
         else:
-            print(f"[WORKER] Error: File type not allowed: {file.filename}")
+            logger.error(f"File type not allowed: {file.filename}")
             return jsonify({"error": "File type not allowed"}), 400
 
     except Exception as e:
-        print(f"[WORKER] Upload exception: {str(e)}")
-        traceback.print_exc()
+        logger.exception("Upload exception")
         return jsonify({"message": str(e)}), 500
 
 
@@ -947,9 +948,8 @@ def get_bot_logs():
                     logs.extend(content.split('\n')[-20:])
 
         # Check Worker Log (Flask)
-        worker_log = os.path.join(os.path.dirname(__file__), 'worker.log')
-        if os.path.exists(worker_log):
-            with open(worker_log, 'r') as f:
+        if os.path.exists(worker_log_path):
+            with open(worker_log_path, 'r') as f:
                 logs.append("=== WORKER.LOG ===")
                 logs.extend(f.read().split('\n')[-50:])
 
