@@ -33,21 +33,21 @@ except Exception as e:
 logger = logging.getLogger(__name__)
 logger.info(f"Worker starting. Log path attempted: {worker_log_path}")
 
-from telethon_handler import (
-    initiate_qr_login,
-    check_qr_status,
-    request_sms_code,
-    verify_sms_code,
-    verify_2fa_password,
-    validate_session,
-    send_dm,
-    search_groups,
-    get_my_groups,
-    join_group,
-    scrape_members
-)
-from auth_handler import register_user, login_user
-from ai_config_manager import get_ai_configs, save_ai_config, delete_ai_config
+# from telethon_handler import (
+#     initiate_qr_login,
+#     check_qr_status,
+#     request_sms_code,
+#     verify_sms_code,
+#     verify_2fa_password,
+#     validate_session,
+#     send_dm,
+#     search_groups,
+#     get_my_groups,
+#     join_group,
+#     scrape_members
+# )
+# from auth_handler import register_user, login_user
+# from ai_config_manager import get_ai_configs, save_ai_config, delete_ai_config
 from werkzeug.utils import secure_filename
 import sqlite3
 import json
@@ -58,11 +58,11 @@ import traceback
 from flask import send_from_directory
 from migrate_presets import migrate
 
-# Run database migrations on startup
-try:
-    migrate()
-except Exception as e:
-    print(f"Migration error: {e}")
+# Run database migrations on startup - COMMENTED FOR DEBUG
+# try:
+#     migrate()
+# except Exception as e:
+#     print(f"Migration error: {e}")
 
 app = Flask(__name__)
 # Allow requests from production (Vercel) and development (localhost)
