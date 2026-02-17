@@ -64,8 +64,15 @@ def debug_routes():
 
 @app.route('/debug/env', methods=['GET'])
 def debug_env():
-    """Debug endpoint to check environment variables"""
+    """Debug endpoint to check environment variables and file version"""
+    import os, time
+    from datetime import datetime
+    file_path = os.path.abspath(__file__)
+    mod_time = datetime.fromtimestamp(os.path.getmtime(file_path)).strftime('%Y-%m-%d %H:%M:%S')
+    
     return jsonify({
+        "file_path": file_path,
+        "file_mod_time": mod_time,
         "has_telegram_api_id": os.getenv('TELEGRAM_API_ID') is not None,
         "has_telegram_api_hash": os.getenv('TELEGRAM_API_HASH') is not None,
         "has_github_token": os.getenv('GITHUB_TOKEN') is not None,
