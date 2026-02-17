@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { initiateQRLogin } from '@/lib/railwayWorker';
+import { WORKER_URL } from '@/lib/worker-url';
 
 export async function POST() {
     try {

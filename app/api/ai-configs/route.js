@@ -1,13 +1,5 @@
-
 import { NextResponse } from 'next/server';
-
-const get_worker_url = () => {
-    const url = (process.env.RAILWAY_WORKER_URL || 'http://localhost:5000').trim().replace(/\/$/, '');
-    console.log('DEBUG: Resolved WORKER_URL:', url);
-    return url;
-};
-
-const WORKER_URL = get_worker_url();
+import { WORKER_URL } from '@/lib/worker-url';
 
 export async function GET(request) {
     const { searchParams } = new URL(request.url);
