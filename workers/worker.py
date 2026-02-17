@@ -33,19 +33,24 @@ except Exception as e:
 logger = logging.getLogger(__name__)
 logger.info(f"Worker starting. Log path attempted: {worker_log_path}")
 
-# from telethon_handler import (
-#     initiate_qr_login,
-#     check_qr_status,
-#     request_sms_code,
-#     verify_sms_code,
-#     verify_2fa_password,
-#     validate_session,
-#     send_dm,
-#     search_groups,
-#     get_my_groups,
-#     join_group,
-#     scrape_members
-# )
+try:
+    from telethon_handler import (
+        initiate_qr_login,
+        check_qr_status,
+        request_sms_code,
+        verify_sms_code,
+        verify_2fa_password,
+        validate_session,
+        send_dm,
+        search_groups,
+        get_my_groups,
+        join_group,
+        scrape_members
+    )
+    logger.info("Telethon handler imported successfully")
+except Exception as e:
+    logger.error(f"Error importing Telethon handler: {e}")
+    traceback.print_exc()
 
 try:
     from auth_handler import register_user, login_user
