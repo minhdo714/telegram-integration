@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { listLeads } from '@/lib/railwayWorker';
+import { WORKER_URL } from '@/lib/worker-url';
 
 export async function GET(request) {
     try {

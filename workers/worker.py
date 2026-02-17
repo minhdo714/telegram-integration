@@ -90,7 +90,7 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.db')
 
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({"status": "healthy", "service": "telegram-worker", "version": "1.4.5-clean-debug"}), 200
+    return jsonify({"status": "healthy", "service": "telegram-worker", "version": "1.4.6-diag-expanded"}), 200
 
 @app.route('/debug/env', methods=['GET'])
 def debug_env():
@@ -100,6 +100,7 @@ def debug_env():
     critical_keys = [
         'TELEGRAM_API_ID', 'TELEGRAM_API_HASH', 
         'OPENAI_API_KEY', 'KIE_API_KEY', 
+        'TEXT_GEN_PROVIDER', 'XAI_API_KEY', 'OPENROUTER_API_KEY',
         'RAILWAY_WORKER_URL', 'NODE_ENV'
     ]
     
