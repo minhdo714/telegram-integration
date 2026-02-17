@@ -6,17 +6,32 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../.env"))
 
 import logging
+import sys
+
 worker_log_path = '/tmp/worker.log' if os.name != 'nt' else os.path.join(os.path.dirname(os.path.abspath(__file__)), "worker.log")
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(worker_log_path),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
+
+try:
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(worker_log_path),
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+except Exception as e:
+    # Fallback to just stdout if file logging fails
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.StreamHandler(sys.stdout)
+        ]
+    )
+    print(f"FAILED TO INIT FILE LOGGING: {e}")
+
 logger = logging.getLogger(__name__)
-logger.info(f"Worker starting with log path: {worker_log_path}")
+logger.info(f"Worker starting. Log path attempted: {worker_log_path}")
 
 from telethon_handler import (
     initiate_qr_login,
