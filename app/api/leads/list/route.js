@@ -1,21 +1,17 @@
 import { NextResponse } from 'next/server';
-
-const WORKER_URL = process.env.RAILWAY_WORKER_URL || 'http://localhost:5000';
+import { listLeads } from '@/lib/railwayWorker';
 
 export async function GET(request) {
     try {
         const { searchParams } = new URL(request.url);
         const groupId = searchParams.get('groupId');
+        const status = searchParams.get('status');
 
-        let url = `${WORKER_URL}/api/leads/list`;
-        if (groupId) url += `?groupId=${groupId}`;
-
-        const response = await fetch(url);
-        const data = await response.json();
-        return NextResponse.json(data, { status: response.status });
+        const data = await listLeads(groupId, status);
+        return NextResponse.json(data);
 
     } catch (error) {
-        console.error('Fetch leads error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error('Fetch leads API error:', error);
+        return NextResponse.json({ error: error.message }, { status: error.status || 500 });
     }
 }

@@ -1,40 +1,31 @@
-
 import sqlite3
 import os
 
-DB_PATH = 'e:/Projects/Webapp_OF management/telegram-integration/users.db'
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.db')
+
+if not os.path.exists(DB_PATH):
+    print(f"DB not found at {DB_PATH}")
+    exit(1)
 
 conn = sqlite3.connect(DB_PATH)
-conn.row_factory = sqlite3.Row
 c = conn.cursor()
 
-print("=== Telegram Accounts ===")
-c.execute("SELECT id, phone_number, telegram_username, first_name, status FROM telegram_accounts LIMIT 5")
-accounts = c.fetchall()
+print("=== model_assets columns ===")
+try:
+    c.execute("PRAGMA table_info(model_assets)")
+    cols = c.fetchall()
+    for col in cols:
+        print(col)
+except Exception as e:
+    print(e)
 
-for acc in accounts:
-    print(f"\nAccount ID: {acc['id']}")
-    print(f"  Phone: {acc['phone_number']}")
-    print(f"  Username: {acc['telegram_username']}")
-    print(f"  Name: {acc['first_name']}")
-    print(f"  Status: {acc['status']}")
-
-print("\n\n=== Model Assets ===")
-c.execute("SELECT account_id, model_face_ref, room_bg_ref, opener_images FROM model_assets")
-assets = c.fetchall()
-
-for asset in assets:
-    print(f"\nAccount ID: {asset['account_id']}")
-    print(f"  Face Ref: {asset['model_face_ref']}")
-    print(f"  Room Ref: {asset['room_bg_ref']}")
-    print(f"  Openers: {asset['opener_images']}")
-    
-    # Check if face ref file exists
-    if asset['model_face_ref']:
-        full_path = f"e:/Projects/Webapp_OF management/telegram-integration/workers/uploads/{asset['model_face_ref']}"
-        exists = os.path.exists(full_path)
-        print(f"  Face Ref Exists: {exists}")
-        if exists:
-            print(f"  Full Path: {full_path}")
+print("\n=== ai_config_presets columns ===")
+try:
+    c.execute("PRAGMA table_info(ai_config_presets)")
+    cols = c.fetchall()
+    for col in cols:
+        print(col)
+except Exception as e:
+    print(e)
 
 conn.close()

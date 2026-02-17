@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-
-const WORKER_URL = process.env.RAILWAY_WORKER_URL || 'http://localhost:5000';
+import { getMyGroups } from '@/lib/railwayWorker';
 
 export async function GET(request) {
     try {
@@ -11,12 +10,11 @@ export async function GET(request) {
             return NextResponse.json({ error: 'Account ID required' }, { status: 400 });
         }
 
-        const response = await fetch(`${WORKER_URL}/api/groups/my?accountId=${accountId}`);
-        const data = await response.json();
-        return NextResponse.json(data, { status: response.status });
+        const data = await getMyGroups(accountId);
+        return NextResponse.json(data);
 
     } catch (error) {
-        console.error('Fetch my groups error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error('My groups API error:', error);
+        return NextResponse.json({ error: error.message }, { status: error.status || 500 });
     }
 }

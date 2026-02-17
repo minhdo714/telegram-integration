@@ -59,7 +59,7 @@ export default function DashboardSidebar({ onNewProfile }) {
                 onMouseOver={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
                 onMouseOut={(e) => e.currentTarget.style.transform = 'translateY(0)'}
             >
-                <span>New Profile</span>
+                <span>Add Account</span>
                 <FiPlus style={{
                     background: 'rgba(255,255,255,0.2)',
                     borderRadius: '4px',

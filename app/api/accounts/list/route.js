@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
-const WORKER_URL = process.env.RAILWAY_WORKER_URL || 'http://localhost:5000';
+const WORKER_URL = (process.env.RAILWAY_WORKER_URL || 'http://localhost:5000').trim().replace(/\/$/, '');
 
 export async function GET(request) {
     try {
@@ -16,11 +16,18 @@ export async function GET(request) {
         const { searchParams } = new URL(request.url);
         const qUserId = searchParams.get('userId');
 
-        const response = await fetch(`${WORKER_URL}/api/accounts?userId=${qUserId}`, {
+        const response = await fetch(`${WORKER_URL}/api/accounts/list?userId=${qUserId}`, {
             method: 'GET',
         });
 
-        const data = await response.json();
+        const text = await response.text();
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            console.error('Failed to parse JSON:', text);
+            return NextResponse.json({ error: 'Invalid response from worker', detail: text.substring(0, 100) }, { status: 502 });
+        }
         return NextResponse.json(data, { status: response.status });
 
     } catch (error) {

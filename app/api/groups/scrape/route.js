@@ -1,20 +1,19 @@
 import { NextResponse } from 'next/server';
-
-const WORKER_URL = process.env.RAILWAY_WORKER_URL || 'http://localhost:5000';
+import { scrapeMembers } from '@/lib/railwayWorker';
 
 export async function POST(request) {
     try {
-        const body = await request.json();
-        const response = await fetch(`${WORKER_URL}/api/groups/scrape`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-        });
-        const data = await response.json();
-        return NextResponse.json(data, { status: response.status });
+        const { accountId, groupId, limit } = await request.json();
+
+        if (!accountId || !groupId) {
+            return NextResponse.json({ error: 'Account ID and Group ID required' }, { status: 400 });
+        }
+
+        const data = await scrapeMembers(accountId, groupId, limit || 50);
+        return NextResponse.json(data);
 
     } catch (error) {
-        console.error('Scrape group error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error('Scrape group API error:', error);
+        return NextResponse.json({ error: error.message }, { status: error.status || 500 });
     }
 }

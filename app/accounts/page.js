@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import { FiSearch, FiFilter, FiRefreshCw } from 'react-icons/fi';
+import { FiSearch, FiFilter, FiRefreshCw, FiPlus } from 'react-icons/fi';
 import DashboardSidebar from '../../components/DashboardSidebar';
 import AccountTable from '../../components/AccountTable';
 import BulkActionsToolbar from '../../components/BulkActionsToolbar';
@@ -121,6 +121,19 @@ export default function AccountsPage() {
                         </div>
 
                         <div style={{ display: 'flex', gap: '1rem' }}>
+                            <button
+                                onClick={() => setIsNewProfileModalOpen(true)}
+                                className="btn btn-primary"
+                                style={{
+                                    padding: '0.6rem 1.2rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    fontSize: '0.9rem'
+                                }}
+                            >
+                                <FiPlus /> Add Account
+                            </button>
                             <button onClick={fetchAccounts} className="action-btn">
                                 <FiRefreshCw className={loading ? 'spin' : ''} />
                             </button>

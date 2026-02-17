@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 
-const WORKER_URL = process.env.RAILWAY_WORKER_URL || 'http://localhost:5000';
+const WORKER_URL = (process.env.RAILWAY_WORKER_URL || 'http://localhost:5000').trim().replace(/\/$/, '');
 
 export async function GET(request, { params }) {
     try {

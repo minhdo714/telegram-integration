@@ -1,23 +1,21 @@
 import { NextResponse } from 'next/server';
-
-const WORKER_URL = process.env.RAILWAY_WORKER_URL || 'http://localhost:5000';
+import { searchGroups } from '@/lib/railwayWorker';
 
 export async function GET(request) {
     try {
         const { searchParams } = new URL(request.url);
         const accountId = searchParams.get('accountId');
-        const q = searchParams.get('q');
+        const query = searchParams.get('q');
 
-        if (!accountId || !q) {
-            return NextResponse.json({ error: 'Account ID and search query required' }, { status: 400 });
+        if (!accountId || !query) {
+            return NextResponse.json({ error: 'Account ID and Query required' }, { status: 400 });
         }
 
-        const response = await fetch(`${WORKER_URL}/api/groups/search?accountId=${accountId}&q=${q}`);
-        const data = await response.json();
-        return NextResponse.json(data, { status: response.status });
+        const data = await searchGroups(accountId, query);
+        return NextResponse.json(data);
 
     } catch (error) {
-        console.error('Search groups error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error('Search groups API error:', error);
+        return NextResponse.json({ error: error.message }, { status: error.status || 500 });
     }
 }

@@ -8,21 +8,54 @@ import CodeVerification from './CodeVerification';
 import styles from './AccountConnectionModal.module.css';
 
 export default function AccountConnectionModal({ isOpen, onClose, onSuccess }) {
-    const [activeTab, setActiveTab] = useState('qr'); // 'qr' or 'sms'
+    const [activeTab, setActiveTab] = useState('qr'); // 'qr', 'sms', 'bulk'
     const [smsStep, setSmsStep] = useState('phone'); // 'phone', 'code', '2fa', 'success'
     const [sessionId, setSessionId] = useState(null);
     const [phoneNumber, setPhoneNumber] = useState('');
     const [phoneHash, setPhoneHash] = useState('');
     const [sessionString, setSessionString] = useState('');
+    const [bulkStrings, setBulkStrings] = useState('');
+    const [importResults, setImportResults] = useState(null);
     const [loading, setLoading] = useState(false);
 
     if (!isOpen) return null;
 
+    const handleBulkImport = async () => {
+        const strings = bulkStrings.split('\n').map(s => s.trim()).filter(s => s.length > 50);
+        if (strings.length === 0) {
+            toast.error('Please enter valid session strings (one per line)');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const response = await fetch('/api/accounts/bulk-import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    session_strings: strings
+                }),
+            });
+
+            const data = await response.json();
+            if (response.ok) {
+                setImportResults(data);
+                toast.success(`Successfully imported ${data.success} accounts!`);
+                if (data.success > 0) {
+                    onSuccess();
+                }
+            } else {
+                toast.error(data.error || 'Failed to import accounts');
+            }
+        } catch (error) {
+            toast.error('Network error. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleQRSuccess = async (accountData) => {
-        toast.success('Account connected! Please check your Telegram app and "Confirm" this login if prompted.', {
-            duration: 10000,
-            icon: '🔔'
-        });
+        toast.success('Account connected!');
         onSuccess(accountData);
     };
 
@@ -38,10 +71,11 @@ export default function AccountConnectionModal({ isOpen, onClose, onSuccess }) {
             const data = await response.json();
 
             if (response.ok) {
+                console.log('DEBUG: SMS Code Request Success:', data);
                 setPhoneNumber(phone);
-                setPhoneHash(data.phoneHash);
-                setSessionString(data.sessionString);
-                setSessionId(data.sessionId);
+                setPhoneHash(data.phoneHash || data.phone_hash);
+                setSessionString(data.sessionString || data.session_string);
+                setSessionId(data.sessionId || data.session_id);
                 setSmsStep('code');
                 toast.success('Code sent to your phone!');
             } else {
@@ -55,6 +89,15 @@ export default function AccountConnectionModal({ isOpen, onClose, onSuccess }) {
     };
 
     const handleVerifyCode = async (code) => {
+        console.log('DEBUG: Verifying code:', code);
+        console.log('DEBUG: State - phone:', phoneNumber, 'hash:', !!phoneHash, 'session:', !!sessionString);
+
+        if (!phoneNumber || !phoneHash) {
+            toast.error('Session data lost. Please try again.');
+            setSmsStep('phone');
+            return;
+        }
+
         setLoading(true);
         try {
             const response = await fetch('/api/accounts/sms-login/verify-code', {
@@ -94,7 +137,11 @@ export default function AccountConnectionModal({ isOpen, onClose, onSuccess }) {
             const response = await fetch('/api/accounts/sms-login/verify-password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sessionId, password }),
+                body: JSON.stringify({
+                    phoneNumber,
+                    password,
+                    sessionString
+                }),
             });
 
             const data = await response.json();
@@ -136,25 +183,33 @@ export default function AccountConnectionModal({ isOpen, onClose, onSuccess }) {
                         onClick={() => setActiveTab('qr')}
                     >
                         <span>📲</span>
-                        QR Code Login
-                        <span className={styles.recommended}>Recommended</span>
+                        QR Code
                     </button>
                     <button
                         className={`${styles.tab} ${activeTab === 'sms' ? styles.tabActive : ''}`}
                         onClick={() => setActiveTab('sms')}
                     >
                         <span>📱</span>
-                        Phone Number
+                        Phone
+                    </button>
+                    <button
+                        className={`${styles.tab} ${activeTab === 'bulk' ? styles.tabActive : ''}`}
+                        onClick={() => setActiveTab('bulk')}
+                    >
+                        <span>⚡</span>
+                        Bulk Import
                     </button>
                 </div>
 
                 <div className={styles.content}>
-                    {activeTab === 'qr' ? (
+                    {activeTab === 'qr' && (
                         <QRCodeDisplay
                             onSuccess={handleQRSuccess}
                             onError={(error) => toast.error(error.message)}
                         />
-                    ) : (
+                    )}
+
+                    {activeTab === 'sms' && (
                         <div className={styles.smsFlow}>
                             {smsStep === 'phone' && (
                                 <PhoneInput
@@ -205,29 +260,61 @@ export default function AccountConnectionModal({ isOpen, onClose, onSuccess }) {
                                 <div className={styles.successStep}>
                                     <div className={styles.stepIcon}>✅</div>
                                     <h3>Account Linked!</h3>
-                                    <div style={{
-                                        background: 'rgba(99, 102, 241, 0.1)',
-                                        padding: '20px',
-                                        borderRadius: '12px',
-                                        border: '1px solid var(--color-primary)',
-                                        marginTop: '20px',
-                                        textAlign: 'left'
-                                    }}>
-                                        <p style={{ fontWeight: 'bold', color: 'white', marginBottom: '10px' }}>⚠️ CRITICAL LAST STEP:</p>
-                                        <p style={{ fontSize: '15px', lineHeight: '1.5' }}>
-                                            Go to your <strong>main Telegram chat list</strong> on your phone.
-                                            You will see a message from Telegram. Open it and <strong>verify that it is you</strong> to finish linking to the bot.
-                                        </p>
-                                    </div>
                                     <button
                                         className="btn btn-primary"
                                         style={{ width: '100%', marginTop: '24px' }}
                                         onClick={onClose}
                                     >
-                                        Got it!
+                                        Done
                                     </button>
                                 </div>
                             )}
+                        </div>
+                    )}
+
+                    {activeTab === 'bulk' && (
+                        <div className={styles.bulkImport}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                                    Paste <strong>String Sessions</strong> (one per line). <br />
+                                    <strong>Mandatory Format:</strong> <code>session_string|proxy_url</code><br />
+                                    <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>Example: <code>1BXYZ...|socks5://user:pass@65.123.45.67:8080</code></span>
+                                </p>
+                                <textarea
+                                    placeholder="1BXYZ...|socks5://user:pass@host:port&#10;1AHPQ...|socks5://user:pass@host:port&#10;..."
+                                    value={bulkStrings}
+                                    onChange={(e) => setBulkStrings(e.target.value)}
+                                    disabled={loading}
+                                    style={{ minHeight: '220px' }}
+                                />
+                                <p style={{ color: 'rgba(255, 255, 255, 0.4)', fontSize: '11px', fontStyle: 'italic' }}>
+                                    Every account must have its own proxy to prevent mass flagging.
+                                </p>
+                            </div>
+
+                            {importResults && (
+                                <div className={styles.importResults}>
+                                    <p style={{ fontWeight: '600', fontSize: '0.9rem' }}>
+                                        Results: {importResults.success} success, {importResults.failed} failed
+                                    </p>
+                                    <div className={styles.resultList}>
+                                        {importResults.details.map((res, i) => (
+                                            <div key={i} className={`${styles.resultItem} ${res.status === 'success' ? styles.resultSuccess : styles.resultError}`}>
+                                                {res.status === 'success' ? '✅' : '❌'} {res.username || (res.error?.length > 40 ? res.error.substring(0, 40) + '...' : res.error)}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            <button
+                                className="btn btn-primary"
+                                onClick={handleBulkImport}
+                                disabled={loading || !bulkStrings.trim() || !bulkStrings.includes('|')}
+                                style={{ width: '100%', marginTop: '0.5rem' }}
+                            >
+                                {loading ? 'Importing Batch...' : 'Import Accounts with Mandatory Proxies'}
+                            </button>
                         </div>
                     )}
                 </div>

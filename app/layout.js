@@ -21,6 +21,7 @@ export default function RootLayout({ children }) {
                             border: '1px solid rgba(255, 255, 255, 0.1)',
                             borderRadius: '12px',
                             padding: '16px',
+                            zIndex: 99999,
                         },
                         success: {
                             iconTheme: {

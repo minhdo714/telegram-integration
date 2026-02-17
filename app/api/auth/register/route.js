@@ -1,35 +1,25 @@
 import { NextResponse } from 'next/server';
+import { register } from '@/lib/railwayWorker';
 
 export async function POST(request) {
     try {
         const body = await request.json();
-        const WORKER_URL = process.env.RAILWAY_WORKER_URL;
-
-        const response = await fetch(`${WORKER_URL}/api/auth/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            return NextResponse.json({ error: data.error }, { status: response.status });
-        }
+        const data = await register(body);
 
         const res = NextResponse.json(data);
 
+        // simple session cookie for now
         if (data.token) {
             res.cookies.set('auth_token', data.token, {
-                httpOnly: false,
+                httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'lax',
-                maxAge: 60 * 60 * 24 * 7
+                maxAge: 60 * 60 * 24 * 7 // 1 week
             });
 
             if (data.user && data.user.id) {
                 res.cookies.set('user_id', data.user.id.toString(), {
-                    httpOnly: false,
+                    httpOnly: false, // Allow client to read user ID
                     secure: process.env.NODE_ENV === 'production',
                     sameSite: 'lax',
                     maxAge: 60 * 60 * 24 * 7
@@ -38,8 +28,8 @@ export async function POST(request) {
         }
 
         return res;
-
     } catch (error) {
-        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+        console.error('Registration API error:', error);
+        return NextResponse.json({ error: error.message }, { status: error.status || 500 });
     }
 }

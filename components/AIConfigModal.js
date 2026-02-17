@@ -44,10 +44,23 @@ export default function AIConfigModal({ isOpen, onClose, accountId, onAssign }) 
     const handleSave = async () => {
         try {
             const userId = document.cookie.split('; ').find(row => row.startsWith('user_id='))?.split('=')[1] || '1';
-            const response = await fetch('/api/ai-configs', {
+            const payload = {
+                user_id: parseInt(userId),
+                name: formData.name,
+                system_prompt: formData.systemPrompt,
+                model_provider: formData.modelProvider,
+                model_name: formData.modelName,
+                temperature: formData.temperature
+            };
+
+            if (formData.id) {
+                payload.config_id = formData.id;
+            }
+
+            const response = await fetch('/api/ai-configs/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ...formData, userId })
+                body: JSON.stringify(payload)
             });
             if (response.ok) {
                 setIsEditing(false);

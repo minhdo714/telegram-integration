@@ -168,3 +168,71 @@
 .successStep p {
     color: var(--text-secondary);
 }
+
+.bulkImport {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    animation: fadeIn 0.3s ease;
+}
+
+.bulkImport textarea {
+    width: 100%;
+    min-height: 200px;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-family: monospace;
+    font-size: 0.875rem;
+    resize: vertical;
+    outline: none;
+}
+
+.bulkImport textarea:focus {
+    border-color: var(--primary);
+}
+
+.importResults {
+    margin-top: 1rem;
+    border-top: 1px solid var(--border-color);
+    padding-top: 1rem;
+}
+
+.resultList {
+    margin-top: 0.5rem;
+    max-height: 150px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.resultItem {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    padding: 0.5rem;
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.resultSuccess {
+    color: #4ade80;
+}
+
+.resultError {
+    color: #f87171;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}

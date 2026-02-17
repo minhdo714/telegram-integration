@@ -6,8 +6,7 @@ export async function POST(request) {
         const body = await request.json();
         const { phoneNumber, code, phoneHash, sessionString } = body;
 
-        console.log('API: Verifying code with sessionString present:', !!sessionString);
-
+        console.log('API: Verifying code request received');
         if (!phoneNumber || !code || !phoneHash) {
             return NextResponse.json(
                 { error: 'Phone number, code, and phone hash are required' },

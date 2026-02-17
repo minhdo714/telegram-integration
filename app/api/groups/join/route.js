@@ -1,20 +1,19 @@
 import { NextResponse } from 'next/server';
-
-const WORKER_URL = process.env.RAILWAY_WORKER_URL || 'http://localhost:5000';
+import { joinGroup } from '@/lib/railwayWorker';
 
 export async function POST(request) {
     try {
-        const body = await request.json();
-        const response = await fetch(`${WORKER_URL}/api/groups/join`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-        });
-        const data = await response.json();
-        return NextResponse.json(data, { status: response.status });
+        const { accountId, username } = await request.json();
+
+        if (!accountId || !username) {
+            return NextResponse.json({ error: 'Account ID and Group Username required' }, { status: 400 });
+        }
+
+        const data = await joinGroup(accountId, username);
+        return NextResponse.json(data);
 
     } catch (error) {
-        console.error('Join group error:', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        console.error('Join group API error:', error);
+        return NextResponse.json({ error: error.message }, { status: error.status || 500 });
     }
 }

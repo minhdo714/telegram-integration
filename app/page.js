@@ -31,23 +31,24 @@ function HomeContent() {
                 {/* Hero Section */}
                 <section className="hero" id="hero">
                     <div className="container">
-                        <div className="hero-content">
+                        <div className="hero-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
                             <Image
-                                src="/ofcharmer-logo.png"
+                                src="/phone-conversation-square.png"
                                 alt="OFCharmer"
                                 width={200}
                                 height={200}
                                 priority
-                                style={{ marginBottom: '2rem' }}
+                                style={{ marginBottom: '2rem', borderRadius: '20px' }}
                             />
                             <h1 className="title">
-                                Turn Telegram Chats Into
+                                Meet Your <span className="gradient-text">AI Clone</span> That Sends
                                 <br />
-                                <span className="gradient-text">Paying Fans</span>
+                                <span className="gradient-text">Custom Photos on Demand</span>
                             </h1>
                             <p className="subtitle">
-                                AI-powered chatbot that talks just like you. Sends custom photos.
-                                Converts DMs into PPV sales automatically—while you sleep.
+                                The only AI that learns your <strong>EXACT Vibe</strong> from your real chats.
+                                <br />
+                                Sends photos from your library when fans ask. Converts DMs into $$$ 24/7.
                             </p>
 
                             {/* Stats Bar */}
@@ -72,13 +73,15 @@ function HomeContent() {
                                 </div>
                             </div>
 
-                            <button
-                                className="btn btn-primary"
-                                onClick={() => setIsModalOpen(true)}
-                                style={{ fontSize: '1.2rem', padding: '1rem 2.5rem' }}
-                            >
-                                🚀 Start Free Trial
-                            </button>
+                            <div style={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={() => setIsModalOpen(true)}
+                                    style={{ fontSize: '1.2rem', padding: '1rem 2.5rem' }}
+                                >
+                                    🚀 Start Free Trial
+                                </button>
+                            </div>
                             <p style={{
                                 marginTop: '1rem',
                                 fontSize: '0.85rem',
@@ -165,57 +168,86 @@ function HomeContent() {
                             gap: '2rem',
                             marginTop: '3rem'
                         }}>
-                            <div className="card">
-                                <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🧠</div>
-                                <h3 style={{ fontSize: '1.3rem', marginBottom: '1rem' }}>AI That Talks Like YOU</h3>
-                                <p style={{ opacity: 0.9, lineHeight: '1.7' }}>
-                                    Train the bot with your messages. It learns your tone, your emojis, your sass.
-                                    Fans won't know they're talking to AI.
-                                </p>
-                            </div>
-
+                            {/* Priority 1: Image on Demand */}
                             <div className="card">
                                 <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📸</div>
-                                <h3 style={{ fontSize: '1.3rem', marginBottom: '1rem' }}>Smart Photo Sending</h3>
+                                <h3 style={{ fontSize: '1.3rem', marginBottom: '1rem' }}>Image on Demand</h3>
                                 <p style={{ opacity: 0.9, lineHeight: '1.7' }}>
-                                    "Send me a pic in red" → Bot sends from your library. Custom requests?
-                                    You set limits (3/day or whatever you want).
+                                    Fan asks for a "red dress pic"? <strong>She sends it instantly.</strong>
+                                    <br />
+                                    Upload your content, tag it (e.g., "bikini", "legs"), and the AI finds sending the perfect shot when asked.
+                                    <br />
+                                    <span style={{ color: '#4ade80', fontSize: '0.9rem' }}>✓ Never miss a PPV opportunity again.</span>
                                 </p>
                             </div>
 
+                            {/* Priority 2: Autochat Vibe */}
+                            <div className="card">
+                                <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🧠</div>
+                                <h3 style={{ fontSize: '1.3rem', marginBottom: '1rem' }}>Clones Your EXACT Vibe</h3>
+                                <p style={{ opacity: 0.9, lineHeight: '1.7' }}>
+                                    Your AI doesn't just "talk" based on a prompt.
+                                    <br />
+                                    <strong>It learns from your REAL chat logs.</strong>
+                                    <br />
+                                    It adopts your slang, your emoji habits, and your flirting style. Fans will swear it's you.
+                                </p>
+                            </div>
+
+                            {/* Priority 3: Prospect Discovery (New) */}
+                            <div className="card">
+                                <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🎯</div>
+                                <h3 style={{ fontSize: '1.3rem', marginBottom: '1rem' }}>Find & Blast 1000s of Prospects</h3>
+                                <p style={{ opacity: 0.9, lineHeight: '1.7' }}>
+                                    Stop waiting for DMs. Our AI finds hundreds of active users in your niche instantly.
+                                    <br />
+                                    Add them to a blast list and automate cold messaging to fill your funnel on autopilot.
+                                </p>
+                            </div>
+
+                            {/* Priority 4: 24/7 Income */}
+                            <div className="card">
+                                <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>😴</div>
+                                <h3 style={{ fontSize: '1.3rem', marginBottom: '1rem' }}>Make Money While You Sleep</h3>
+                                <p style={{ opacity: 0.9, lineHeight: '1.7' }}>
+                                    Whales don't sleep, and neither does your AI.
+                                    <br />
+                                    It replies instantly to every "Hi" at 3 AM, turning late-night grazers into paying subscribers before they lose interest.
+                                </p>
+                            </div>
+
+                            {/* Priority 4: Auto PPV */}
                             <div className="card">
                                 <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>💰</div>
-                                <h3 style={{ fontSize: '1.3rem', marginBottom: '1rem' }}>Auto PPV Conversion</h3>
+                                <h3 style={{ fontSize: '1.3rem', marginBottom: '1rem' }}>Automated Sales Funnel</h3>
                                 <p style={{ opacity: 0.9, lineHeight: '1.7' }}>
-                                    Smooth conversation flow → teases → perfectly timed PPV link.
-                                    Natural. Effective. Converts like crazy.
+                                    It doesn't just chat; it <strong>sells</strong>.
+                                    <br />
+                                    Builds rapport ➝ Teases the content ➝ Drops the PPV link at the perfect moment.
+                                    <br />
+                                    A relentless sales machine that never gets tired of rejection.
                                 </p>
                             </div>
 
+                            {/* Priority 5: Safety & Control */}
                             <div className="card">
-                                <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📱</div>
-                                <h3 style={{ fontSize: '1.3rem', marginBottom: '1rem' }}>Multiple Telegram Accounts</h3>
+                                <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🛡️</div>
+                                <h3 style={{ fontSize: '1.3rem', marginBottom: '1rem' }}>You're Always in Control</h3>
                                 <p style={{ opacity: 0.9, lineHeight: '1.7' }}>
-                                    Scale your reach. Add more Telegram accounts. Reach more fans.
-                                    More traffic = more $$$$.
+                                    Jump in and take over a conversation anytime.
+                                    <br />
+                                    The AI is your wingman, not your boss. Monitor chats in real-time or let it run on autopilot.
                                 </p>
                             </div>
 
+                            {/* Priority 6: Scaling */}
                             <div className="card">
-                                <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>⚡</div>
-                                <h3 style={{ fontSize: '1.3rem', marginBottom: '1rem' }}>Instant Replies, Always</h3>
+                                <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📈</div>
+                                <h3 style={{ fontSize: '1.3rem', marginBottom: '1rem' }}>Scale to Infinity</h3>
                                 <p style={{ opacity: 0.9, lineHeight: '1.7' }}>
-                                    3 AM? Noon? Doesn't matter. Your AI responds in seconds.
-                                    Never lose another fan to slow replies.
-                                </p>
-                            </div>
-
-                            <div className="card">
-                                <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📊</div>
-                                <h3 style={{ fontSize: '1.3rem', marginBottom: '1rem' }}>Track Everything</h3>
-                                <p style={{ opacity: 0.9, lineHeight: '1.7' }}>
-                                    See what's working. Which messages convert. Which photos they love.
-                                    Optimize and make more money.
+                                    Run 1, 10, or 50 Telegram accounts simultaneously.
+                                    <br />
+                                    Manage an entire agency's worth of traffic from a single dashboard.
                                 </p>
                             </div>
                         </div>

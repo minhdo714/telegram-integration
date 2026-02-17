@@ -14,7 +14,7 @@ export default function Pricing({ onOpenModal }) {
                 "1 Telegram Account",
                 "1,000 AI Credits (Messages)",
                 "Basic AI Training",
-                "50 Smart Photos",
+                "50 On-Demand Smart Photos\n(Prospects ask, AI sends)",
                 "Standard Support"
             ],
             bestFor: "Just starting out"
@@ -27,7 +27,7 @@ export default function Pricing({ onOpenModal }) {
                 "3 Telegram Accounts",
                 "3,000 AI Credits (Messages)",
                 "Advanced AI Training",
-                "Unlimited Smart Photos",
+                "Unlimited On-Demand Smart Photos",
                 "Priority Support"
             ],
             bestFor: "Growing creators",
