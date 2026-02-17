@@ -46,8 +46,14 @@ logger.info(f"Worker starting. Log path attempted: {worker_log_path}")
 #     join_group,
 #     scrape_members
 # )
-# from auth_handler import register_user, login_user
-# from ai_config_manager import get_ai_configs, save_ai_config, delete_ai_config
+
+try:
+    from auth_handler import register_user, login_user
+    from ai_config_manager import get_ai_configs, save_ai_config, delete_ai_config
+    logger.info("Auth and AI Config handlers imported successfully")
+except Exception as e:
+    logger.error(f"Error importing Auth/AI handlers: {e}")
+
 from werkzeug.utils import secure_filename
 import sqlite3
 import json
@@ -58,11 +64,12 @@ import traceback
 from flask import send_from_directory
 from migrate_presets import migrate
 
-# Run database migrations on startup - COMMENTED FOR DEBUG
-# try:
-#     migrate()
-# except Exception as e:
-#     print(f"Migration error: {e}")
+# Run database migrations on startup
+try:
+    migrate()
+    logger.info("Database migration completed successfully")
+except Exception as e:
+    logger.error(f"Migration error: {e}")
 
 app = Flask(__name__)
 # Allow requests from production (Vercel) and development (localhost)
