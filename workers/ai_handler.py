@@ -154,15 +154,15 @@ class AIHandler:
                 has_detail = any(k in last_user_msg for k in detailed_keywords)
                 
                 if has_detail:
-                   # FAST TRACK: Jump to Image Generation
+                    # FAST TRACK: Jump to Image Generation
                     preference = message_text
                     
-                     # 1. Asset Lookup (copied from PREF_ASKED)
-                     face_path = None
-                     if assets and assets.get('model_face_ref'):
-                          # Reconstruct path - use the same logic as above
-                          upload_base = '/tmp/uploads' if os.name != 'nt' else os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
-                          face_path = os.path.join(upload_base, str(session['account_id']), 'face', os.path.basename(assets['model_face_ref']))
+                    # 1. Asset Lookup (copied from PREF_ASKED)
+                    face_path = None
+                    if assets and assets.get('model_face_ref'):
+                        # Reconstruct path - use the same logic as above
+                        upload_base = '/tmp/uploads' if os.name != 'nt' else os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+                        face_path = os.path.join(upload_base, str(session['account_id']), 'face', os.path.basename(assets['model_face_ref']))
                     
                     # 2. Text Generation for Image Description
                     img_system_prompt = (

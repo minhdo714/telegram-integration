@@ -90,7 +90,7 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.db')
 
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({"status": "healthy", "service": "telegram-worker", "version": "1.4.2-log-limits"}), 200
+    return jsonify({"status": "healthy", "service": "telegram-worker", "version": "1.4.3-fix-syntax"}), 200
 
 @app.route('/debug/routes', methods=['GET'])
 def debug_routes():
