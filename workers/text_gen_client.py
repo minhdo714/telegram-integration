@@ -51,12 +51,31 @@ class TextGenClient:
                 self.mode = 'mock'
                 logger.warning("TextGenClient: Mock Mode (No OpenRouter API Key)")
         
+        elif self.provider == 'xai':
+            self.api_key = os.getenv('XAI_API_KEY')
+            self.model = os.getenv('XAI_MODEL', 'grok-4-1-fast-reasoning')
+            if self.api_key:
+                try:
+                    from openai import OpenAI
+                    self.client = OpenAI(
+                        base_url="https://api.x.ai/v1",
+                        api_key=self.api_key
+                    )
+                    self.mode = 'live'
+                    logger.info(f"TextGenClient: x.AI Live Mode ({self.model})")
+                except Exception as e:
+                    logger.error(f"Failed to init x.AI: {e}")
+                    self.mode = 'mock'
+            else:
+                self.mode = 'mock'
+                logger.warning("TextGenClient: Mock Mode (No x.AI API Key)")
+
         else:
             self.mode = 'mock'
             logger.warning(f"TextGenClient: Unknown provider '{self.provider}', defaulting to Mock Mode")
 
 
-    def generate_reply(self, history: List[Dict[str, str]], system_prompt: str) -> str:
+    def generate_reply(self, history: List[Dict[str, str]], system_prompt: str, model: str = None) -> str:
         """
         Generate a reply based on conversation history.
         history: [{'role': 'user', 'content': '...'}, {'role': 'assistant', 'content': '...'}]
@@ -76,8 +95,11 @@ class TextGenClient:
             # LIVE API CALL
             messages = [{"role": "system", "content": system_prompt}] + history
             
+            # Use provided model override or default
+            target_model = model if model else self.model
+
             response = self.client.chat.completions.create(
-                model=self.model,
+                model=target_model,
                 messages=messages,
                 max_tokens=300, # Increased for articulated responses
                 temperature=0.9 # High temperature for variety and creativity

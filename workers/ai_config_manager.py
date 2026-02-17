@@ -23,6 +23,7 @@ def get_ai_configs(user_id):
 
 def save_ai_config(user_id, name, system_prompt, model_provider, model_name, temperature, 
                    opener_images=None, model_face_ref=None, model_body_ref=None, room_bg_ref=None,
+                   outreach_message=None, example_chatflow=None, blast_list=None,
                    config_id=None):
     """Create or Update an AI config preset"""
     try:
@@ -33,19 +34,23 @@ def save_ai_config(user_id, name, system_prompt, model_provider, model_name, tem
             # Update
             c.execute('''UPDATE ai_config_presets SET 
                          name = ?, system_prompt = ?, model_provider = ?, model_name = ?, temperature = ?,
-                         opener_images = ?, model_face_ref = ?, model_body_ref = ?, room_bg_ref = ?
+                         opener_images = ?, model_face_ref = ?, model_body_ref = ?, room_bg_ref = ?,
+                         outreach_message = ?, example_chatflow = ?, blast_list = ?
                          WHERE id = ? AND user_id = ?''',
                       (name, system_prompt, model_provider, model_name, temperature, 
                        opener_images, model_face_ref, model_body_ref, room_bg_ref,
+                       outreach_message, example_chatflow, blast_list,
                        config_id, user_id))
         else:
             # Insert
             c.execute('''INSERT INTO ai_config_presets 
                          (user_id, name, system_prompt, model_provider, model_name, temperature,
-                          opener_images, model_face_ref, model_body_ref, room_bg_ref)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                          opener_images, model_face_ref, model_body_ref, room_bg_ref,
+                          outreach_message, example_chatflow, blast_list)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                       (user_id, name, system_prompt, model_provider, model_name, temperature,
-                       opener_images, model_face_ref, model_body_ref, room_bg_ref))
+                       opener_images, model_face_ref, model_body_ref, room_bg_ref,
+                       outreach_message, example_chatflow, blast_list))
             new_id = c.lastrowid
             
         conn.commit()

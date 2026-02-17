@@ -33,6 +33,14 @@ class AIHandler:
         # Cap at 30s max to avoid timeouts
         return min(total_delay, 30.0)
 
+    def _replace_variables(self, text, variables):
+        """Replace placeholders like {{name}} with value"""
+        if not text:
+            return ""
+        for key, value in variables.items():
+            text = text.replace(f"{{{{{key}}}}}", str(value))
+        return text
+
     def handle_message(self, account_id, remote_user_id, message_text, username=None):
         """
         Main entry point for handling an incoming message.
@@ -44,6 +52,7 @@ class AIHandler:
         just_created = False
         
         if not session:
+            # Emergency fallback: if no session exists but we got a message, create one
             session = self._create_session(account_id, remote_user_id, username)
             just_created = True
             
@@ -64,6 +73,12 @@ class AIHandler:
 
             # New User! Send Opener.
             opener_path = None
+            opener_text = "hey there! thanks for messaging"
+            
+            # Check for configured outreach message
+            if assets and assets.get('outreach_message'):
+                opener_text = self._replace_variables(assets['outreach_message'], {'name': username or 'there', 'group': 'Telegram'})
+            
             if assets and assets.get('opener_images'):
                 try:
                     openers = json.loads(assets['opener_images'])
@@ -75,9 +90,13 @@ class AIHandler:
             
             if opener_path:
                 response['image_path'] = os.path.join(upload_base, opener_path)
-                response['text'] = "hey... saw you on my feed aka destiny calling 😉"
+                # Default text if image sent, but override if outreach_message exists
+                if not assets or not assets.get('outreach_message'):
+                    response['text'] = "hey... saw you on my feed aka destiny calling 😉"
+                else:
+                    response['text'] = opener_text
             else:
-                response['text'] = "hey there! thanks for messaging"
+                response['text'] = opener_text
                 
             new_state = STATE_OPENER_SENT
             
@@ -128,9 +147,64 @@ class AIHandler:
                 should_escalate = True
 
             if should_escalate:
-                # Time to escalate - Ask open-ended niche/trend question
-                response['text'] = "i'm loving this vibe... quick question tho, what's usually your type? like are you into the whole innocent student thing, or maybe something more bossy? 😉"
-                new_state = STATE_PREF_ASKED
+                # Start of Logic
+                # Check for detailed preference to jump straight to generation
+                detailed_keywords = ['bikini', 'lingerie', 'naked', 'nude', 'dress', 'skirt', 'outfit', 'wearing', 'bra', 'panties', 'topless', 'legs', 'feet']
+                has_detail = any(k in last_user_msg for k in detailed_keywords)
+                
+                if has_detail:
+                   # FAST TRACK: Jump to Image Generation
+                    preference = message_text
+                    
+                    # 1. Asset Lookup (copied from PREF_ASKED)
+                    face_path = None
+                    if assets and assets.get('model_face_ref'):
+                         # Reconstruct path
+                         upload_base = os.path.join(os.path.dirname(__file__), 'uploads')
+                         face_path = os.path.join(upload_base, str(session['account_id']), 'face', os.path.basename(assets['model_face_ref']))
+                    
+                    # 2. Text Generation for Image Description
+                    img_system_prompt = (
+                        "You are about to send a photo to the user based on their request.\n"
+                        f"REQUEST: {preference}\n"
+                        "INSTRUCTION: Write the text message that will accompany the photo. "
+                        "It should be short, flirty, and describe what is in the photo implied by their request. "
+                        "Do NOT include *actions*. Just the message text."
+                    )
+                    history = self._get_conversation_history(session['id'], limit=10)
+                    descriptive_text = self.text_gen.generate_reply(history, img_system_prompt, model=assets.get('model_name'))
+                    
+                    response['text'] = descriptive_text
+                    response['async_task'] = {
+                        'type': 'image_gen',
+                        'prompt': descriptive_text,
+                        'face_path': face_path
+                    }
+                    new_state = STATE_GEN_SENT
+                    
+                else:
+                    # Standard Escalation: Ask for preference
+                    # Time to escalate - Use LLM to generate transition based on chatflow
+                    # hardcoded fallback if no chatflow
+                    fallback_escalation = "i'm loving this vibe... quick question tho, what's usually your type? like are you into the whole innocent student thing, or maybe something more bossy? 😉"
+                    
+                    if assets and assets.get('example_chatflow'):
+                       # Generate transition using LLM
+                        system_prompt = (
+                            "You are an OF model in a chat.\n"
+                            "OBJECTIVE: The user is engaged. You MUST now transition to the next phase defined in your Instructions/Chatflow (likely asking for a preference or moving to a demo).\n"
+                            "INSTRUCTION: Look at the 'Example Chatflow' below. Generate the specific bridge phrase or question that moves the conversation to the 'Ask Preference' or 'Demo' stage.\n"
+                            "Do NOT be repetitive. Make it natural.\n\n"
+                            f"### EXAMPLE CHATFLOW ###\n{assets['example_chatflow']}\n"
+                        )
+                        history = self._get_conversation_history(session['id'], limit=10)
+                        history.append({'role': 'user', 'content': message_text})
+                        
+                        response['text'] = self.text_gen.generate_reply(history, system_prompt, model=assets.get('model_name'))
+                    else:
+                        response['text'] = fallback_escalation
+    
+                    new_state = STATE_PREF_ASKED
             else:
                 # Continue Small Talk - Use preset prompt if available
                 system_prompt = assets.get('system_prompt') if assets and assets.get('system_prompt') else (
@@ -143,6 +217,11 @@ class AIHandler:
                     "Be articulate and engaging. "
                     "You can write longer sentences if needed to be more expressive, but keep it natural."
                 )
+
+                # Prioritize Example Chatflow
+                example_flow = assets.get('example_chatflow') if assets else None
+                if example_flow:
+                    system_prompt += f"\n\n### PRIORITY INSTRUCTION ###\nSTRICTLY FOLLOW this example chatflow for tone, style, and logic. Use it as your primary guide:\n\n{example_flow}\n\n"
                 
                 # Increase context limit to start avoiding repetition
                 history = self._get_conversation_history(session['id'], limit=50)
@@ -202,14 +281,34 @@ class AIHandler:
                     f.write(f"[{datetime.now()}] DEBUG: No assets found\n")
 
             print(f"DEBUG: Generating image with face_path={face_path}")
-             # SEND PROCESSING MESSAGE & RETURN ASYNC TASK
-            response['text'] = "ooh okay, let me take a quick pic for u... might take a sec to get the lighting right 😉"
+             # Generate descriptive message for the photo
+            img_system_prompt = (
+                "You are about to send a photo to the user based on their request.\n"
+                f"REQUEST: {preference}\n"
+                "INSTRUCTION: Write a short, 1-sentence message acting as the caption or lead-in to the photo. "
+                "You MUST include visual details of what is in the photo (e.g. 'Wearing that red dress...', 'Lying in bed...', 'Here is the close up...'). "
+                "Be flirty and visual. This text will also be used to generate the image itself, so be descriptive!"
+            )
+            history = self._get_conversation_history(session['id'], limit=5)
+            # We don't append the current message because we want the reaction to the PREVIOUS message (the request) - actually we do need the request.
+            # But 'preference' IS the message text here.
+            
+            # Temporary history for this specific generation
+            img_gen_history = history + [{'role': 'user', 'content': f"Send me a photo: {preference}"}]
+            
+            descriptive_text = self.text_gen.generate_reply(img_gen_history, img_system_prompt, model=assets.get('model_name'))
+            
+            # Fallback if LLM fails
+            if not descriptive_text:
+                descriptive_text = f"here is that {preference} picture you wanted... 😘"
+
+            response['text'] = descriptive_text
             response['delay'] = 2.0
             
             # Return task for bot runner to execute asynchronously
             response['async_task'] = {
                 'type': 'image_gen',
-                'prompt': preference,
+                'prompt': descriptive_text, # Use the descriptive text as the prompt!
                 'face_path': face_path
             }
             
@@ -331,36 +430,41 @@ class AIHandler:
             conn.row_factory = sqlite3.Row
             c = conn.cursor()
             
-            # 1. Check if account has an active preset
+            # 1. Fetch model_assets (Base)
+            c.execute('SELECT * FROM model_assets WHERE account_id = ?', (account_id,))
+            base_assets_row = c.fetchone()
+            base_assets = dict(base_assets_row) if base_assets_row else {}
+
+            # 2. Check if account has an active preset
             c.execute('''
                 SELECT ta.active_config_id, ac.opener_images, ac.model_face_ref, ac.model_body_ref, ac.room_bg_ref,
-                       ac.system_prompt, ac.temperature, ac.model_name, ac.model_provider
+                       ac.system_prompt, ac.temperature, ac.model_name, ac.model_provider, ac.example_chatflow, ac.outreach_message
                 FROM telegram_accounts ta
                 LEFT JOIN ai_config_presets ac ON ta.active_config_id = ac.id
                 WHERE ta.id = ?
             ''', (account_id,))
             acc_info = c.fetchone()
+            conn.close()
             
             if acc_info and acc_info['active_config_id']:
-                assets = {
+                # Merge preset onto base_assets (Preset overrides non-null fields)
+                # But notice: if preset field is NULL, we want to KEEP the base_asset value!
+                merged = {
                     "account_id": account_id,
-                    "opener_images": acc_info['opener_images'],
-                    "model_face_ref": acc_info['model_face_ref'],
-                    "model_body_ref": acc_info['model_body_ref'],
-                    "room_bg_ref": acc_info['room_bg_ref'],
-                    "system_prompt": acc_info['system_prompt'],
-                    "temperature": acc_info['temperature'],
-                    "model_name": acc_info['model_name'],
-                    "model_provider": acc_info['model_provider']
+                    "opener_images": acc_info['opener_images'] or base_assets.get('opener_images'),
+                    "model_face_ref": acc_info['model_face_ref'] or base_assets.get('model_face_ref'),
+                    "model_body_ref": acc_info['model_body_ref'] or base_assets.get('model_body_ref'),
+                    "room_bg_ref": acc_info['room_bg_ref'] or base_assets.get('room_bg_ref'),
+                    "system_prompt": acc_info['system_prompt'] or base_assets.get('system_prompt'),
+                    "temperature": acc_info['temperature'] if acc_info['temperature'] is not None else base_assets.get('temperature'),
+                    "model_name": acc_info['model_name'] or base_assets.get('model_name'),
+                    "model_provider": acc_info['model_provider'] or base_assets.get('model_provider'),
+                    "example_chatflow": acc_info['example_chatflow'] or base_assets.get('example_chatflow'),
+                    "outreach_message": acc_info['outreach_message'] or base_assets.get('outreach_message')
                 }
-                conn.close()
-                return assets
+                return merged
 
-            # 2. Fallback to model_assets
-            c.execute('SELECT * FROM model_assets WHERE account_id = ?', (account_id,))
-            assets = c.fetchone()
-            conn.close()
-            return dict(assets) if assets else None
+            return base_assets if base_assets else None
         except Exception as e:
             print(f"Error fetching assets: {e}")
             return None

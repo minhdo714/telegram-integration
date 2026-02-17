@@ -6,6 +6,7 @@ import { toast } from 'react-hot-toast';
 import Navigation from '@/components/Navigation';
 import AccountConnectionModal from '@/components/AccountConnectionModal';
 import SaveConfigPresetModal from '@/components/SaveConfigPresetModal';
+import LoadConfigPresetModal from '@/components/LoadConfigPresetModal';
 import styles from '@/components/MessageComposer.module.css'; // Global container styles
 import assetStyles from './AIConfig.module.css'; // New asset specific styles
 
@@ -78,6 +79,7 @@ function AIConfigContent() {
     const [logs, setLogs] = useState([]);
     const [isConnectionModalOpen, setIsConnectionModalOpen] = useState(false);
     const [isSavePresetModalOpen, setIsSavePresetModalOpen] = useState(false);
+    const [isLoadPresetModalOpen, setIsLoadPresetModalOpen] = useState(false);
 
     // Asset States
     const [faceRef, setFaceRef] = useState(null);
@@ -87,7 +89,66 @@ function AIConfigContent() {
 
     // Outreach State
     const [usernames, setUsernames] = useState('');
-    const [outreachMessage, setOutreachMessage] = useState('Hey {{name}}! Saw you in the {{group}} group... love your vibe\nHi {{name}}! Just saw your profile in {{group}}, hope you are well\nHey {{name}}! Found you through the {{group}} group, wanted to say hi\nHello {{name}}! Noticed you were also in {{group}}, thought I\'d reach out\nHi {{name}}, love your vibe in the {{group}} group! Just wanted to connect');
+    const [blastListMode, setBlastListMode] = useState('text'); // 'text' | 'list'
+    const [selectedBlastItems, setSelectedBlastItems] = useState(new Set());
+    const [outreachMessage, setOutreachMessage] = useState([
+        "Hey {{name}}! Saw you in the {{group}} group... love your vibe",
+        "Hi {{name}}! Just saw your profile in {{group}}, hope you are well",
+        "Hey {{name}}! Found you through the {{group}} group, wanted to say hi",
+        "Hello {{name}}! Noticed you were also in {{group}}, thought I'd reach out",
+        "Hi {{name}}, love your vibe in the {{group}} group! Just wanted to connect",
+        "Hey {{name}}, saw your comments in {{group}} and had to say hi!",
+        "What’s up {{name}}? Found you in {{group}} and you seem cool",
+        "Hi {{name}}! You stood out in the {{group}} group, had to DM",
+        "Hey there {{name}}! Saw you're part of {{group}}, nice to meet you",
+        "Hello {{name}}, hope your day is going well! Saw you in {{group}}",
+        "Hi {{name}}! Just randomly saw you in {{group}} and wanted to connect",
+        "Hey {{name}}! Matches my vibe from the {{group}} group perfectly",
+        "Yo {{name}}! Saw you in {{group}}, thought we might get along",
+        "Hi {{name}}, just reaching out from the {{group}} group!",
+        "Hey {{name}}! Love that you're in {{group}}, me too!",
+        "Hello {{name}}! Your profile in {{group}} caught my eye",
+        "Hi {{name}}! Wanted to say hello to a fellow {{group}} member",
+        "Hey {{name}}, saw you int the {{group}} chat... you seem fun!",
+        "Hi {{name}}! Just checking in from {{group}}",
+        "Hey {{name}}! Cool to see you in {{group}}",
+        "Hello {{name}}! Hope you don't mind the DM, saw you in {{group}}",
+        "Hi {{name}}, noticed you in {{group}} and liked your energy",
+        "Hey {{name}}! You seem interesting from the {{group}} group",
+        "Hi {{name}}! Just saw you in {{group}}, how's it going?",
+        "Hey {{name}}! Fellow {{group}} member here, wanted to say hi",
+        "Hello {{name}}! Nice to see you in {{group}}",
+        "Hi {{name}}! You popped up in {{group}} and I had to say hey",
+        "Hey {{name}}! Hope you're enjoying the {{group}} group",
+        "Hi {{name}}, saw your profile in {{group}}... big fan of your vibe!",
+        "Hey {{name}}! Just found you in {{group}}, nice to meet ya",
+        "Hello {{name}}! Saw you're active in {{group}}, thought I'd reach out",
+        "Hi {{name}}! You seem like a cool person from {{group}}",
+        "Hey {{name}}! Just saying hi from {{group}}",
+        "Hi {{name}}, saw you in the {{group}} list... you caught my eye",
+        "Hey {{name}}! Checking in from {{group}}, hope you're good",
+        "Hello {{name}}! Noticed you in {{group}}, love your profile",
+        "Hi {{name}}! Just saw you in {{group}}... getting good vibes!",
+        "Hey {{name}}! Wanted to connect with people from {{group}}",
+        "Hi {{name}}, saw you in {{group}} and thought you seemed chill",
+        "Hey {{name}}! Just passing by from {{group}} to say hi",
+        "Hello {{name}}! Saw you in {{group}}... you seem awesome",
+        "Hi {{name}}! Just saw your name in {{group}}, wanted to say hey",
+        "Hey {{name}}! Love your energy in {{group}}",
+        "Hi {{name}}, fellow {{group}} member stopping by!",
+        "Hey {{name}}! Saw you in {{group}}, thought I'd drop a message",
+        "Hello {{name}}! Nice finding you in {{group}}",
+        "Hi {{name}}! Just saw you in {{group}}... you seem really cool",
+        "Hey {{name}}! Hope you're having a good one! (saw you in {{group}})",
+        "Hi {{name}}, just reaching out to cool people in {{group}}",
+        "Hey {{name}}! Saw you in {{group}} and had to say hello!"
+    ].join('\n'));
+    const [exampleChatflow, setExampleChatflow] = useState(`User: Hey
+AI: Hey there! How's your day going? 😘
+User: Good, you?
+AI: Just chilling, wishing I had some company... 😉 what are you up to?
+User: Working
+AI: Boo, work is boring! You should take a break and chat with me instead 😈`);
     const [isSending, setIsSending] = useState(false);
     const [stopRequested, setStopRequested] = useState(false);
     const [sentUsernames, setSentUsernames] = useState([]);
@@ -165,8 +226,8 @@ function AIConfigContent() {
 
     const fetchAccounts = async () => {
         try {
-            // Using userId=1 for MVP simplicity
-            const res = await fetch('/api/accounts?userId=1');
+            const userId = document.cookie.split('; ').find(row => row.startsWith('user_id='))?.split('=')[1] || '1';
+            const res = await fetch(`/api/accounts?userId=${userId}`);
             const data = await res.json();
             if (data.accounts) {
                 setAccounts(data.accounts);
@@ -204,6 +265,8 @@ function AIConfigContent() {
 
                 setFaceRef(getProxyUrl(data.assets.model_face_ref));
                 setRoomRef(getProxyUrl(data.assets.room_bg_ref));
+                if (data.assets.outreach_message) setOutreachMessage(data.assets.outreach_message);
+                if (data.assets.example_chatflow) setExampleChatflow(data.assets.example_chatflow);
 
                 if (data.assets.opener_images) {
                     try {
@@ -214,6 +277,13 @@ function AIConfigContent() {
                     }
                 } else {
                     setOpeners([]);
+                }
+
+                if (data.assets.blast_list) {
+                    setUsernames(data.assets.blast_list);
+                    if (data.assets.blast_list.includes('\n')) setBlastListMode('list');
+                } else {
+                    setUsernames(''); // Clear if not found
                 }
             } else {
                 setFaceRef(null);
@@ -429,6 +499,58 @@ function AIConfigContent() {
         fetchLeads(); // Refresh leads status
     };
 
+    // --- Blast List Management ---
+    const getBlastListArray = () => usernames.split('\n').filter(u => u.trim());
+
+    const handleToggleBlastMode = () => {
+        if (blastListMode === 'text') {
+            setBlastListMode('list');
+            setSelectedBlastItems(new Set());
+        } else {
+            setBlastListMode('text');
+        }
+    };
+
+    const handleSelectBlastItem = (index) => {
+        const newSelected = new Set(selectedBlastItems);
+        if (newSelected.has(index)) {
+            newSelected.delete(index);
+        } else {
+            newSelected.add(index);
+        }
+        setSelectedBlastItems(newSelected);
+    };
+
+    const handleSelectAllBlastItems = () => {
+        const list = getBlastListArray();
+        if (selectedBlastItems.size === list.length) {
+            setSelectedBlastItems(new Set());
+        } else {
+            const newSelected = new Set();
+            list.forEach((_, i) => newSelected.add(i));
+            setSelectedBlastItems(newSelected);
+        }
+    };
+
+    const handleDeleteBlastItem = (index) => {
+        const list = getBlastListArray();
+        const newList = list.filter((_, i) => i !== index);
+        setUsernames(newList.join('\n'));
+        // Adjust selection indices if needed, but for simplicity reset selection or filtered
+        if (selectedBlastItems.has(index)) {
+            const newSelected = new Set(selectedBlastItems);
+            newSelected.delete(index);
+            setSelectedBlastItems(newSelected);
+        }
+    };
+
+    const handleDeleteSelectedBlastItems = () => {
+        const list = getBlastListArray();
+        const newList = list.filter((_, i) => !selectedBlastItems.has(i));
+        setUsernames(newList.join('\n'));
+        setSelectedBlastItems(new Set());
+    };
+
     // --- Discovery Functions ---
 
     const fetchMyGroups = async (accountId) => {
@@ -591,6 +713,107 @@ function AIConfigContent() {
         </svg>
     );
 
+    const handleSaveAssets = async () => {
+        if (!selectedAccountId) {
+            toast.error('Please select an account first!');
+            return;
+        }
+
+        try {
+            const res = await fetch('/api/assets', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    accountId: selectedAccountId,
+                    model_face_ref: faceRef?.replace('/api/uploads/', ''),
+                    model_body_ref: null,
+                    room_bg_ref: roomRef?.replace('/api/uploads/', ''),
+                    opener_images: JSON.stringify(openers.map(p => p.replace('/api/uploads/', ''))),
+                    outreach_message: outreachMessage,
+                    example_chatflow: exampleChatflow,
+                    blast_list: usernames
+                })
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                toast.success('Configuration saved!');
+            } else {
+                toast.error(data.error || 'Failed to save');
+            }
+        } catch (error) {
+            console.error('Save error:', error);
+            toast.error('Network error during save');
+        }
+    };
+
+    const handlePresetLoaded = (preset) => {
+        // Populate state from preset
+        const getProxyUrl = (relativePath) => relativePath ? `/api/uploads/${relativePath}` : null;
+
+        if (preset.model_face_ref) setFaceRef(getProxyUrl(preset.model_face_ref));
+        if (preset.room_bg_ref) setRoomRef(getProxyUrl(preset.room_bg_ref));
+        if (preset.outreach_message) setOutreachMessage(preset.outreach_message);
+        if (preset.example_chatflow) setExampleChatflow(preset.example_chatflow);
+        if (preset.blast_list) setUsernames(preset.blast_list);
+
+        if (preset.opener_images) {
+            try {
+                const parsed = JSON.parse(preset.opener_images);
+                setOpeners(parsed.map(p => getProxyUrl(p)));
+            } catch (e) {
+                setOpeners([]);
+            }
+        }
+    };
+
+
+
+    const handleBulkDeleteLeads = async () => {
+        if (selectedLeadIds.length === 0) return;
+        if (!confirm(`Are you sure you want to delete ${selectedLeadIds.length} leads?`)) return;
+
+        try {
+            console.log('Sending bulk delete request...');
+            const res = await fetch('/api/leads/bulk-delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ leadIds: selectedLeadIds })
+            });
+            console.log('Bulk delete response status:', res.status);
+            const data = await res.json();
+            console.log('Bulk delete response data:', data);
+
+            if (res.ok) {
+                toast.success(`Deleted ${data.deleted_count} leads`);
+                setSelectedLeadIds([]);
+                fetchLeads();
+            } else {
+                toast.error(`Bulk delete failed: ${data.message || data.error}`);
+                console.error('Bulk delete error:', data.error);
+            }
+        } catch (error) {
+            console.error('Bulk delete error:', error);
+            toast.error('Bulk delete failed');
+        }
+    };
+
+    const handleDeleteLead = async (lead_id) => {
+        if (!confirm('Are you sure you want to delete this lead?')) return;
+        try {
+            const res = await fetch(`/api/leads/${lead_id}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (data.status === 'success') {
+                toast.success('Lead deleted');
+                fetchLeads();
+            } else {
+                toast.error(`Delete failed: ${data.message || data.error}`);
+            }
+        } catch (error) {
+            console.error('Delete error:', error);
+            toast.error('Delete failed');
+        }
+    };
+
     return (
         <>
             <Navigation />
@@ -718,6 +941,13 @@ function AIConfigContent() {
                                         style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', fontSize: '13px', padding: '8px 16px' }}
                                     >
                                         💾 Save Current as Preset
+                                    </button>
+                                    <button
+                                        className="btn"
+                                        onClick={() => setIsLoadPresetModalOpen(true)}
+                                        style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', fontSize: '13px', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                    >
+                                        📂 Load Preset
                                     </button>
                                 </div>
 
@@ -1055,11 +1285,93 @@ function AIConfigContent() {
                                             style={{ width: '100%', height: '120px', padding: '10px', borderRadius: '8px', background: '#333', color: 'white', border: '1px solid #555', marginBottom: '16px' }}
                                         />
 
-                                        <label>Blast List (Usernames)</label>
+                                        <label>Example Chatflow (AI Guide)</label>
+                                        <small style={{ color: '#888', marginTop: '4px', display: 'block', marginBottom: '12px' }}>
+                                            Paste an example conversation to guide the AI's style and tone.
+                                        </small>
+                                        <textarea
+                                            value={exampleChatflow}
+                                            onChange={e => setExampleChatflow(e.target.value)}
+                                            placeholder={`User: hi\nAI: hey there!`}
+                                            style={{ width: '100%', height: '150px', padding: '10px', borderRadius: '8px', background: '#333', color: 'white', border: '1px solid #555', marginBottom: '16px', fontFamily: 'monospace', fontSize: '13px' }}
+                                        />
+
+                                        <button
+                                            onClick={handleSaveAssets}
+                                            className="btn"
+                                            style={{
+                                                width: '100%',
+                                                marginBottom: '20px',
+                                                background: '#10b981',
+                                                color: 'white',
+                                                border: 'none',
+                                                padding: '12px',
+                                                borderRadius: '8px',
+                                                fontWeight: 'bold',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            💾 Save Configuration
+                                        </button>
+
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                            <label style={{ margin: 0 }}>Blast List (Usernames)</label>
+                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                                {blastListMode === 'list' && (
+                                                    <>
+                                                        <button
+                                                            onClick={handleSelectAllBlastItems}
+                                                            style={{
+                                                                background: 'none',
+                                                                border: '1px solid #555',
+                                                                color: '#aaa',
+                                                                padding: '4px 8px',
+                                                                borderRadius: '4px',
+                                                                fontSize: '11px',
+                                                                cursor: 'pointer'
+                                                            }}
+                                                        >
+                                                            {selectedBlastItems.size === getBlastListArray().length && getBlastListArray().length > 0 ? 'Deselect All' : 'Select All'}
+                                                        </button>
+                                                        <button
+                                                            onClick={handleDeleteSelectedBlastItems}
+                                                            disabled={selectedBlastItems.size === 0}
+                                                            style={{
+                                                                background: selectedBlastItems.size > 0 ? 'rgba(239, 68, 68, 0.2)' : 'none',
+                                                                border: '1px solid ' + (selectedBlastItems.size > 0 ? '#ef4444' : '#333'),
+                                                                color: selectedBlastItems.size > 0 ? '#ef4444' : '#444',
+                                                                padding: '4px 8px',
+                                                                borderRadius: '4px',
+                                                                fontSize: '11px',
+                                                                cursor: selectedBlastItems.size > 0 ? 'pointer' : 'not-allowed'
+                                                            }}
+                                                        >
+                                                            Delete Selected ({selectedBlastItems.size})
+                                                        </button>
+                                                    </>
+                                                )}
+                                                <button
+                                                    onClick={handleToggleBlastMode}
+                                                    style={{
+                                                        background: 'none',
+                                                        border: '1px solid var(--color-primary)',
+                                                        color: 'var(--color-primary)',
+                                                        padding: '4px 8px',
+                                                        borderRadius: '4px',
+                                                        fontSize: '11px',
+                                                        cursor: 'pointer',
+                                                        fontWeight: 'bold'
+                                                    }}
+                                                >
+                                                    {blastListMode === 'text' ? '📋 Switch to List View' : '📝 Switch to Text Input'}
+                                                </button>
+                                            </div>
+                                        </div>
+
                                         {isSending ? (
                                             <div style={{
                                                 width: '100%',
-                                                height: '120px',
+                                                height: '250px',
                                                 padding: '10px',
                                                 borderRadius: '8px',
                                                 background: '#222',
@@ -1098,15 +1410,68 @@ function AIConfigContent() {
                                                 })}
                                             </div>
                                         ) : (
-                                            <textarea
-                                                value={usernames}
-                                                onChange={e => setUsernames(e.target.value)}
-                                                placeholder="@user1&#10;@user2"
-                                                style={{ width: '100%', height: '120px', padding: '10px', borderRadius: '8px', background: '#333', color: 'white', border: '1px solid #555', fontFamily: 'monospace', fontSize: '13px' }}
-                                            />
+                                            <>
+                                                {blastListMode === 'text' ? (
+                                                    <textarea
+                                                        value={usernames}
+                                                        onChange={e => setUsernames(e.target.value)}
+                                                        placeholder="@user1&#10;@user2"
+                                                        style={{ width: '100%', height: '250px', padding: '10px', borderRadius: '8px', background: '#333', color: 'white', border: '1px solid #555', fontFamily: 'monospace', fontSize: '13px' }}
+                                                    />
+                                                ) : (
+                                                    <div style={{
+                                                        width: '100%',
+                                                        height: '250px',
+                                                        borderRadius: '8px',
+                                                        background: '#333',
+                                                        border: '1px solid #555',
+                                                        overflowY: 'auto',
+                                                        display: 'flex',
+                                                        flexDirection: 'column'
+                                                    }}>
+                                                        {getBlastListArray().length === 0 ? (
+                                                            <div style={{ padding: '20px', textAlign: 'center', opacity: 0.5, fontSize: '13px' }}>
+                                                                List is empty. Switch to Text Input to paste usernames.
+                                                            </div>
+                                                        ) : (
+                                                            getBlastListArray().map((u, idx) => (
+                                                                <div key={idx} style={{
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    padding: '8px 12px',
+                                                                    borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                                                    background: selectedBlastItems.has(idx) ? 'rgba(99, 102, 241, 0.1)' : 'transparent'
+                                                                }}>
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={selectedBlastItems.has(idx)}
+                                                                        onChange={() => handleSelectBlastItem(idx)}
+                                                                        style={{ marginRight: '12px', cursor: 'pointer' }}
+                                                                    />
+                                                                    <span style={{ flex: 1, fontFamily: 'monospace', fontSize: '13px' }}>{u}</span>
+                                                                    <button
+                                                                        onClick={() => handleDeleteBlastItem(idx)}
+                                                                        style={{
+                                                                            background: 'none',
+                                                                            border: 'none',
+                                                                            cursor: 'pointer',
+                                                                            padding: '4px',
+                                                                            opacity: 0.7,
+                                                                            display: 'flex', alignItems: 'center'
+                                                                        }}
+                                                                        title="Delete item"
+                                                                    >
+                                                                        <TrashIcon />
+                                                                    </button>
+                                                                </div>
+                                                            ))
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </>
                                         )}
                                         <small style={{ color: '#888', marginTop: '4px', display: 'block' }}>
-                                            {usernames.split('\n').filter(u => u.trim()).length} targets in queue.
+                                            {getBlastListArray().length} targets in queue.
                                         </small>
                                     </div>
 
@@ -1167,7 +1532,16 @@ function AIConfigContent() {
                     isOpen={isSavePresetModalOpen}
                     onClose={() => setIsSavePresetModalOpen(false)}
                     currentAssets={{ faceRef, roomRef, openers }}
+                    outreachMessage={outreachMessage}
+                    exampleChatflow={exampleChatflow}
+                    blastList={usernames}
                     onSave={() => { }}
+                />
+
+                <LoadConfigPresetModal
+                    isOpen={isLoadPresetModalOpen}
+                    onClose={() => setIsLoadPresetModalOpen(false)}
+                    onPresetLoaded={handlePresetLoaded}
                 />
             </div >
         </>

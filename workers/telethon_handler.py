@@ -1032,3 +1032,86 @@ def logout_account(account_id):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     return loop.run_until_complete(run())
+async def import_session_strings(user_id, session_strings, proxy_url=None, active_config_id=None):
+    """Import multiple session strings in bulk with mandatory proxy support"""
+    results = {
+        'total': len(session_strings),
+        'success': 0,
+        'failed': 0,
+        'details': []
+    }
+    
+    for line in session_strings:
+        line = line.strip()
+        if not line:
+            continue
+            
+        try:
+            # Strictly require 'session_string|proxy_url' format for bulk
+            parts = line.split('|')
+            session_data = parts[0].strip()
+            line_proxy_url = parts[1].strip() if len(parts) > 1 else None
+            
+            # Use line-specific proxy
+            current_proxy = parse_proxy(line_proxy_url) if line_proxy_url else None
+            
+            # SAFETY CHECK: Require a proxy for EVERY account in bulk imports
+            if not current_proxy:
+                results['failed'] += 1
+                results['details'].append({
+                    'status': 'error',
+                    'error': 'Proxy required for every account. Format: session|proxy_url',
+                    'session_snippet': session_data[:10] + "..."
+                })
+                continue
+
+            # Create client from string session
+            client = TelegramClient(StringSession(session_data), API_ID, API_HASH, proxy=current_proxy)
+            await client.connect()
+            
+            if await client.is_user_authorized():
+                me = await client.get_me()
+                account_id = str(me.id)
+                phone = getattr(me, 'phone', f"id_{account_id}")
+                
+                # Save to database
+                add_account(
+                    user_id=user_id,
+                    phone_number=phone,
+                    session_string=session_data,
+                    telegram_user_id=account_id,
+                    telegram_username=me.username,
+                    first_name=me.first_name,
+                    last_name=me.last_name,
+                    account_ownership='user_owned',
+                    session_status='active',
+                    proxy_url=line_proxy_url or proxy_url, # Store the string version
+                    active_config_id=active_config_id
+                )
+                
+                results['success'] += 1
+                results['details'].append({
+                    'status': 'success',
+                    'username': me.username or phone,
+                    'id': account_id
+                })
+            else:
+                results['failed'] += 1
+                results['details'].append({
+                    'status': 'error',
+                    'error': 'Session unauthorized or expired',
+                    'session_snippet': session_data[:10] + "..."
+                })
+                
+            await client.disconnect()
+            
+        except Exception as e:
+            print(f"Error importing session string: {e}")
+            results['failed'] += 1
+            results['details'].append({
+                'status': 'error',
+                'error': str(e),
+                'session_snippet': session_data[:10] + "..."
+            })
+            
+    return results

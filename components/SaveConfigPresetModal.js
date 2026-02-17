@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { FiX, FiSave, FiTag } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 
-export default function SaveConfigPresetModal({ isOpen, onClose, currentAssets, onSave }) {
+export default function SaveConfigPresetModal({ isOpen, onClose, currentAssets, outreachMessage, exampleChatflow, blastList, onSave }) {
     const [name, setName] = useState('');
     const [saving, setSaving] = useState(false);
 
@@ -15,33 +15,49 @@ export default function SaveConfigPresetModal({ isOpen, onClose, currentAssets, 
         }
 
         setSaving(true);
+        console.log('DEBUG: Attempting to save preset:', name);
         try {
+            const cookieValue = document.cookie.split('; ').find(row => row.startsWith('user_id='))?.split('=')[1];
+            const userId = cookieValue || '1';
+            console.log('DEBUG: Using userId for save:', userId);
+
+            const payload = {
+                user_id: parseInt(userId),
+                name: name.trim(),
+                system_prompt: "You are a flirty, fun, and engaging OF model. Keep messages short, lowercase, and casual.",
+                model_provider: "openrouter",
+                model_name: "anthropic/claude-3-haiku",
+                temperature: 0.7,
+                opener_images: JSON.stringify(currentAssets.openers.map(p => p.replace('/api/uploads/', ''))),
+                model_face_ref: currentAssets.faceRef?.replace('/api/uploads/', ''),
+                room_bg_ref: currentAssets.roomRef?.replace('/api/uploads/', ''),
+                outreach_message: outreachMessage,
+                example_chatflow: exampleChatflow,
+                blast_list: blastList
+            };
+            console.log('DEBUG: Save payload:', payload);
+
             const res = await fetch('/api/ai-configs/save', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    user_id: 1, // Hardcoded for now
-                    name: name.trim(),
-                    system_prompt: "You are a flirty, fun, and engaging OF model. Keep messages short, lowercase, and casual.", // Default
-                    model_provider: "openrouter",
-                    model_name: "anthropic/claude-3-haiku",
-                    temperature: 0.7,
-                    opener_images: JSON.stringify(currentAssets.openers.map(p => p.replace('/api/uploads/', ''))),
-                    model_face_ref: currentAssets.faceRef?.replace('/api/uploads/', ''),
-                    room_bg_ref: currentAssets.roomRef?.replace('/api/uploads/', '')
-                })
+                body: JSON.stringify(payload)
             });
 
+            console.log('DEBUG: Save response status:', res.status);
             const data = await res.json();
+            console.log('DEBUG: Save response data:', data);
+
             if (data.status === 'success') {
                 toast.success('Preset saved successfully!');
                 onSave();
                 onClose();
             } else {
                 toast.error(data.error || 'Failed to save preset');
+                console.error('Save failed:', data.error);
             }
         } catch (error) {
-            toast.error('Network error during save');
+            console.error('DEBUG: Save Error:', error);
+            toast.error('Network error during save: ' + error.message);
         } finally {
             setSaving(false);
         }

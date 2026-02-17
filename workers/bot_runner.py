@@ -1,272 +1,227 @@
+
+import asyncio
 import os
-import logging
 import sys
+import logging
+import sqlite3
+import json
+from telethon import TelegramClient, events
+from telethon.sessions import StringSession
+from dotenv import load_dotenv
+from ai_handler import AIHandler
 
-# Configure Logging IMMEDIATELY
-# Use absolute path for log file to avoid CWD issues
-log_dir = os.path.dirname(os.path.abspath(__file__))
-log_file = os.path.join(log_dir, 'bot.log')
-
-print(f"DEBUG: Logging to {log_file}")
-
+# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(log_file),
-        logging.StreamHandler(sys.stdout) # Explicitly log to stdout for worker.py capture
+        logging.FileHandler(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'bot.log')),
+        logging.StreamHandler(sys.stdout)
     ]
 )
 logger = logging.getLogger(__name__)
 
-logger.info("Bot Runner starting...")
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.db')
 
 try:
-    import asyncio
-    import sqlite3
-    from dotenv import load_dotenv
-    
-    logger.info("Importing Telethon...")
-    from telethon import TelegramClient, events
-    from telethon.sessions import StringSession
-    
-    logger.info("Importing Handlers...")
-    # Add current dir to path to find local modules
-    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-    from auth_handler import DB_PATH
-    from ai_handler import AIHandler
-
-    # Load environment variables
     load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../.env"))
-    
     API_ID = os.getenv('TELEGRAM_API_ID')
     API_HASH = os.getenv('TELEGRAM_API_HASH')
-
     ai_handler = AIHandler()
     clients = {} # account_id -> client
-
 except Exception as e:
     logger.critical(f"Failed to import dependencies: {e}")
     sys.exit(1)
+
+async def process_incoming_message(client, account_id, sender_id, message_text, username, chat_id, reply_to_msg_id=None):
+    """Core logic to process a single message, shared by event handler and polling"""
+    try:
+        logger.info(f"📨 PROCESSING: [Acc:{account_id}] From:{sender_id} Msg:{message_text[:50]}")
+        
+        # 1. PING PONG TEST
+        if message_text.strip().lower() == '/ping':
+            await client.send_message(chat_id, "🏓 PONG! I am online and hearing you.", reply_to=reply_to_msg_id)
+            return
+
+        # 2. AI Processing
+        try:
+            response = await asyncio.wait_for(
+                asyncio.to_thread(ai_handler.handle_message, account_id, sender_id, message_text, username),
+                timeout=60.0
+            )
+            
+            if not response or not isinstance(response, dict):
+                response = {'text': "hey sorry, my brain glitched (INVALID_RESP)... can you say that again? 😅"}
+            
+            if not response.get('text') and not response.get('image_path') and not response.get('async_task'):
+                 response['text'] = "hey! sorry i was spacing out... what's up? 😊"
+
+        except asyncio.TimeoutError:
+            response = {'text': "ugh sorry, i'm deep in thought (TIMEOUT)... can you say that again? 🧠⌛"}
+        except Exception as e:
+            logger.error(f"AI Error: {e}", exc_info=True)
+            response = {'text': f"omg sorry, something went wrong (CRASH: {str(e)[:40]})... 😅"}
+
+        # 3. Handle Response
+        logger.info(f"DEBUG RESP: {json.dumps(response, default=str)[:200]}") # Debug print
+        if response.get('text'):
+            delay = response.get('delay', 0)
+            if delay > 0:
+                async with client.action(chat_id, 'typing'):
+                    await asyncio.sleep(min(delay, 10)) # Cap delay
+            
+            await client.send_message(chat_id, response['text'], reply_to=reply_to_msg_id)
+            logger.info(f"[OK] Sent reply to {sender_id}")
+
+        # 4. Async Tasks (Image Generation Handling)
+        if response.get('async_task'):
+             task = response['async_task']
+             if task.get('type') == 'image_gen':
+                 logger.info(f"Starting async image generation for {sender_id} with prompt: {task.get('prompt')}")
+                 
+                 try:
+                     # Execute blocking API call in thread to keep bot responsive
+                     img_result = await asyncio.to_thread(
+                         ai_handler.kie_client.generate_image, 
+                         task.get('prompt'), 
+                         face_ref_path=task.get('face_path')
+                     )
+                     
+                     if img_result and img_result.get('url'):
+                         logger.info(f"Image generated successfully: {img_result['url']}")
+                         # Send the image
+                         await client.send_file(chat_id, img_result['url'], caption="here u go 😘", reply_to=reply_to_msg_id)
+                     else:
+                         error_msg = img_result.get('error', 'Unknown error') if img_result else 'Unknown error'
+                         logger.error(f"Image generation failed: {error_msg}")
+                         # Optional: Send apology message
+                         await client.send_message(chat_id, "ugh my camera app is glitching 😭 sorry babe")
+                 except Exception as e:
+                     logger.error(f"Exception in async image task: {e}")
+                     await client.send_message(chat_id, "ugh my phone died while taking it 😭 give me a sec")
+
+    except Exception as e:
+        logger.error(f"Failed to process message: {e}", exc_info=True)
 
 async def start_bot(account_id, session_string):
     """Start a single bot instance for an account"""
     try:
         logger.info(f"Starting bot for account {account_id}")
-        logger.info(f"API_ID present: {bool(API_ID)}")
         
-        # Ensure session_string is string
         if isinstance(session_string, bytes):
-            logger.info("Converting session_string from bytes to string")
             session_string = session_string.decode('utf-8')
             
-        logger.info(f"Session string length: {len(session_string)}")
+        client = TelegramClient(StringSession(session_string), API_ID, API_HASH, sequential_updates=True)
+        await client.start()
         
-        client = TelegramClient(StringSession(session_string), API_ID, API_HASH)
-        await client.connect()
-        
-        is_auth = await client.is_user_authorized()
-        logger.info(f"Account {account_id} is_verified: {is_auth}")
-        
-        if not is_auth:
-            logger.warning(f"Account {account_id} not authorized. Skipping.")
+        if not await client.is_user_authorized():
+            logger.warning(f"Account {account_id} not authorized.")
             return
+
+        me = await client.get_me()
+        logger.info(f"Listening for Account {account_id} as {me.username}")
+
+        processed_msg_ids = set()
 
         @client.on(events.NewMessage(incoming=True))
         async def handler(event):
-            try:
-                if not event.is_private:
-                    return # Ignore group/channel messages
+            if not event.is_private or event.id in processed_msg_ids:
+                return
+            processed_msg_ids.add(event.id)
+            
+            sender = await event.get_sender()
+            await process_incoming_message(
+                client, account_id, event.sender_id, event.message.message, 
+                getattr(sender, 'username', None), event.chat_id, event.id
+            )
 
-                sender = await event.get_sender()
-                username = getattr(sender, 'username', None)
-                user_id = sender.id
-                message = event.message.message
-                
-                logger.info(f"Received message from {username} ({user_id}) on account {account_id}: {message}")
-                
-                # Process with AI - with guaranteed response
+        # Polling Fallback
+        async def poll_loop():
+            logger.info(f"POLLING STARTED for {account_id}")
+            # Warm up cache
+            await client.get_dialogs(limit=20)
+            
+            while True:
                 try:
-                    response = ai_handler.handle_message(account_id, user_id, message, username)
-                    
-                    # Ensure we always have a valid response
-                    if not response or not isinstance(response, dict):
-                        logger.warning(f"AI handler returned invalid response: {response}. Using fallback.")
-                        response = {'text': "hey sorry, what was that? my phone's acting weird 😅"}
-                    
-                    # Ensure there's at least some response
-                    if not response.get('text') and not response.get('image_path') and not response.get('async_task'):
-                        logger.warning("AI handler returned empty response. Using fallback.")
-                        response['text'] = "hey! sorry i was spacing out... what's up? 😊"
+                    # Get last 20 messages globally
+                    messages = await client.get_messages(None, limit=20)
+                    for m in messages:
+                        # SUPER VERBOSE LOG
+                        # logger.debug(f"POLL_DEBUG: Seen {m.id} | Private: {m.is_private} | Out: {m.out} | Text: {m.text[:20] if m.text else 'N/A'}")
                         
-                except Exception as ai_error:
-                    logger.error(f"AI handler crashed: {ai_error}", exc_info=True)
-                    response = {'text': "omg sorry, my phone totally glitched... what did you say? 😅"}
+                        if m.id not in processed_msg_ids and m.is_private and not m.out:
+                            processed_msg_ids.add(m.id)
+                            logger.info(f"POLL_MATCH: Found missed message {m.id} from {m.sender_id}")
+                            sender = await m.get_sender()
+                            await process_incoming_message(
+                                client, account_id, m.sender_id, m.text, 
+                                getattr(sender, 'username', None), m.chat_id, m.id
+                            )
+                except Exception as e:
+                    logger.error(f"Poll Error: {e}")
                 
-                if response:
-                    # Handle typing delay
-                    delay = response.get('delay', 0)
-                    if delay > 0 and response.get('text'):
-                        logger.info(f"Simulating typing for {delay:.2f}s...")
-                        async with client.action(event.chat_id, 'typing'):
-                            await asyncio.sleep(delay)
+                # logger.info(f"POLL_HEARTBEAT for {account_id}")
+                await asyncio.sleep(15)
 
-                    # Send text response
-                    if response.get('text'):
-                        try:
-                            await event.reply(response['text'])
-                            logger.info(f"[OK] Sent text reply: {response['text'][:50]}...")
-                        except Exception as send_error:
-                            logger.error(f"Failed to send text reply: {send_error}", exc_info=True)
-                        
-                    # Handle Async Tasks (Image Generation)
-                    if response.get('async_task'):
-                        task = response['async_task']
-                        if task['type'] == 'image_gen':
-                            logger.info(f"Starting async image generation for prompt: {task['prompt']}")
-                            logger.info(f"Face path provided: {task.get('face_path')}")
-                            
-                            try:
-                                # Run blocking generation in thread
-                                gen_result = await asyncio.to_thread(
-                                    ai_handler.kie_client.generate_image, 
-                                    task['prompt'], 
-                                    face_ref_path=task.get('face_path')
-                                )
-                                
-                                logger.info(f"Generation completed. Result: {gen_result}")
-                                
-                                if gen_result.get('url'):
-                                    logger.info(f"Image generated successfully: {gen_result['url']}")
-                                    try:
-                                        logger.info(f"Attempting to send image to chat {event.chat_id}")
-                                        await client.send_file(event.chat_id, gen_result['url'], caption="here u go 😘")
-                                        logger.info(f"[OK] Image sent successfully!")
-                                    except Exception as e:
-                                        logger.error(f"Failed to send image file: {e}", exc_info=True)
-                                        await event.reply(f"hmm i can't send the file directly, but here's the link: {gen_result['url']}")
-                                else:
-                                    logger.error(f"Image generation failed: {gen_result.get('error')}")
-                                    await event.reply("ugh, my camera glitching... sorry 😭")
-                            except Exception as gen_error:
-                                logger.error(f"Exception during async image generation: {gen_error}", exc_info=True)
-                                await event.reply("ugh, my camera glitching... sorry 😭")
-
-                    # Send image response (Legacy/Sync)
-                    if response.get('image_path'):
-                        img_path = response['image_path']
-                        # Check if file exists or is URL
-                        if os.path.exists(img_path) or img_path.startswith('http'):
-                            # Send 'uploading photo' action
-                            try:
-                                async with client.action(event.chat_id, 'photo'):
-                                    await client.send_file(event.chat_id, img_path)
-                                logger.info(f"[OK] Sent image: {img_path}")
-                            except Exception as img_error:
-                                logger.error(f"Failed to send image: {img_error}", exc_info=True)
-                        else:
-                             logger.warning(f"Image not found: {img_path}")
-
-            except Exception as e:
-                logger.error(f"Error handling message: {e}", exc_info=True)
-                # Send a fallback response even if everything fails
-                try:
-                    await event.reply("hey sorry, something went weird on my end... what were you saying? 😅")
-                except:
-                    logger.error("Failed to send even the fallback response!", exc_info=True)
-
-        
-        clients[account_id] = client
-        logger.info(f"Bot started for account {account_id}")
-        
-        # Keep client running? Telethon clients need to allow the event loop to run.
-        # We will gather all clients in the main loop.
+        asyncio.create_task(poll_loop())
+        await client.run_until_disconnected()
 
     except Exception as e:
-        logger.error(f"Failed to start bot for account {account_id}: {e}")
+        logger.error(f"Bot crash for {account_id}: {e}", exc_info=True)
 
 async def main():
-    logger.info("Starting Bot Runner with Dynamic Monitoring...")
+    logger.info("Bot Runner starting...")
+    running_tasks = {}
     
-    # Track running tasks and clients
-    # running_tasks: account_id -> asyncio.Task
-    running_tasks = {} 
-    
-    try:
-        while True:
-            try:
-                # 1. Fetch active accounts
-                conn = sqlite3.connect(DB_PATH)
-                conn.row_factory = sqlite3.Row
-                c = conn.cursor()
-                c.execute("SELECT id, session_string FROM telegram_accounts WHERE status = 'active' AND session_status = 'active'")
-                accounts = c.fetchall()
-                conn.close()
-                
-                active_account_ids = {row['id'] for row in accounts}
-                current_running_ids = set(running_tasks.keys())
-                
-                # 2. Start new accounts
-                for row in accounts:
-                    acc_id = row['id']
-                    if acc_id not in running_tasks:
-                        logger.info(f"Found new active account {acc_id}. Starting bot...")
-                        # Create a task for this bot
-                        task = asyncio.create_task(start_bot(acc_id, row['session_string']))
-                        running_tasks[acc_id] = task
-                        
-                        # Add a callback to handle task completion/failure (optional but good for cleanup)
-                        def task_done_callback(t, aid=acc_id):
-                            if aid in running_tasks:
-                                logger.warning(f"Bot task for account {aid} exited.")
-                                # We don't remove it from running_tasks immediately to avoid flapping,
-                                # but the next loop logic could handle restart if needed.
-                        task.add_done_callback(task_done_callback)
+    while True:
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
+            c = conn.cursor()
+            c.execute("SELECT id, session_string FROM telegram_accounts WHERE status = 'active' AND session_status = 'active'")
+            accounts = [dict(r) for r in c.fetchall()]
+            conn.close()
 
-                # 3. Stop removed/inactive accounts
-                for acc_id in current_running_ids:
-                    if acc_id not in active_account_ids:
-                        logger.info(f"Account {acc_id} is no longer active. Stopping bot...")
-                        
-                        # Cancel the task
-                        task = running_tasks[acc_id]
-                        task.cancel()
-                        
-                        # Disconnect client if exists
-                        if acc_id in clients:
-                            await clients[acc_id].disconnect()
-                            del clients[acc_id]
-                            
-                        del running_tasks[acc_id]
+            # Cleanup crashed or finished tasks
+            for acc_id, task in list(running_tasks.items()):
+                if task.done():
+                    try:
+                        exc = task.exception()
+                        if exc:
+                            logger.error(f"Bot task for account {acc_id} CRASHED: {exc}")
+                        else:
+                            logger.warning(f"Bot task for account {acc_id} finished unexpectedly.")
+                    except asyncio.CancelledError:
+                        logger.info(f"Bot task for account {acc_id} was cancelled.")
+                    except Exception as e:
+                         logger.error(f"Error checking task {acc_id}: {e}")
+                    
+                    # Remove from tracking so it can be restarted per main loop logic
+                    del running_tasks[acc_id]
 
-            except Exception as e:
-                logger.error(f"Error in monitor loop: {e}")
+            # Start new bots
+            active_ids = {a['id'] for a in accounts}
+            for acc in accounts:
+                if acc['id'] not in running_tasks:
+                    logger.info(f"Starting/Restarting bot for account {acc['id']}")
+                    running_tasks[acc['id']] = asyncio.create_task(start_bot(acc['id'], acc['session_string']))
             
-            # Wait before next check
-            await asyncio.sleep(10)
+            # Stop bots for inactive accounts
+            for acc_id in list(running_tasks.keys()):
+                if acc_id not in active_ids:
+                    logger.info(f"Stopping bot for inactive account {acc_id}")
+                    running_tasks[acc_id].cancel()
+                    del running_tasks[acc_id]
 
-    except asyncio.CancelledError:
-        logger.info("Main loop cancelled. Shutting down...")
-    except Exception as e:
-        logger.critical(f"FATAL: Bot runner crashed: {e}", exc_info=True)
-    finally:
-        # Cleanup
-        logger.info("Stopping all bots...")
-        for task in running_tasks.values():
-            task.cancel()
-        
-        for client in clients.values():
-            if client.is_connected():
-                await client.disconnect()
+            # Heartbeat
+            logger.info(f"HEARTBEAT: {len(running_tasks)} bots active")
+            
+        except Exception as e:
+            logger.error(f"Main loop error: {e}")
+            
+        await asyncio.sleep(10) # Check every 10s instead of 30s for faster recovery
 
 if __name__ == "__main__":
-    try:
-        if sys.platform == 'win32':
-             asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        pass
-    except Exception as e:
-        logger.critical(f"FATAL: Bot runner crashed: {e}", exc_info=True)
-        print(f"FATAL: Bot runner crashed: {e}", file=sys.stderr)
-        sys.exit(1)
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    asyncio.run(main())

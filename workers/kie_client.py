@@ -20,6 +20,13 @@ class KieClient:
         if not self.api_key:
             self.logger.warning("KIE_API_KEY not found. Image generation will fail.")
 
+        # Add FileHandler for debugging
+        fh = logging.FileHandler('kie_debug.log')
+        fh.setLevel(logging.INFO)
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        fh.setFormatter(formatter)
+        self.logger.addHandler(fh)
+
     def generate_image(self, prompt, face_ref_path=None, body_ref_path=None):
         """
         Generate an image using Kie.ai Seedream 4.5 Edit model.
@@ -57,7 +64,7 @@ class KieClient:
                 "input": {
                     "prompt": prompt,
                     "image_urls": [uploaded_url],
-                    "aspect_ratio": "1:1",
+                    "aspect_ratio": "9:16",
                     "quality": "basic"
                 }
             }

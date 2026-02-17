@@ -19,6 +19,7 @@ from telethon_handler import (
     scrape_members
 )
 from auth_handler import register_user, login_user
+from ai_config_manager import get_ai_configs, save_ai_config, delete_ai_config
 from werkzeug.utils import secure_filename
 import sqlite3
 import json
@@ -208,33 +209,42 @@ def bulk_update_accounts_route():
 def list_ai_configs():
     try:
         user_id = request.args.get('userId')
+        print(f"DEBUG: Listing AI Configs for user {user_id}")
         if not user_id:
             return jsonify({"error": "User ID required"}), 400
             
-        result = get_ai_configs(user_id)
+        result = get_ai_configs(int(user_id))
+        print(f"DEBUG: Found {len(result.get('configs', []))} configs")
         return jsonify(result), 200
     except Exception as e:
+        print(f"DEBUG: List error: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/ai-configs/save', methods=['POST'])
 def save_ai_config_route():
     try:
         data = request.json
+        print(f"DEBUG: Saving AI Config for user {data.get('user_id') or data.get('userId')}, name: {data.get('name')}")
         result = save_ai_config(
-            user_id=data.get('user_id'),
+            user_id=data.get('user_id') or data.get('userId'),
             name=data.get('name'),
-            system_prompt=data.get('system_prompt'),
-            model_provider=data.get('model_provider'),
-            model_name=data.get('model_name'),
+            system_prompt=data.get('system_prompt') or data.get('systemPrompt'),
+            model_provider=data.get('model_provider') or data.get('modelProvider'),
+            model_name=data.get('model_name') or data.get('modelName'),
             temperature=data.get('temperature', 0.7),
             opener_images=data.get('opener_images'),
             model_face_ref=data.get('model_face_ref'),
             model_body_ref=data.get('model_body_ref'),
             room_bg_ref=data.get('room_bg_ref'),
-            config_id=data.get('config_id')
+            outreach_message=data.get('outreach_message'),
+            example_chatflow=data.get('example_chatflow'),
+            blast_list=data.get('blast_list'),
+            config_id=data.get('config_id') or data.get('id')
         )
+        print(f"DEBUG: Save result: {result}")
         return jsonify(result), 200
     except Exception as e:
+        print(f"DEBUG: Save error: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/accounts', methods=['POST'])
@@ -464,6 +474,58 @@ def list_leads():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/api/leads/<int:lead_id>', methods=['DELETE'])
+def delete_lead_route(lead_id):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute('DELETE FROM scraped_leads WHERE id = ?', (lead_id,))
+        count = c.rowcount
+        conn.commit()
+        conn.close()
+        if count == 0:
+            return jsonify({"error": "Lead not found"}), 404
+        return jsonify({"status": "success", "deleted_count": count}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/leads/delete-all', methods=['DELETE'])
+def delete_all_leads_route():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute('DELETE FROM scraped_leads')
+        count = c.rowcount
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "success", "deleted_count": count}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/leads/bulk-delete', methods=['POST'])
+def bulk_delete_leads_route():
+    try:
+        data = request.json
+        print(f"[WORKER] Bulk delete request data: {data}")
+        lead_ids = data.get('leadIds', [])
+        if not lead_ids:
+             return jsonify({"error": "No lead IDs provided"}), 400
+        
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        
+        # Safe parameterized query for bulk delete
+        placeholders = ','.join(['?'] * len(lead_ids))
+        query = f'DELETE FROM scraped_leads WHERE id IN ({placeholders})'
+        c.execute(query, lead_ids)
+        
+        count = c.rowcount
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "success", "deleted_count": count}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/ai/suggest-keywords', methods=['POST'])
 def suggest_keywords():
     try:
@@ -517,7 +579,7 @@ def get_asset_config():
         
         # Check active config
         c.execute('''
-            SELECT ta.active_config_id, ac.opener_images, ac.model_face_ref, ac.model_body_ref, ac.room_bg_ref
+            SELECT ta.active_config_id, ac.opener_images, ac.model_face_ref, ac.model_body_ref, ac.room_bg_ref, ac.outreach_message, ac.example_chatflow, ac.blast_list
             FROM telegram_accounts ta
             LEFT JOIN ai_config_presets ac ON ta.active_config_id = ac.id
             WHERE ta.id = ?
@@ -530,7 +592,10 @@ def get_asset_config():
                 "opener_images": acc_info['opener_images'],
                 "model_face_ref": acc_info['model_face_ref'],
                 "model_body_ref": acc_info['model_body_ref'],
-                "room_bg_ref": acc_info['room_bg_ref']
+                "room_bg_ref": acc_info['room_bg_ref'],
+                "outreach_message": acc_info['outreach_message'],
+                "example_chatflow": acc_info['example_chatflow'],
+                "blast_list": acc_info['blast_list']
             }
             conn.close()
             return jsonify({"status": "success", "assets": assets, "source": "preset"}), 200
@@ -547,6 +612,63 @@ def get_asset_config():
 
     except Exception as e:
         return jsonify({"message": str(e)}), 500
+
+@app.route('/api/assets', methods=['POST'])
+def save_assets_route():
+    try:
+        data = request.json
+        account_id = data.get('accountId')
+        
+        if not account_id:
+            return jsonify({"error": "Account ID required"}), 400
+
+        # Extract fields
+        model_face_ref = data.get('model_face_ref')
+        model_body_ref = data.get('model_body_ref')
+        room_bg_ref = data.get('room_bg_ref')
+        opener_images = data.get('opener_images') # JSON string
+        outreach_message = data.get('outreach_message')
+        example_chatflow = data.get('example_chatflow')
+        blast_list = data.get('blast_list')
+
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+
+        # Fetch actual user_id for this account
+        c.execute('SELECT user_id FROM telegram_accounts WHERE id = ?', (account_id,))
+        acc_user = c.fetchone()
+        user_id = acc_user[0] if acc_user else 1
+
+        # 1. Update telegram_accounts to set active_config_id = NULL (Manual Mode)
+        c.execute('UPDATE telegram_accounts SET active_config_id = NULL WHERE id = ?', (account_id,))
+
+        # 2. Upsert into model_assets
+        # Check if exists
+        c.execute('SELECT id FROM model_assets WHERE account_id = ?', (account_id,))
+        existing = c.fetchone()
+
+        if existing:
+            c.execute('''UPDATE model_assets SET 
+                         model_face_ref = ?, model_body_ref = ?, room_bg_ref = ?, 
+                         opener_images = ?, outreach_message = ?, example_chatflow = ?, blast_list = ?
+                         WHERE account_id = ?''',
+                      (model_face_ref, model_body_ref, room_bg_ref, 
+                       opener_images, outreach_message, example_chatflow, blast_list,
+                       account_id))
+        else:
+            c.execute('''INSERT INTO model_assets 
+                         (user_id, account_id, model_face_ref, model_body_ref, room_bg_ref, 
+                          opener_images, outreach_message, example_chatflow, blast_list)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                      (1, account_id, model_face_ref, model_body_ref, room_bg_ref, 
+                       opener_images, outreach_message, example_chatflow, blast_list))
+
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "success"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/assets/upload', methods=['POST'])
 def upload_file():
@@ -583,6 +705,11 @@ def upload_file():
             conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
             
+            # Fetch actual user_id for this account
+            c.execute('SELECT user_id FROM telegram_accounts WHERE id = ?', (account_id,))
+            acc_user = c.fetchone()
+            user_id = acc_user[0] if acc_user else 1
+            
             # Check if exists
             c.execute('SELECT id, opener_images FROM model_assets WHERE account_id = ?', (account_id,))
             existing = c.fetchone()
@@ -591,13 +718,13 @@ def upload_file():
                 if existing:
                     c.execute('UPDATE model_assets SET model_face_ref = ? WHERE account_id = ?', (relative_path, account_id))
                 else:
-                    c.execute('INSERT INTO model_assets (user_id, account_id, model_face_ref) VALUES (?, ?, ?)', (1, account_id, relative_path)) # Hardcoded user_id=1
+                    c.execute('INSERT INTO model_assets (user_id, account_id, model_face_ref) VALUES (?, ?, ?)', (user_id, account_id, relative_path))
             
             elif asset_type == 'room':
                 if existing:
                     c.execute('UPDATE model_assets SET room_bg_ref = ? WHERE account_id = ?', (relative_path, account_id))
                 else:
-                    c.execute('INSERT INTO model_assets (user_id, account_id, room_bg_ref) VALUES (?, ?, ?)', (1, account_id, relative_path))
+                    c.execute('INSERT INTO model_assets (user_id, account_id, room_bg_ref) VALUES (?, ?, ?)', (user_id, account_id, relative_path))
             
             elif asset_type == 'opener':
                 new_list = [relative_path]
@@ -614,7 +741,7 @@ def upload_file():
                 if existing:
                     c.execute('UPDATE model_assets SET opener_images = ? WHERE account_id = ?', (json_list, account_id))
                 else:
-                    c.execute('INSERT INTO model_assets (user_id, account_id, opener_images) VALUES (?, ?, ?)', (1, account_id, json_list))
+                    c.execute('INSERT INTO model_assets (user_id, account_id, opener_images) VALUES (?, ?, ?)', (user_id, account_id, json_list))
 
             conn.commit()
             conn.close()
@@ -797,4 +924,4 @@ def get_bot_logs():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port, debug=True)
