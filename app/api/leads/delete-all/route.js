@@ -1,8 +1,7 @@
-import { NextResponse } from 'next/server';
+import { WORKER_URL } from '@/lib/worker-url';
 
 export async function DELETE() {
     try {
-        const WORKER_URL = (process.env.RAILWAY_WORKER_URL || 'http://localhost:5000').trim().replace(/\/$/, '');
 
         const response = await fetch(`${WORKER_URL}/api/leads/delete-all`, {
             method: 'DELETE',
