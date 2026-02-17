@@ -215,6 +215,7 @@ export default function AccountConnectionModal({ isOpen, onClose, onSuccess }) {
                                 <PhoneInput
                                     onSubmit={handleSendCode}
                                     loading={loading}
+                                    initialValue="+1"
                                 />
                             )}
 

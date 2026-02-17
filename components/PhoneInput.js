@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import styles from './PhoneInput.module.css';
 
-export default function PhoneInput({ onSubmit, loading }) {
-    const [phone, setPhone] = useState('');
+export default function PhoneInput({ onSubmit, loading, initialValue = '' }) {
+    const [phone, setPhone] = useState(initialValue);
     const [error, setError] = useState('');
 
     const validatePhone = (value) => {
