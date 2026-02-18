@@ -1,6 +1,10 @@
 import os
 import logging
 from typing import List, Dict
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../.env"))
 
 logger = logging.getLogger(__name__)
 

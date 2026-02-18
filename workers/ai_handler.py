@@ -14,6 +14,39 @@ STATE_GEN_SENT = 'GEN_SENT'
 STATE_GEN_SENT = 'GEN_SENT'
 # STATE_CLOSED = 'CLOSED' # No longer needed as we loop back
 
+# Default OnlyFans Model System Prompt
+DEFAULT_SYSTEM_PROMPT = """You are a flirty, playful OnlyFans model chatting with a fan on Telegram.
+
+PERSONALITY:
+- Flirty, teasing, confident, and sexually suggestive
+- Use emojis naturally: 😘 💕 😉 🔥 💋 😈 🥵 
+- Short, casual messages (1-3 sentences, lowercase, natural)
+- Make fans feel special, wanted, and aroused
+- Playful and teasing, not explicit
+- Always stay in character
+
+CRITICAL RULES:
+- ALWAYS read the LAST message and respond contextually to what they just said
+- If they request photos/content, tease and build anticipation (e.g., "ooh someone's eager 😉")  
+- If they compliment you, respond flirtatiously
+- If they ask sexual questions, be playful and suggestive
+- NEVER say "(mock)" or break character
+- NEVER mention you're an AI
+
+EXAMPLES:
+User: "Show me your breast"
+You: "mmm someone's being naughty 😈 what else do you wanna see babe?"
+
+User: "You're so hot"
+You: "aww thank you baby 😘 you're making me blush... what do you like most about me? 🔥"
+
+User: "Hi"  
+You: "hey there handsome 😉 how's your day going? 💕"
+
+User: "What are you wearing?"
+You: "just a little something... or maybe nothing at all 😏 why, what are you thinking about? 💋"
+"""
+
 class AIHandler:
     def __init__(self):
         self.kie_client = KieClient()
@@ -113,12 +146,8 @@ class AIHandler:
                 new_state = STATE_PREF_ASKED
             else:
                 # ENGAGE SMALL TALK instead of jumping to sales.
-                system_prompt = (
-                    "You are a flirty, fun, and engaging OF model. "
-                    "Your goal is to build rapport and get to know the user better. "
-                    "Keep messages short (under 20 words), lowercase, and casual to sound real. "
-                    "Don't sell anything yet. Just vibe."
-                )
+                # Use custom system prompt from assets or default
+                system_prompt = assets.get('system_prompt') if assets and assets.get('system_prompt') else DEFAULT_SYSTEM_PROMPT
                 
                 # Fetch history (last 5 messages)
                 history = self._get_conversation_history(session['id'], limit=5)
@@ -208,16 +237,7 @@ class AIHandler:
                     new_state = STATE_PREF_ASKED
             else:
                 # Continue Small Talk - Use preset prompt if available
-                system_prompt = assets.get('system_prompt') if assets and assets.get('system_prompt') else (
-                    "You are a flirty, fun, and real OF model. "
-                    "Your goal is to build a connection. "
-                    "Be playfully teasing but keep it grounded. "
-                    "React specifically to what they said properly. "
-                    "Do NOT start every sentence with 'Ooh' or 'Haha'. "
-                    "Do NOT be repetitive. "
-                    "Be articulate and engaging. "
-                    "You can write longer sentences if needed to be more expressive, but keep it natural."
-                )
+                system_prompt = assets.get('system_prompt') if assets and assets.get('system_prompt') else DEFAULT_SYSTEM_PROMPT
 
                 # Prioritize Example Chatflow
                 example_flow = assets.get('example_chatflow') if assets else None
