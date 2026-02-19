@@ -255,11 +255,18 @@ class AIHandler:
                     descriptive_text = self.text_gen.generate_reply(history, img_system_prompt, model=assets.get('model_name'))
                     
                     response['text'] = descriptive_text
-                    response['async_task'] = {
-                        'type': 'image_gen',
-                        'prompt': descriptive_text,
-                        'face_path': face_path
-                    }
+                    
+                    # BLOCK IMAGE GEN IF TEXT GEN FAILED (fallback message)
+                    if "brain is a bit slow" in descriptive_text or "glitch" in descriptive_text:
+                        import logging
+                        logging.getLogger(__name__).warning(f"Skipping image gen due to text gen failure/fallback: {descriptive_text}")
+                    else:
+                        response['async_task'] = {
+                            'type': 'image_gen',
+                            'prompt': descriptive_text,
+                            'face_path': face_path
+                        }
+                    
                     new_state = STATE_GEN_SENT
                     
                 else:

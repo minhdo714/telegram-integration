@@ -132,7 +132,8 @@ async def process_incoming_message(client, account_id, sender_id, message_text, 
                  _spam_keywords = [
                      'spam', 'blocked', 'scam', 'no photo', 'no image', 'not engaging',
                      'have a good day', 'not interested', 'inappropriate', 'no thanks',
-                     'reported', 'restrict', 'flood', 'limit',
+                     'reported', 'restrict', 'flood', 'limit', 'brain is a bit slow',
+                     'sorry, my brain', 'glitched',
                  ]
                  _is_spam_prompt = (
                      len(_p_lower) < 10  # Too short to be a real prompt
