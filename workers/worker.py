@@ -406,6 +406,49 @@ def update_proxy_route(account_id):
     except Exception as e:
          return jsonify({"error": str(e)}), 500
 
+@app.route('/api/accounts/import-session', methods=['POST'])
+def import_session_route():
+    """Import or replace the session string for an existing account."""
+    try:
+        data = request.json
+        account_id = data.get('account_id')
+        session_data = data.get('session_data', {})
+        user_id = data.get('user_id', 1)
+
+        if not account_id or not session_data:
+            return jsonify({"error": "account_id and session_data required"}), 400
+
+        session_string = session_data.get('session_string')
+        if not session_string:
+            return jsonify({"error": "session_data must contain session_string"}), 400
+
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        # Optionally update api_id / api_hash if provided
+        api_id = session_data.get('api_id')
+        api_hash = session_data.get('api_hash')
+
+        if api_id and api_hash:
+            c.execute(
+                'UPDATE telegram_accounts SET session_string=?, api_id=?, api_hash=?, session_status=? WHERE id=? AND user_id=?',
+                (session_string, str(api_id), api_hash, 'active', account_id, user_id)
+            )
+        else:
+            c.execute(
+                'UPDATE telegram_accounts SET session_string=?, session_status=? WHERE id=? AND user_id=?',
+                (session_string, 'active', account_id, user_id)
+            )
+
+        if c.rowcount == 0:
+            conn.close()
+            return jsonify({"error": "Account not found or permission denied"}), 404
+
+        conn.commit()
+        conn.close()
+        return jsonify({"status": "success", "message": "Session imported successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 # AI Config Routes
 

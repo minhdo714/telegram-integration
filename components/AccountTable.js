@@ -8,6 +8,7 @@ export default function AccountTable({
     onEdit,
     onDelete,
     onOpen,
+    onSettings,
     selectedAccounts,
     setSelectedAccounts
 }) {
@@ -149,7 +150,11 @@ export default function AccountTable({
                                         >
                                             Open <FiExternalLink />
                                         </button>
-                                        <button style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer' }}>
+                                        <button
+                                            onClick={() => onSettings?.(account)}
+                                            title="Proxy, Session & AI Config"
+                                            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', padding: '4px' }}
+                                        >
                                             <FiMoreVertical />
                                         </button>
                                     </div>

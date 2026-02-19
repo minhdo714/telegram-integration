@@ -69,15 +69,13 @@ export default function Navigation() {
                     <button onClick={() => scrollToSection('pricing')} className="nav-link">Pricing</button>
                     <button onClick={() => scrollToSection('testimonials')} className="nav-link">Testimonials</button>
                     <button onClick={() => scrollToSection('faq')} className="nav-link">FAQ</button>
+                    <Link href="/accounts" className="nav-link">Accounts</Link>
+                    <Link href="/config" className="nav-link">Configure AI</Link>
 
                     {isLoggedIn ? (
-                        <>
-                            <Link href="/accounts" className="nav-link">Tele Accounts</Link>
-                            <Link href="/config" className="nav-link">AI Config</Link>
-                            <button onClick={() => scrollToSection('accounts')} className="btn btn-primary" style={{ padding: '0.5rem 1.5rem' }}>
-                                My Account
-                            </button>
-                        </>
+                        <button onClick={() => scrollToSection('accounts')} className="btn btn-primary" style={{ padding: '0.5rem 1.5rem' }}>
+                            My Account
+                        </button>
                     ) : (
                         <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
                             <Link href="/login?mode=login" className="nav-link" style={{ fontWeight: '500' }}>
@@ -85,7 +83,7 @@ export default function Navigation() {
                             </Link>
                             <Link href="/login?mode=register" className="btn btn-primary" style={{
                                 padding: '0.6rem 1.5rem',
-                                background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', // Custom gradient to match "Botly" style
+                                background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)',
                                 border: 'none',
                                 textDecoration: 'none'
                             }}>
@@ -124,15 +122,13 @@ export default function Navigation() {
                     <button onClick={() => scrollToSection('pricing')} className="nav-link">Pricing</button>
                     <button onClick={() => scrollToSection('testimonials')} className="nav-link">Testimonials</button>
                     <button onClick={() => scrollToSection('faq')} className="nav-link">FAQ</button>
+                    <Link href="/accounts" className="nav-link" style={{ textAlign: 'center' }}>Accounts</Link>
+                    <Link href="/config" className="nav-link" style={{ textAlign: 'center' }}>Configure AI</Link>
 
                     {isLoggedIn ? (
-                        <>
-                            <Link href="/accounts" className="nav-link" style={{ textAlign: 'center' }}>Tele Accounts</Link>
-                            <Link href="/config" className="nav-link" style={{ textAlign: 'center' }}>AI Config</Link>
-                            <button onClick={() => scrollToSection('accounts')} className="btn btn-primary">
-                                My Account
-                            </button>
-                        </>
+                        <button onClick={() => scrollToSection('accounts')} className="btn btn-primary">
+                            My Account
+                        </button>
                     ) : (
                         <>
                             <Link href="/login?mode=login" className="nav-link" style={{ textAlign: 'center' }}>Log In</Link>

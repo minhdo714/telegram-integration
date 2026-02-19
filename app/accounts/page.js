@@ -9,6 +9,7 @@ import BulkActionsToolbar from '../../components/BulkActionsToolbar';
 import AccountConnectionModal from '../../components/AccountConnectionModal';
 import BulkAssignConfigModal from '../../components/BulkAssignConfigModal';
 import BulkProxyModal from '../../components/BulkProxyModal';
+import AccountDetailDrawer from '../../components/AccountDetailDrawer';
 
 export default function AccountsPage() {
     const [accounts, setAccounts] = useState([]);
@@ -18,6 +19,7 @@ export default function AccountsPage() {
     const [isNewProfileModalOpen, setIsNewProfileModalOpen] = useState(false);
     const [isAssignConfigModalOpen, setIsAssignConfigModalOpen] = useState(false);
     const [isProxyModalOpen, setIsProxyModalOpen] = useState(false);
+    const [detailAccount, setDetailAccount] = useState(null);
 
     const fetchAccounts = async () => {
         setLoading(true);
@@ -180,8 +182,9 @@ export default function AccountsPage() {
                     selectedAccounts={selectedAccounts}
                     setSelectedAccounts={setSelectedAccounts}
                     onOpen={(id) => window.location.href = `/messages?accountId=${id}`}
-                    onDelete={(id) => { }} // Handle single delete
-                    onEdit={(acc) => { }} // Handle edit
+                    onSettings={(account) => setDetailAccount(account)}
+                    onDelete={(id) => { }}
+                    onEdit={(acc) => { }}
                 />
 
                 <BulkActionsToolbar
@@ -192,6 +195,12 @@ export default function AccountsPage() {
                     onUpdateProxy={handleUpdateProxy}
                 />
             </main>
+
+            <AccountDetailDrawer
+                account={detailAccount}
+                onClose={() => setDetailAccount(null)}
+                onSaved={fetchAccounts}
+            />
 
             <AccountConnectionModal
                 isOpen={isNewProfileModalOpen}
