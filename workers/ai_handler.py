@@ -25,6 +25,12 @@ PERSONALITY:
 - Playful and teasing, not explicit
 - Always stay in character
 
+ENGAGEMENT RULE:
+- ALWAYS end your reply with an open-ended, engaging question.
+- Show genuine curiosity about what they just said or revealed they like.
+- Make them feel like you're truly interested in their desires and thoughts.
+- Use their name/username if available to make it personal.
+
 CRITICAL RULES:
 - ALWAYS read the LAST message and respond contextually to what they just said
 - If they request photos/content, tease and build anticipation (e.g., "ooh someone's eager 😉")  
@@ -74,12 +80,56 @@ class AIHandler:
             text = text.replace(f"{{{{{key}}}}}", str(value))
         return text
 
+    def _get_dynamic_prompt(self, assets):
+        """Constructs the system prompt, prioritizing Example Chatflow override."""
+        base_prompt = assets.get('system_prompt') if assets and assets.get('system_prompt') else DEFAULT_SYSTEM_PROMPT
+        example_flow = assets.get('example_chatflow') if assets else None
+
+        if example_flow:
+            # OVERRIDE LOGIC: If example_flow is provided, it becomes the primary instruction.
+            dynamic_prompt = (
+                "### PRIMARY INSTRUCTION & IDENTITY ###\n"
+                "You must strictly follow the conversation logic, tone, and script provided below. "
+                "This is your core identity and how the user wants the chat to flow.\n\n"
+                f"{example_flow}\n\n"
+                "### SAFETY & CHARACTER RULES ###\n"
+                "- ALWAYS stay in character as defined in the flow above.\n"
+                "- NEVER mention you are an AI or bot.\n"
+                "- Respond naturally and contextually to the LAST message.\n"
+            )
+        else:
+            dynamic_prompt = base_prompt
+
+        # Append global engagement instruction
+        engagement_suffix = "\n\n### ENGAGEMENT RULE ###\nALWAYS end your response with an open-ended, engaging question that shows curiosity about the user's preferences, thoughts, or what they just said. Make them want to talk more about themselves."
+        return dynamic_prompt + engagement_suffix
+
+    # Telegram service/system message patterns to ignore completely
+    TELEGRAM_SYSTEM_PREFIXES = [
+        'spam', 'blocked', 'spam blocked', 'spam. ', 'spam.\n',
+        'your account', 'account restricted', 'account limited',
+        'this account', 'telegram spam', 'message not delivered',
+        'you have been', 'you are restricted', 'bot was blocked',
+        'message failed', 'flood wait', 'too many requests',
+    ]
+
     def handle_message(self, account_id, remote_user_id, message_text, username=None):
         """
         Main entry point for handling an incoming message.
         Returns a dict with 'text', 'image_path', 'delay', 'new_state'
         """
-        
+        # Guard: Silently ignore Telegram service/spam notifications
+        msg_lower = (message_text or '').lower().strip()
+        if any(msg_lower.startswith(prefix) or msg_lower == prefix.strip() 
+               for prefix in self.TELEGRAM_SYSTEM_PREFIXES):
+            import logging
+            logging.getLogger(__name__).warning(
+                f"Ignoring Telegram service message for {remote_user_id}: {message_text[:80]!r}")
+            return None
+        # Also block very short messages that are clearly system emojis/symbols
+        if msg_lower in ('🚫', '⛔', '❌', '🔞', '⚠️', '‼️'):
+            return None
+
         # 1. Get or Create Session
         session = self._get_session(account_id, remote_user_id)
         just_created = False
@@ -137,7 +187,7 @@ class AIHandler:
         elif current_state == STATE_OPENER_SENT:
             # User replied to opener. Check for immediate escalation
             last_user_msg = message_text.lower()
-            escalate_keywords = ['pic', 'picture', 'photo', 'send', 'see', 'show', 'nude', 'hot', 'sexy']
+            escalate_keywords = ['pic', 'picture', 'photo', 'send', 'see', 'show', 'nude', 'hot', 'sexy', 'breast', 'boobs', 'tits']
             should_escalate = any(keyword in last_user_msg for keyword in escalate_keywords)
             
             if should_escalate:
@@ -146,15 +196,15 @@ class AIHandler:
                 new_state = STATE_PREF_ASKED
             else:
                 # ENGAGE SMALL TALK instead of jumping to sales.
-                # Use custom system prompt from assets or default
-                system_prompt = assets.get('system_prompt') if assets and assets.get('system_prompt') else DEFAULT_SYSTEM_PROMPT
+                # Use consolidated prompt logic
+                dynamic_prompt = self._get_dynamic_prompt(assets)
                 
-                # Fetch history (last 5 messages)
-                history = self._get_conversation_history(session['id'], limit=5)
+                # Fetch history (last 10 messages)
+                history = self._get_conversation_history(session['id'], limit=10)
                 # Add current user message
                 history.append({'role': 'user', 'content': message_text})
                 
-                reply_text = self.text_gen.generate_reply(history, system_prompt)
+                reply_text = self.text_gen.generate_reply(history, dynamic_prompt, model=assets.get('model_name'))
                 response['text'] = reply_text
                 
                 # Move to SMALL_TALK state
@@ -167,7 +217,7 @@ class AIHandler:
             
             # Check for triggers to escalate (e.g., user asking for pics)
             last_user_msg = message_text.lower()
-            escalate_keywords = ['pic', 'picture', 'photo', 'send', 'see', 'show', 'nude', 'hot', 'sexy']
+            escalate_keywords = ['pic', 'picture', 'photo', 'send', 'see', 'show', 'nude', 'hot', 'sexy', 'breast', 'boobs', 'tits']
             should_escalate = any(keyword in last_user_msg for keyword in escalate_keywords)
             
             # OR random chance if convo gets long (e.g. > 10 msgs)
@@ -236,22 +286,17 @@ class AIHandler:
     
                     new_state = STATE_PREF_ASKED
             else:
-                # Continue Small Talk - Use preset prompt if available
-                system_prompt = assets.get('system_prompt') if assets and assets.get('system_prompt') else DEFAULT_SYSTEM_PROMPT
-
-                # Prioritize Example Chatflow
-                example_flow = assets.get('example_chatflow') if assets else None
-                if example_flow:
-                    system_prompt += f"\n\n### PRIORITY INSTRUCTION ###\nSTRICTLY FOLLOW this example chatflow for tone, style, and logic. Use it as your primary guide:\n\n{example_flow}\n\n"
+                # Use consolidated prompt logic
+                dynamic_prompt = self._get_dynamic_prompt(assets)
                 
-                # Increase context limit to start avoiding repetition
+                # Fetch history (last 50 messages for deep context)
                 history = self._get_conversation_history(session['id'], limit=50)
                 history.append({'role': 'user', 'content': message_text})
                 
                 # Determine model to use
                 model_name = assets.get('model_name') if assets and assets.get('model_name') else None
-                
-                response['text'] = self.text_gen.generate_reply(history, system_prompt, model=model_name)
+
+                response['text'] = self.text_gen.generate_reply(history, dynamic_prompt, model=model_name)
                 new_state = STATE_SMALL_TALK
 
         elif current_state == STATE_PREF_ASKED:
@@ -266,13 +311,18 @@ class AIHandler:
             with open("debug_ai.log", "a") as f:
                 f.write(f"\n[{datetime.now()}] DEBUG: Preference Input: '{preference}'\n")
 
-            # FILTER: Check for system/bot error messages
-            forbidden = ["verified", "verify", "account", "credential", "login", "subscribe", "payment", "card"]
-            if any(w in preference.lower() for w in forbidden) and len(preference.split()) > 10:
+            # FILTER: Check for system/bot error messages and Telegram service texts
+            forbidden = [
+                "verified", "verify", "account", "credential", "login",
+                "subscribe", "payment", "card", "spam", "blocked", "restricted",
+                "flood", "limit", "banned", "delivered", "failed to send"
+            ]
+            is_system_msg = any(w in preference.lower() for w in forbidden)
+            is_too_short_or_symbolic = len(preference.strip()) < 3
+            if is_system_msg or is_too_short_or_symbolic:
                 print(f"DEBUG: Filtered invalid preference: {preference}")
                 with open("debug_ai.log", "a") as f:
                     f.write(f"[{datetime.now()}] DEBUG: Filtered invalid preference.\n")
-                
                 response['text'] = "oops, i think i misunderstood... could you tell me your preference again? like 'innocent' or 'wild'? 😘"
                 return response
 

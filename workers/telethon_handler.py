@@ -1115,3 +1115,112 @@ async def import_session_strings(user_id, session_strings, proxy_url=None, activ
             })
             
     return results
+
+
+def send_image(account_id, recipient, image_path, caption=None):
+    """Send an image using a Telegram account"""
+    async def send_img():
+        try:
+            # Get session from database
+            import sqlite3
+            from auth_handler import DB_PATH
+            import os
+            
+            if not os.path.exists(image_path):
+                return {
+                    'status': 'error',
+                    'error_type': 'file_not_found',
+                    'message': f'Image file not found: {image_path}'
+                }
+
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            c.execute('SELECT session_string, proxy_url FROM telegram_accounts WHERE id = ?', (account_id,))
+            result = c.fetchone()
+            conn.close()
+            
+            if not result or not result[0]:
+                return {
+                    'status': 'error',
+                    'error_type': 'session_invalid',
+                    'message': 'Session not found in database'
+                }
+            
+            session_data = result[0]
+            proxy_url = result[1]
+            try:
+                proxy = parse_proxy(proxy_url)
+            except:
+                proxy = None
+
+            if isinstance(session_data, bytes):
+                session_data = session_data.decode('utf-8')
+            
+            # Create Telethon client
+            client = TelegramClient(StringSession(session_data), API_ID, API_HASH, proxy=proxy)
+            
+            try:
+                await client.connect()
+                
+                if not await client.is_user_authorized():
+                    await client.disconnect()
+                    return {
+                        'status': 'error',
+                        'error_type': 'session_invalid',
+                        'message': 'Session is not authorized.'
+                    }
+                
+                # Resolve recipient
+                try:
+                    recipient_clean = recipient.lstrip('@')
+                    try:
+                        entity = await client.get_entity(recipient_clean)
+                    except:
+                        entity = await client.get_entity(recipient)
+                except Exception as resolve_error:
+                    await client.disconnect()
+                    return {
+                        'status': 'error',
+                        'error_type': 'resolution_failed',
+                        'message': f'Could not resolve recipient: {str(resolve_error)}'
+                    }
+                
+                # Send the image
+                try:
+                    # Determine MIME type or let Telethon handle it
+                    sent_message = await client.send_file(entity, image_path, caption=caption)
+                    await client.disconnect()
+                    
+                    return {
+                        'status': 'success',
+                        'message_id': sent_message.id,
+                        'sent_to': recipient,
+                        'timestamp': sent_message.date.isoformat()
+                    }
+                    
+                except Exception as send_error:
+                    await client.disconnect()
+                    return {
+                        'status': 'error',
+                        'error_type': 'send_failed',
+                        'message': f'Failed to send image: {str(send_error)}'
+                    }
+                    
+            except Exception as client_error:
+                await client.disconnect()
+                return {
+                    'status': 'error',
+                    'error_type': 'connection_failed',
+                    'message': f'Client connection error: {str(client_error)}'
+                }
+        
+        except Exception as e:
+            return {
+                'status': 'error',
+                'error_type': 'unknown',
+                'message': str(e)
+            }
+    
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    return loop.run_until_complete(send_img())

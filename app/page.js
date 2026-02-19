@@ -93,63 +93,10 @@ function HomeContent() {
                     </div>
                 </section>
 
-                {/* Problem Section */}
-                <section style={{
-                    padding: '4rem 0',
-                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%)',
-                }}>
-                    <div className="container">
-                        <h2 style={{
-                            textAlign: 'center',
-                            fontSize: '2rem',
-                            marginBottom: '3rem',
-                            fontWeight: 'bold'
-                        }}>
-                            Tired of <span style={{ color: 'var(--color-danger)' }}>Losing Money</span> While You Sleep?
-                        </h2>
-
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                            gap: '2rem',
-                            maxWidth: '1000px',
-                            margin: '0 auto'
-                        }}>
-                            <div className="card" style={{ textAlign: 'center', padding: '2rem' }}>
-                                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>😴</div>
-                                <h3 style={{ marginBottom: '1rem', fontSize: '1.2rem' }}>Can't Reply 24/7</h3>
-                                <p style={{ opacity: 0.8 }}>Fans message at 3 AM. You're asleep. They move on to someone else.</p>
-                            </div>
-
-                            <div className="card" style={{ textAlign: 'center', padding: '2rem' }}>
-                                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>💬</div>
-                                <h3 style={{ marginBottom: '1rem', fontSize: '1.2rem' }}>Same Messages, Different Fans</h3>
-                                <p style={{ opacity: 0.8 }}>Typing the same flirty responses 100+ times a day gets exhausting.</p>
-                            </div>
-
-                            <div className="card" style={{ textAlign: 'center', padding: '2rem' }}>
-                                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>💸</div>
-                                <h3 style={{ marginBottom: '1rem', fontSize: '1.2rem' }}>DMs Don't Convert</h3>
-                                <p style={{ opacity: 0.8 }}>Hours chatting but they ghost when you send the PPV link.</p>
-                            </div>
-                        </div>
-                    </div>
-                </section>
 
                 {/* Solution Section */}
                 <section style={{ padding: '4rem 0' }}>
                     <div className="container">
-                        <h2 style={{
-                            textAlign: 'center',
-                            fontSize: '2rem',
-                            marginBottom: '1rem',
-                            fontWeight: 'bold'
-                        }}>
-                            Meet Your AI Clone That <span className="gradient-text">Never Sleeps</span>
-                        </h2>
-                        <p style={{ textAlign: 'center', opacity: 0.8, marginBottom: '3rem', maxWidth: '700px', margin: '0 auto 3rem' }}>
-                            OFCharmer learns YOUR voice, YOUR style, YOUR flirting. It handles every DM like YOU would—but 24/7.
-                        </p>
 
                         {/* Phone Mockup Image */}
                         <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
@@ -352,7 +299,49 @@ function HomeContent() {
                     </div>
                 </section>
 
-                {/* Dashboard Shortcut Section (Replacing Old AccountsList) */}
+                {/* Problem Section (Moved) */}
+                <section style={{
+                    padding: '4rem 0',
+                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%)',
+                }}>
+                    <div className="container">
+                        <h2 style={{
+                            textAlign: 'center',
+                            fontSize: '2rem',
+                            marginBottom: '3rem',
+                            fontWeight: 'bold'
+                        }}>
+                            Tired of <span style={{ color: 'var(--color-danger)' }}>Losing Money</span> While You Sleep?
+                        </h2>
+
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                            gap: '2rem',
+                            maxWidth: '1000px',
+                            margin: '0 auto'
+                        }}>
+                            <div className="card" style={{ textAlign: 'center', padding: '2rem' }}>
+                                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>😴</div>
+                                <h3 style={{ marginBottom: '1rem', fontSize: '1.2rem' }}>Can't Reply 24/7</h3>
+                                <p style={{ opacity: 0.8 }}>Fans message at 3 AM. You're asleep. They move on to someone else.</p>
+                            </div>
+
+                            <div className="card" style={{ textAlign: 'center', padding: '2rem' }}>
+                                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>💬</div>
+                                <h3 style={{ marginBottom: '1rem', fontSize: '1.2rem' }}>Same Messages, Different Fans</h3>
+                                <p style={{ opacity: 0.8 }}>Typing the same flirty responses 100+ times a day gets exhausting.</p>
+                            </div>
+
+                            <div className="card" style={{ textAlign: 'center', padding: '2rem' }}>
+                                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>💸</div>
+                                <h3 style={{ marginBottom: '1rem', fontSize: '1.2rem' }}>DMs Don't Convert</h3>
+                                <p style={{ opacity: 0.8 }}>Hours chatting but they ghost when you send the PPV link.</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 <section className="accounts-section" id="accounts" style={{
                     padding: '5rem 0',
                     background: '#0f172a'
@@ -399,6 +388,22 @@ function HomeContent() {
                                 boxShadow: '0 10px 30px rgba(99, 102, 241, 0.2)'
                             }}>
                                 Open Tele Accounts Dashboard
+                            </Link>
+                            <br />
+                            <Link href="/config" style={{
+                                display: 'inline-block',
+                                marginTop: '1rem',
+                                background: 'transparent',
+                                color: 'rgba(255, 255, 255, 0.85)',
+                                padding: '0.75rem 2.5rem',
+                                borderRadius: '12px',
+                                fontWeight: '600',
+                                fontSize: '1rem',
+                                textDecoration: 'none',
+                                border: '1.5px solid rgba(255,255,255,0.25)',
+                                transition: 'border-color 0.2s, color 0.2s',
+                            }}>
+                                ⚙️ Configure AI &amp; Outreach
                             </Link>
                         </div>
                     </div>

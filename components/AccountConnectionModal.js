@@ -8,7 +8,7 @@ import CodeVerification from './CodeVerification';
 import styles from './AccountConnectionModal.module.css';
 
 export default function AccountConnectionModal({ isOpen, onClose, onSuccess }) {
-    const [activeTab, setActiveTab] = useState('qr'); // 'qr', 'sms', 'bulk'
+    const [activeTab, setActiveTab] = useState('sms'); // 'sms', 'qr', 'bulk'
     const [smsStep, setSmsStep] = useState('phone'); // 'phone', 'code', '2fa', 'success'
     const [sessionId, setSessionId] = useState(null);
     const [phoneNumber, setPhoneNumber] = useState('');
@@ -179,18 +179,18 @@ export default function AccountConnectionModal({ isOpen, onClose, onSuccess }) {
 
                 <div className={styles.tabs}>
                     <button
-                        className={`${styles.tab} ${activeTab === 'qr' ? styles.tabActive : ''}`}
-                        onClick={() => setActiveTab('qr')}
-                    >
-                        <span>📲</span>
-                        QR Code
-                    </button>
-                    <button
                         className={`${styles.tab} ${activeTab === 'sms' ? styles.tabActive : ''}`}
                         onClick={() => setActiveTab('sms')}
                     >
                         <span>📱</span>
                         Phone
+                    </button>
+                    <button
+                        className={`${styles.tab} ${activeTab === 'qr' ? styles.tabActive : ''}`}
+                        onClick={() => setActiveTab('qr')}
+                    >
+                        <span>📲</span>
+                        QR Code
                     </button>
                     <button
                         className={`${styles.tab} ${activeTab === 'bulk' ? styles.tabActive : ''}`}

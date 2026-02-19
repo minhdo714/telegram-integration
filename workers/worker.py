@@ -45,7 +45,9 @@ try:
         search_groups,
         get_my_groups,
         join_group,
-        scrape_members
+        join_group,
+        scrape_members,
+        send_image
     )
     logger.info("Telethon handler imported successfully")
 except Exception as e:
@@ -68,6 +70,11 @@ import time
 import traceback
 from flask import send_from_directory
 from migrate_presets import migrate
+from PIL import Image, ImageDraw, ImageFont
+import requests
+from kie_client import KieClient
+import threading
+
 
 # Run database migrations on startup
 try:
@@ -1013,6 +1020,156 @@ def get_bot_logs():
              return jsonify({"logs": ["No logs found."]}), 200
              
         return jsonify({"logs": logs}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+def process_tease_pic(account_id, recipient, lead_name, group_name):
+    """Background task to generate and send a tease pic"""
+    try:
+        logger.info(f"Starting tease pic generation for {recipient} (Lead: {lead_name})")
+        
+        # 1. Get Model Face Ref
+        conn = sqlite3.connect(DB_PATH, timeout=20, check_same_thread=False)
+        conn.execute('PRAGMA journal_mode=WAL')
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute('SELECT model_face_ref FROM model_assets WHERE account_id = ?', (account_id,))
+        row = c.fetchone()
+        conn.close()
+        
+        face_ref = row['model_face_ref'] if row and row['model_face_ref'] else None
+        
+        if not face_ref:
+            logger.error(f"Tease Pic Failed: No model face reference for account {account_id}")
+            return
+
+        # Resolve full path of face ref
+        # face_ref is relative like "9/face/timestamp.jpg"
+        face_ref_path = os.path.join(app.config['UPLOAD_FOLDER'], str(account_id), 'face', os.path.basename(face_ref))
+        if not os.path.exists(face_ref_path):
+             # Try absolute path logic or relative to worker
+             face_ref_path = os.path.join(os.path.dirname(__file__), face_ref)
+        
+        if not os.path.exists(face_ref_path):
+            logger.error(f"Tease Pic Failed: Face ref file not found at {face_ref_path}")
+            return
+
+        # 2. Generate Image via Kie
+        kie = KieClient()
+        prompt = f"(holding a handwritten white sign that says \"{lead_name}\":1.4), (teasing pose:1.2), (candid:1.2), (dim lighting), ({group_name} theme background:1.1), looking at camera, raw photo, realistic, 8k"
+        
+        logger.info(f"Tease Pic Prompt: {prompt}")
+        result = kie.generate_image(prompt, face_ref_path=face_ref_path)
+        
+        if 'error' in result:
+            logger.error(f"Tease Pic Generation Failed: {result['error']}")
+            return
+            
+        img_url = result['url']
+        logger.info(f"Tease Pic Generated: {img_url}")
+        
+        # 3. Download Image
+        try:
+            img_resp = requests.get(img_url)
+            if img_resp.status_code != 200:
+                logger.error("Failed to download generated tease pic")
+                return
+                
+            temp_filename = f"tease_{int(time.time())}_{secure_filename(recipient)}.png"
+            temp_path = os.path.join('/tmp' if os.name != 'nt' else os.getcwd(), temp_filename)
+            
+            with open(temp_path, 'wb') as f:
+                f.write(img_resp.content)
+                
+            # 4. Add Overlay using PIL
+            try:
+                img = Image.open(temp_path).convert("RGBA")
+                width, height = img.size
+                draw = ImageDraw.Draw(img)
+                
+                # Overlay Text
+                text = f"Hey {lead_name}, this little tease is all yours... want the full uncut? 😈"
+                
+                # Determine font size (approx 3% of height?)
+                font_size = int(height * 0.03)
+                try:
+                    # Windows default font
+                    font = ImageFont.truetype("arial.ttf", font_size)
+                except:
+                    try:
+                        # Linux default font
+                        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
+                    except:
+                        font = ImageFont.load_default()
+
+                # Text positioning (bottom with background)
+                # Calculate text size using textbbox (Pillow 9.2+)
+                left, top, right, bottom = draw.textbbox((0, 0), text, font=font)
+                text_width = right - left
+                text_height = bottom - top
+                
+                # Semi-transparent bar
+                bar_height = text_height + 40
+                bar_y = height - bar_height - 50 # 50px from bottom
+                
+                overlay = Image.new('RGBA', img.size, (0, 0, 0, 0))
+                overlay_draw = ImageDraw.Draw(overlay)
+                overlay_draw.rectangle([(0, bar_y), (width, bar_y + bar_height)], fill=(0, 0, 0, 128))
+                
+                img = Image.alpha_composite(img, overlay)
+                draw = ImageDraw.Draw(img)
+                
+                # Draw text centered in bar
+                text_x = (width - text_width) / 2
+                text_y = bar_y + (bar_height - text_height) / 2 - 5 # Adjust slightly
+                
+                draw.text((text_x, text_y), text, font=font, fill=(255, 255, 255, 255)) # White text
+                
+                # Save revised image
+                img.save(temp_path)
+                logger.info("Overlay applied successfully")
+                
+            except Exception as e:
+                logger.error(f"Overlay failed: {e}")
+                # Log but continue sending raw image if overlay fails?
+                # User specifically wanted overlay. Let's continue with what we have if save worked.
+            
+            # 5. Send Image via Telethon
+            send_res = send_image(account_id, recipient, temp_path, caption=text)
+            logger.info(f"Tease Pic Send Result: {send_res}")
+            
+            # Cleanup
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+                
+        except Exception as e:
+            logger.error(f"Error processing tease pic download/send: {e}")
+            traceback.print_exc()
+
+    except Exception as e:
+        logger.error(f"Top-level error in process_tease_pic: {e}")
+        traceback.print_exc()
+
+
+@app.route('/api/bot/tease', methods=['POST'])
+def generate_tease_pic():
+    try:
+        data = request.json
+        account_id = data.get('accountId')
+        recipient = data.get('recipient')
+        lead_name = data.get('leadName', 'babe') # Fallback
+        group_name = data.get('groupName', 'our group') # Fallback
+        
+        if not account_id or not recipient:
+            return jsonify({"error": "Missing required fields"}), 400
+            
+        # Start background thread
+        thread = threading.Thread(target=process_tease_pic, args=(account_id, recipient, lead_name, group_name))
+        thread.start()
+        
+        return jsonify({"status": "started", "message": "Tease pic generation started in background"}), 200
+        
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

@@ -92,63 +92,80 @@ function AIConfigContent() {
     const [blastListMode, setBlastListMode] = useState('text'); // 'text' | 'list'
     const [selectedBlastItems, setSelectedBlastItems] = useState(new Set());
     const [outreachMessage, setOutreachMessage] = useState([
-        "Hey {{name}}! Saw you in the {{group}} group... love your vibe",
-        "Hi {{name}}! Just saw your profile in {{group}}, hope you are well",
-        "Hey {{name}}! Found you through the {{group}} group, wanted to say hi",
-        "Hello {{name}}! Noticed you were also in {{group}}, thought I'd reach out",
-        "Hi {{name}}, love your vibe in the {{group}} group! Just wanted to connect",
-        "Hey {{name}}, saw your comments in {{group}} and had to say hi!",
-        "What’s up {{name}}? Found you in {{group}} and you seem cool",
-        "Hi {{name}}! You stood out in the {{group}} group, had to DM",
-        "Hey there {{name}}! Saw you're part of {{group}}, nice to meet you",
-        "Hello {{name}}, hope your day is going well! Saw you in {{group}}",
-        "Hi {{name}}! Just randomly saw you in {{group}} and wanted to connect",
-        "Hey {{name}}! Matches my vibe from the {{group}} group perfectly",
-        "Yo {{name}}! Saw you in {{group}}, thought we might get along",
-        "Hi {{name}}, just reaching out from the {{group}} group!",
-        "Hey {{name}}! Love that you're in {{group}}, me too!",
-        "Hello {{name}}! Your profile in {{group}} caught my eye",
-        "Hi {{name}}! Wanted to say hello to a fellow {{group}} member",
-        "Hey {{name}}, saw you int the {{group}} chat... you seem fun!",
-        "Hi {{name}}! Just checking in from {{group}}",
-        "Hey {{name}}! Cool to see you in {{group}}",
-        "Hello {{name}}! Hope you don't mind the DM, saw you in {{group}}",
-        "Hi {{name}}, noticed you in {{group}} and liked your energy",
-        "Hey {{name}}! You seem interesting from the {{group}} group",
-        "Hi {{name}}! Just saw you in {{group}}, how's it going?",
-        "Hey {{name}}! Fellow {{group}} member here, wanted to say hi",
-        "Hello {{name}}! Nice to see you in {{group}}",
-        "Hi {{name}}! You popped up in {{group}} and I had to say hey",
-        "Hey {{name}}! Hope you're enjoying the {{group}} group",
-        "Hi {{name}}, saw your profile in {{group}}... big fan of your vibe!",
-        "Hey {{name}}! Just found you in {{group}}, nice to meet ya",
-        "Hello {{name}}! Saw you're active in {{group}}, thought I'd reach out",
-        "Hi {{name}}! You seem like a cool person from {{group}}",
-        "Hey {{name}}! Just saying hi from {{group}}",
-        "Hi {{name}}, saw you in the {{group}} list... you caught my eye",
-        "Hey {{name}}! Checking in from {{group}}, hope you're good",
-        "Hello {{name}}! Noticed you in {{group}}, love your profile",
-        "Hi {{name}}! Just saw you in {{group}}... getting good vibes!",
-        "Hey {{name}}! Wanted to connect with people from {{group}}",
-        "Hi {{name}}, saw you in {{group}} and thought you seemed chill",
-        "Hey {{name}}! Just passing by from {{group}} to say hi",
-        "Hello {{name}}! Saw you in {{group}}... you seem awesome",
-        "Hi {{name}}! Just saw your name in {{group}}, wanted to say hey",
-        "Hey {{name}}! Love your energy in {{group}}",
-        "Hi {{name}}, fellow {{group}} member stopping by!",
-        "Hey {{name}}! Saw you in {{group}}, thought I'd drop a message",
-        "Hello {{name}}! Nice finding you in {{group}}",
-        "Hi {{name}}! Just saw you in {{group}}... you seem really cool",
-        "Hey {{name}}! Hope you're having a good one! (saw you in {{group}})",
-        "Hi {{name}}, just reaching out to cool people in {{group}}",
-        "Hey {{name}}! Saw you in {{group}} and had to say hello!"
+        "did you really just say that in {{group}}? i'm dying lol",
+        "ok i have a confession to make about why i'm DMing you from {{group}}...",
+        "wait, are you the same {{name}} that's always in {{group}}? i think i remember you",
+        "i was just scrolling {{group}} and your profile hit me like a brick",
+        "quick question about something you posted in {{group}}... promise i'm not a creep",
+        "i feel like we'd either be best friends or worst enemies based on {{group}} lol",
+        "hey {{name}}, i saw you in {{group}} and just had a random thought... curious what you'd think",
+        "your energy in {{group}} is... a lot. in a good way though 😉",
+        "i usually don't do this but {{group}} led me to you and i'm taking it as a sign",
+        "stop me if this is weird, but i noticed you in {{group}} and had to say hi",
+        "you seem like the type of person who causes trouble in {{group}}... am i right?",
+        "just saw your name in {{group}} and suddenly i'm distracted. thanks for that.",
+        "hey {{name}}, you win the prize for 'most intriguing person in {{group}}' today",
+        "i've been lurking in {{group}} for a bit and i think you're the only sane one there",
+        "how's your day treating you? (saw you in {{group}} and figured i'd check in)",
+        "um, i hope i'm not interrupting anything but {{group}} led me here...",
+        "your profile in {{group}} caught my eye and now i'm curious about the human behind it",
+        "ok, tell the truth... what's your secret to being so active in {{group}}?",
+        "hey {{name}}, i'm the one who just saw you in {{group}} and decided life is too short not to say hi",
+        "you caught my attention in {{group}}... let's see if you can keep it",
+        "curiosity got the better of me after seeing you in {{group}}... what's up?",
+        "saw you in {{group}} and had to double take. wow.",
+        "hey {{name}}, if i guess what you're doing right now (based on {{group}} vibes) do i get a prize?",
+        "i feel like you're the main character of {{group}} today lol",
+        "honestly? seeing you in {{group}} was the highlight of my scrolls today",
+        "hey {{name}}, quick poll: are people in {{group}} usually this wild or is it just you?",
+        "i was gonna keep scrolling through {{group}} but then i saw you and... here we are",
+        "hey {{name}}, do you always stand out this much in groups like {{group}}?",
+        "saw you in {{group}} and i just have this feeling we'd vibe. hi!",
+        "ok fine, you caught me. i'm the girl from {{group}} who thinks you're interesting.",
+        "so... {{group}} brought us together. what are you gonna do about it? 😉",
+        "hey {{name}}, i hope your evening is as interesting as your profile in {{group}}",
+        "i was looking for something else in {{group}} but i found you instead. better deal.",
+        "is it just me or is {{group}} getting boring? you seemed like the only interesting part.",
+        "hey {{name}}, i saw you in {{group}} and i'm making a snap judgment: you're fun to talk to.",
+        "i'm usually shy but {{group}} gave me a boost of confidence to DM you",
+        "you have a very specific 'dont mess with me' vibe in {{group}} and i'm into it lol",
+        "hey {{name}}, caught you in {{group}}. how's the real world treating you today?",
+        "i'll keep it brief: saw you in {{group}}, thought you were hot, had to say hey.",
+        "you seem like you have some stories to tell based on {{group}}. i'm all ears.",
+        "hey {{name}}, i'm starting a rebellion against {{group}} boredom. you in?",
+        "i saw your profile in {{group}} and now i have questions. many questions.",
+        "don't mean to be a total stranger but {{group}} made me feel like i already know you",
+        "hey {{name}}, saw you in {{group}} and i just had to know... what's your go-to weekend vibe?",
+        "i was just thinking how {{group}} needs more people like you. hi!",
+        "okay, i'm officially curious about you after seeing you in {{group}}",
+        "hey {{name}}, is it weird that i recognized you from {{group}}? you're hard to miss.",
+        "saw you in {{group}} and i'm betting $5 that you're even cooler in private chat",
+        "hey {{name}}, i saw you in {{group}} and decided to skip the small talk... what's on your mind?",
+        "you're the first person from {{group}} i've actually wanted to talk to. congrats 😉",
+        "hey {{name}}, saw you in {{group}} and i'm just here to disrupt your day in a good way",
+        "i was gonna say something clever about {{group}} but i forgot it when i saw your profile",
+        "hey {{name}}, found you in {{group}}. you look like you need a distraction.",
+        "saw you in {{group}}... you seem like the type of trouble i like."
     ].join('\n'));
-    const [exampleChatflow, setExampleChatflow] = useState(`User: Hey
-AI: Hey there! How's your day going? 😘
-User: Good, you?
-AI: Just chilling, wishing I had some company... 😉 what are you up to?
-User: Working
-AI: Boo, work is boring! You should take a break and chat with me instead 😈`);
+    const [exampleChatflow, setExampleChatflow] = useState(`Aria: Hey, I couldn't help but notice your vibe in the [group name] chat – you seem like someone who really gets the thrill of it all. Rough day or just chilling? 😏
+User: Just chilling, yeah.
+Aria: Nice, everyone needs that escape sometimes. What drew you into the group anyway? Looking for some fun convos or something more specific? I'm all ears, hun.
+User: Looking for some hot chats, honestly.
+Aria: Mmm, I totally get that – life's too short not to indulge in what excites you. That sounds super intriguing... tell me more, what's your go-to fantasy that gets you going? No judgment here, promise. 💕
+User: Love roleplay, like nurse-patient stuff.
+Aria: Oh damn, that's hot! I love how creative that can get – makes everything so intense and personal. What part of it turns you on the most? The teasing build-up or jumping right into the action?
+User: The teasing for sure.
+Aria: Yesss, the slow burn is everything, right? Builds that anticipation until you can't take it anymore. 😈 Speaking of, it's like 2:30 PM here in LA and I'm feeling that vibe myself after a long morning shoot. What time is it where you are? Helps me picture you better.
+User: It's evening here.
+Aria: Evening vibes are perfect for unwinding like this. So, about that nurse fantasy... if you're up for it, I could slip into something fitting and send you a little tease. Sound fun? Just tell me what you'd wanna see first – I'm here to make it just right for you. 🌹
+User: Can I see you in a nurse outfit?
+Aria: Absolutely, babe – love catering to what gets you hot. [Sends on-demand image of self in nurse outfit] How's that hitting for you? Makes me wet just thinking about playing doctor with you... want me to describe what I'd do next, or maybe go live for a private show? It's $20 for 10 mins of us getting naughty together, totally customized. Your call. 🔥
+User: Let's do the live show.
+Aria: Perfect choice, hun – you're gonna love this. Send the tip via [PPV link or Telegram payment], and I'll set up our private video chat right away. Can't wait to hear you moan while I take care of you... what's one thing you want me to focus on during it? 😘`);
+    const [sendTeasePic, setSendTeasePic] = useState(true);
+    const [teasePreview, setTeasePreview] = useState(false);
+    const [teaseThumbVersion, setTeaseThumbVersion] = useState(0);
+    const teaseInputRef = useRef(null);
     const [isSending, setIsSending] = useState(false);
     const [stopRequested, setStopRequested] = useState(false);
     const [sentUsernames, setSentUsernames] = useState([]);
@@ -156,6 +173,28 @@ AI: Boo, work is boring! You should take a break and chat with me instead 😈`)
     const [currentTarget, setCurrentTarget] = useState(null);
     const [countdown, setCountdown] = useState(null); // safely tracks seconds remaining
     const [isRefreshing, setIsRefreshing] = useState(false);
+
+    // Helper for Tease Upload
+    const handleTeaseUpload = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res = await fetch('/api/upload/tease', { method: 'POST', body: formData });
+            if (res.ok) {
+                setTeaseThumbVersion(Date.now());
+                toast.success('Tease pic updated!');
+            } else {
+                toast.error('Upload failed');
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error('Upload error');
+        }
+    };
 
     const checkSessionHealth = async (accountId) => {
         try {
@@ -254,6 +293,8 @@ AI: Boo, work is boring! You should take a break and chat with me instead 😈`)
             setBotStatus('stopped'); // Default to stopped on error
         }
     };
+
+
 
     const fetchAssets = async (accountId) => {
         try {
@@ -427,16 +468,23 @@ AI: Boo, work is boring! You should take a break and chat with me instead 😈`)
             try {
                 // Find data for this lead
                 const leadData = scrapedLeads.find(l => l.username?.toLowerCase() === recipient.toLowerCase());
-                const groupName = leadData?.group_name || "a shared";
+                const groupName = leadData?.group_name || '';
                 const firstName = leadData?.first_name || '';
-                const userName = leadData?.username || '';
-                const displayName = firstName.trim() || (userName ? `@${userName}` : 'there');
+                // Always fall back to the actual @username so {{name}} is never blank
+                const displayName = firstName.trim() || `@${recipient}`;
 
                 // Support multiple variations (one per line)
                 const variations = (outreachMessage || "Hey {{name}}! Found you through the {{group}} group, wanted to say hi").split('\n').filter(v => v.trim());
                 let msgTemplate = variations[Math.floor(Math.random() * variations.length)];
 
-                let msgToSend = msgTemplate.replace(/\{\{group\}\}/g, groupName);
+                let msgToSend = msgTemplate;
+                if (groupName) {
+                    msgToSend = msgToSend.replace(/\{\{group\}\}/g, groupName);
+                } else {
+                    // Remove any phrase containing {{group}} so message reads naturally
+                    msgToSend = msgToSend.replace(/\s*(through the|from|in|via)\s+\{\{group\}\}\s*(group)?/gi, '');
+                    msgToSend = msgToSend.replace(/\{\{group\}\}/g, 'the group');
+                }
                 msgToSend = msgToSend.replace(/\{\{name\}\}/g, displayName);
 
                 const res = await fetch('/api/messages/send', {
@@ -454,6 +502,33 @@ AI: Boo, work is boring! You should take a break and chat with me instead 😈`)
                 if (res.ok) {
                     addLog(`[Outreach] ✅ Sent to @${recipient}`);
                     setSentUsernames(prev => [...prev, recipient]);
+
+                    // TEASE PIC LOGIC
+                    if (sendTeasePic) {
+                        try {
+                            addLog(`[Outreach] 📸 Triggering Tease Pic for @${recipient}...`);
+                            fetch('/api/bot/tease', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    accountId: selectedAccountId,
+                                    recipient: recipient,
+                                    leadName: firstName || recipient,
+                                    groupName: groupName
+                                })
+                            }).then(teaseRes => teaseRes.json())
+                                .then(teaseData => {
+                                    if (teaseData.status === 'started') {
+                                        addLog(`[Outreach] 📸 Tease pic generation started.`);
+                                    } else {
+                                        addLog(`[Outreach] ⚠️ Tease pic error: ${teaseData.error}`);
+                                    }
+                                }).catch(e => console.error(e));
+                        } catch (teaseErr) {
+                            console.error("Tease trigger failed", teaseErr);
+                        }
+                    }
+
                 } else {
                     addLog(`[Outreach] ❌ Failed @${recipient}: ${data.message || data.error || 'Unknown error'}`);
                     setFailedUsernames(prev => [...prev, recipient]);
@@ -841,79 +916,6 @@ AI: Boo, work is boring! You should take a break and chat with me instead 😈`)
                             </div>
                         )}
 
-                        {/* Section 1: Bot Control */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                            {accounts.find(a => a.id === selectedAccountId)?.sessionStatus === 'expired' && (
-                                <div style={{
-                                    padding: '16px',
-                                    background: 'rgba(255, 71, 87, 0.1)',
-                                    border: '1px solid #ff4757',
-                                    borderRadius: '12px',
-                                    color: '#ff4757',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '12px'
-                                }}>
-                                    <span style={{ fontSize: '20px' }}>⚠️</span>
-                                    <div style={{ flex: 1 }}>
-                                        <strong style={{ display: 'block' }}>Session Expired</strong>
-                                        <span style={{ fontSize: '14px', opacity: 0.8 }}>
-                                            Your connection to Telegram has been lost. Please re-link this account to continue.
-                                        </span>
-                                    </div>
-                                    <button
-                                        className="btn btn-primary"
-                                        onClick={() => setIsConnectionModalOpen(true)}
-                                        style={{ background: '#ff4757', padding: '8px 16px', fontSize: '13px' }}
-                                    >
-                                        🔄 Re-link Now
-                                    </button>
-                                </div>
-                            )}
-                            <div className={styles.modal} style={{ margin: 0, width: '100%', maxWidth: 'none', background: 'rgba(255,255,255,0.03)' }}>
-                                <div className={styles.header}>
-                                    <h2>Bot Control</h2>
-                                    <div style={{
-                                        padding: '6px 12px',
-                                        borderRadius: '20px',
-                                        background: botStatus === 'running' ? 'rgba(46, 213, 115, 0.2)' : 'rgba(255, 71, 87, 0.2)',
-                                        color: botStatus === 'running' ? '#2ed573' : '#ff4757',
-                                        fontWeight: 'bold',
-                                        fontSize: '14px'
-                                    }}>
-                                        {(botStatus || 'stopped').toUpperCase()}
-                                    </div>
-                                </div>
-                                <div className={styles.form}>
-                                    <button
-                                        onClick={toggleBot}
-                                        disabled={loading}
-                                        className="btn"
-                                        style={{
-                                            width: '100%',
-                                            background: botStatus === 'running' ? '#ff4757' : '#2ed573',
-                                            color: '#fff',
-                                            border: 'none',
-                                            padding: '16px',
-                                            fontSize: '18px',
-                                            fontWeight: 'bold',
-                                            cursor: loading ? 'wait' : 'pointer',
-                                            opacity: loading ? 0.7 : 1
-                                        }}
-                                    >
-                                        {loading ? 'Processing...' : (botStatus === 'running' ? 'STOP AGENT' : 'START AGENT')}
-                                    </button>
-                                    <div style={{ marginTop: '20px', background: 'rgba(0,0,0,0.3)', padding: '16px', borderRadius: '8px', height: '200px', overflowY: 'auto' }}>
-                                        <h4 style={{ margin: '0 0 10px 0', color: '#888', fontSize: '12px' }}>SYSTEM LOGS</h4>
-                                        {logs.map((log, i) => (
-                                            <div key={i} style={{ fontSize: '13px', fontFamily: 'monospace', color: '#ddd', marginBottom: '4px' }}>
-                                                {log}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
 
                         {/* Section 2: Bot Identity & Assets */}
                         <div className={styles.modal} style={{ margin: 0, width: '100%', maxWidth: 'none', background: 'rgba(255,255,255,0.03)' }}>
@@ -1278,6 +1280,94 @@ AI: Boo, work is boring! You should take a break and chat with me instead 😈`)
                                             Use <code>{"{{group}}"}</code> for group name and <code>{"{{name}}"}</code> for lead name.<br />
                                             <strong>Pro Tip:</strong> Enter multiple lines to randomize the opener for each person!
                                         </small>
+
+                                        {/* Tease Pic Toggle */}
+                                        <div style={{
+                                            background: 'rgba(255,255,255,0.05)',
+                                            border: '1px solid rgba(255,255,255,0.1)',
+                                            borderRadius: '8px',
+                                            padding: '12px',
+                                            marginBottom: '16px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '12px'
+                                        }}>
+                                            <div
+                                                style={{ position: 'relative', width: '40px', height: '60px' }}
+                                                onMouseOver={e => e.currentTarget.children[0].style.transform = 'scale(1.05)'}
+                                                onMouseOut={e => e.currentTarget.children[0].style.transform = 'scale(1)'}
+                                            >
+                                                <div
+                                                    onClick={() => setTeasePreview(true)}
+                                                    style={{
+                                                        width: '100%', height: '100%',
+                                                        background: '#1e1e1e',
+                                                        borderRadius: '4px',
+                                                        border: '1px solid #444',
+                                                        overflow: 'hidden',
+                                                        cursor: 'pointer',
+                                                        backgroundImage: `url(/tease_thumb.jpg?v=${teaseThumbVersion})`,
+                                                        backgroundSize: 'cover',
+                                                        backgroundPosition: 'center',
+                                                        transition: 'transform 0.2s'
+                                                    }}
+                                                >
+                                                    <div style={{
+                                                        fontSize: '6px',
+                                                        color: 'rgba(255,255,255,0.7)',
+                                                        textAlign: 'center',
+                                                        position: 'absolute',
+                                                        bottom: '0',
+                                                        width: '100%',
+                                                        background: 'rgba(0,0,0,0.6)',
+                                                        padding: '2px 0'
+                                                    }}>TEASE</div>
+                                                </div>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); teaseInputRef.current.click(); }}
+                                                    style={{
+                                                        position: 'absolute',
+                                                        top: '-5px', right: '-5px',
+                                                        width: '16px', height: '16px',
+                                                        background: '#6366f1',
+                                                        border: '1px solid white',
+                                                        borderRadius: '50%',
+                                                        color: 'white',
+                                                        fontSize: '10px',
+                                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                        cursor: 'pointer',
+                                                        zIndex: 2
+                                                    }}
+                                                    title="Upload Custom Image"
+                                                >
+                                                    ✎
+                                                </button>
+                                                <input
+                                                    type="file"
+                                                    ref={teaseInputRef}
+                                                    style={{ display: 'none' }}
+                                                    accept="image/*"
+                                                    onChange={handleTeaseUpload}
+                                                />
+                                            </div>
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                                    <label style={{ margin: 0, fontSize: '14px', fontWeight: 'bold' }}>Send Personalized Tease Pic</label>
+
+                                                    <label className={styles.switch} style={{ marginLeft: '10px' }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={sendTeasePic}
+                                                            onChange={e => setSendTeasePic(e.target.checked)}
+                                                        />
+                                                        <span className={styles.slider}></span>
+                                                    </label>
+                                                </div>
+                                                <small style={{ color: '#aaa', display: 'block', marginTop: '4px' }}>
+                                                    Automatically send a generated photo holding a sign with their name, following the opener.
+                                                </small>
+                                            </div>
+                                        </div>
                                         <textarea
                                             value={outreachMessage}
                                             onChange={e => setOutreachMessage(e.target.value)}
@@ -1292,27 +1382,13 @@ AI: Boo, work is boring! You should take a break and chat with me instead 😈`)
                                         <textarea
                                             value={exampleChatflow}
                                             onChange={e => setExampleChatflow(e.target.value)}
-                                            placeholder={`User: hi\nAI: hey there!`}
+                                            placeholder="Example:
+Aria: Hey, I saw you in the group...
+User: Hi!
+Aria: You seem interesting... what's your vibe?"
                                             style={{ width: '100%', height: '150px', padding: '10px', borderRadius: '8px', background: '#333', color: 'white', border: '1px solid #555', marginBottom: '16px', fontFamily: 'monospace', fontSize: '13px' }}
                                         />
 
-                                        <button
-                                            onClick={handleSaveAssets}
-                                            className="btn"
-                                            style={{
-                                                width: '100%',
-                                                marginBottom: '20px',
-                                                background: '#10b981',
-                                                color: 'white',
-                                                border: 'none',
-                                                padding: '12px',
-                                                borderRadius: '8px',
-                                                fontWeight: 'bold',
-                                                cursor: 'pointer'
-                                            }}
-                                        >
-                                            💾 Save Configuration
-                                        </button>
 
                                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                                             <label style={{ margin: 0 }}>Blast List (Usernames)</label>
@@ -1504,6 +1580,56 @@ AI: Boo, work is boring! You should take a break and chat with me instead 😈`)
                                             🛡️ Safety Delay: Resuming in <strong>{formatTime(countdown)}</strong>
                                         </div>
                                     )}
+
+                                    {/* Relocated Agent Control */}
+                                    <div style={{ marginTop: '40px', paddingTop: '40px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                <h3 style={{ margin: 0 }}>Agent Auto-Reply Control</h3>
+                                                <div style={{
+                                                    padding: '4px 10px',
+                                                    borderRadius: '20px',
+                                                    background: botStatus === 'running' ? 'rgba(46, 213, 115, 0.2)' : 'rgba(255, 71, 87, 0.2)',
+                                                    color: botStatus === 'running' ? '#2ed573' : '#ff4757',
+                                                    fontWeight: 'bold',
+                                                    fontSize: '12px'
+                                                }}>
+                                                    {(botStatus || 'stopped').toUpperCase()}
+                                                </div>
+                                            </div>
+                                            <InfoTooltip text="The Agent Auto-Reply system automatically handles incoming DMs based on your AI configuration. Keep this running to ensure 24/7 engagement with your fans." />
+                                        </div>
+
+                                        <button
+                                            onClick={toggleBot}
+                                            disabled={loading}
+                                            className="btn"
+                                            style={{
+                                                width: '100%',
+                                                background: botStatus === 'running' ? '#ff4757' : '#2ed573',
+                                                color: '#fff',
+                                                border: 'none',
+                                                padding: '16px',
+                                                fontSize: '18px',
+                                                fontWeight: 'bold',
+                                                cursor: loading ? 'wait' : 'pointer',
+                                                opacity: loading ? 0.7 : 1,
+                                                borderRadius: '8px'
+                                            }}
+                                        >
+                                            {loading ? 'Processing...' : (botStatus === 'running' ? '🛑 STOP AGENT' : '🚀 START AGENT')}
+                                        </button>
+
+                                        <div style={{ marginTop: '20px', background: 'rgba(0,0,0,0.3)', padding: '16px', borderRadius: '8px', height: '150px', overflowY: 'auto', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                            <h4 style={{ margin: '0 0 10px 0', color: '#888', fontSize: '11px', letterSpacing: '0.05em' }}>SYSTEM LOGS</h4>
+                                            {logs.map((log, i) => (
+                                                <div key={i} style={{ fontSize: '12px', fontFamily: 'monospace', color: '#aaa', marginBottom: '4px' }}>
+                                                    {log}
+                                                </div>
+                                            ))}
+                                            {logs.length === 0 && <div style={{ fontSize: '12px', color: '#555', fontStyle: 'italic' }}>Waiting for logs...</div>}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1543,6 +1669,51 @@ AI: Boo, work is boring! You should take a break and chat with me instead 😈`)
                     onClose={() => setIsLoadPresetModalOpen(false)}
                     onPresetLoaded={handlePresetLoaded}
                 />
+
+                {/* Tease Pic Preview Modal */}
+                {teasePreview && (
+                    <div style={{
+                        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                        background: 'rgba(0,0,0,0.9)', zIndex: 9999,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexDirection: 'column',
+                        animation: 'fadeIn 0.2s ease-in-out'
+                    }} onClick={() => setTeasePreview(false)}>
+                        <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
+                            <img
+                                src={`/tease_thumb.jpg?v=${teaseThumbVersion}`}
+                                style={{
+                                    maxWidth: '100%', maxHeight: '80vh',
+                                    borderRadius: '8px',
+                                    boxShadow: '0 0 30px rgba(0,0,0,0.8)',
+                                    border: '1px solid #333'
+                                }}
+                                alt="Tease Pic Preview"
+                            />
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setTeasePreview(false); }}
+                                style={{
+                                    position: 'absolute', top: '-15px', right: '-15px',
+                                    background: '#ef4444', border: '2px solid white',
+                                    color: 'white',
+                                    width: '30px', height: '30px', borderRadius: '50%',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontSize: '16px', cursor: 'pointer',
+                                    boxShadow: '0 2px 10px rgba(0,0,0,0.3)'
+                                }}
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div style={{
+                            color: '#888', marginTop: '15px',
+                            fontFamily: 'monospace', fontSize: '12px',
+                            background: 'rgba(0,0,0,0.5)', padding: '5px 10px', borderRadius: '20px'
+                        }}>
+                            Preview: Personalized Tease Pic (Click anywhere to close)
+                        </div>
+                    </div>
+                )}
             </div >
         </>
     );

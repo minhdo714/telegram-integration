@@ -5,6 +5,7 @@ import sys
 import logging
 import sqlite3
 import json
+import random
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 from dotenv import load_dotenv
@@ -34,6 +35,49 @@ try:
 except Exception as e:
     logger.critical(f"Failed to import dependencies: {e}")
     sys.exit(1)
+
+def get_fallback_image(account_id):
+    """Get a random opener image from account's library as fallback"""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        
+        # Try to get opener images from active AI config preset first
+        c.execute('''
+            SELECT ac.opener_images
+            FROM telegram_accounts ta
+            LEFT JOIN ai_config_presets ac ON ta.active_config_id = ac.id
+            WHERE ta.id = ?
+        ''', (account_id,))
+        result = c.fetchone()
+        opener_images_json = result['opener_images'] if result else None
+        
+        # Fallback to model_assets if no preset
+        if not opener_images_json:
+            c.execute('SELECT opener_images FROM model_assets WHERE account_id = ?', (account_id,))
+            result = c.fetchone()
+            opener_images_json = result['opener_images'] if result else None
+        
+        conn.close()
+        
+        if opener_images_json:
+            opener_images = json.loads(opener_images_json)
+            if opener_images and len(opener_images) > 0:
+                # Pick random image
+                selected_image = random.choice(opener_images)
+                
+                # Construct absolute path
+                upload_base = '/tmp/uploads' if os.name != 'nt' else os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+                image_path = os.path.join(upload_base, selected_image)
+                
+                if os.path.exists(image_path):
+                    return image_path
+        
+        return None
+    except Exception as e:
+        logger.error(f"Failed to get fallback image: {e}")
+        return None
 
 async def process_incoming_message(client, account_id, sender_id, message_text, username, chat_id, reply_to_msg_id=None):
     """Core logic to process a single message, shared by event handler and polling"""
@@ -96,11 +140,45 @@ async def process_incoming_message(client, account_id, sender_id, message_text, 
                      else:
                          error_msg = img_result.get('error', 'Unknown error') if img_result else 'Unknown error'
                          logger.error(f"Image generation failed: {error_msg}")
-                         # Optional: Send apology message
-                         await client.send_message(chat_id, "ugh my camera app is glitching 😭 sorry babe")
+                         
+                         # FALLBACK: Try to send an opener image instead
+                         fallback_image = get_fallback_image(account_id)
+                         
+                         if fallback_image:
+                             # Random excuse messages
+                             excuses = [
+                                 "omg sorry my phone was acting up... here's one i took earlier 😘",
+                                 "ugh my camera app crashed lol, but here's a good one from yesterday 💕",
+                                 "sorry babe my phone's being weird, sending you this one instead 😉",
+                                 "hold on my camera glitched... but i got this one for you 💋",
+                                 "ugh technical difficulties 😭 but here's something to hold you over 😘"
+                             ]
+                             excuse = random.choice(excuses)
+                             logger.info(f"Sending fallback image for failed generation: {fallback_image}")
+                             await client.send_file(chat_id, fallback_image, caption=excuse, reply_to=reply_to_msg_id)
+                         else:
+                             # No fallback available, send text apology
+                             await client.send_message(chat_id, "ugh my camera app is glitching 😭 sorry babe")
                  except Exception as e:
                      logger.error(f"Exception in async image task: {e}")
-                     await client.send_message(chat_id, "ugh my phone died while taking it 😭 give me a sec")
+                     
+                     # FALLBACK: Try to send an opener image on exception too
+                     try:
+                         fallback_image = get_fallback_image(account_id)
+                         if fallback_image:
+                             excuses = [
+                                 "omg my phone just died while taking that 😭 but here's another one 💕",
+                                 "sorry babe something went wrong... sending you this instead 😘",
+                                 "ugh my phone is being so annoying rn, here's one from earlier 💋"
+                             ]
+                             excuse = random.choice(excuses)
+                             logger.info(f"Sending fallback image after exception: {fallback_image}")
+                             await client.send_file(chat_id, fallback_image, caption=excuse, reply_to=reply_to_msg_id)
+                         else:
+                             await client.send_message(chat_id, "ugh my phone died while taking it 😭 give me a sec")
+                     except Exception as fallback_error:
+                         logger.error(f"Fallback also failed: {fallback_error}")
+                         await client.send_message(chat_id, "ugh my phone died while taking it 😭 give me a sec")
 
     except Exception as e:
         logger.error(f"Failed to process message: {e}", exc_info=True)
