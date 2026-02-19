@@ -123,62 +123,80 @@ async def process_incoming_message(client, account_id, sender_id, message_text, 
         if response.get('async_task'):
              task = response['async_task']
              if task.get('type') == 'image_gen':
-                 logger.info(f"Starting async image generation for {sender_id} with prompt: {task.get('prompt')}")
+                 prompt = task.get('prompt') or ''
                  
-                 try:
-                     # Execute blocking API call in thread to keep bot responsive
-                     img_result = await asyncio.to_thread(
-                         ai_handler.kie_client.generate_image, 
-                         task.get('prompt'), 
-                         face_ref_path=task.get('face_path')
-                     )
-                     
-                     if img_result and img_result.get('url'):
-                         logger.info(f"Image generated successfully: {img_result['url']}")
-                         # Send the image
-                         await client.send_file(chat_id, img_result['url'], caption="here u go 😘", reply_to=reply_to_msg_id)
-                     else:
-                         error_msg = img_result.get('error', 'Unknown error') if img_result else 'Unknown error'
-                         logger.error(f"Image generation failed: {error_msg}")
-                         
-                         # FALLBACK: Try to send an opener image instead
-                         fallback_image = get_fallback_image(account_id)
-                         
-                         if fallback_image:
-                             # Random excuse messages
-                             excuses = [
-                                 "omg sorry my phone was acting up... here's one i took earlier 😘",
-                                 "ugh my camera app crashed lol, but here's a good one from yesterday 💕",
-                                 "sorry babe my phone's being weird, sending you this one instead 😉",
-                                 "hold on my camera glitched... but i got this one for you 💋",
-                                 "ugh technical difficulties 😭 but here's something to hold you over 😘"
-                             ]
-                             excuse = random.choice(excuses)
-                             logger.info(f"Sending fallback image for failed generation: {fallback_image}")
-                             await client.send_file(chat_id, fallback_image, caption=excuse, reply_to=reply_to_msg_id)
-                         else:
-                             # No fallback available, send text apology
-                             await client.send_message(chat_id, "ugh my camera app is glitching 😭 sorry babe")
-                 except Exception as e:
-                     logger.error(f"Exception in async image task: {e}")
-                     
-                     # FALLBACK: Try to send an opener image on exception too
+                 # ── PROMPT GUARD ──────────────────────────────────────────────────────
+                 # The prompt is the LLM's reply text. If the bot responded to spam with
+                 # "Spam blocked." or "🚫", we must NOT pass that as an image prompt.
+                 _p_lower = prompt.lower().strip()
+                 _spam_keywords = [
+                     'spam', 'blocked', 'scam', 'no photo', 'no image', 'not engaging',
+                     'have a good day', 'not interested', 'inappropriate', 'no thanks',
+                     'reported', 'restrict', 'flood', 'limit',
+                 ]
+                 _is_spam_prompt = (
+                     len(_p_lower) < 10  # Too short to be a real prompt
+                     or any(kw in _p_lower for kw in _spam_keywords)
+                     or all(c in '🚫⛔❌ .!?,:;-–—\n\t' for c in prompt)  # only emoji/punct
+                 )
+                 if _is_spam_prompt:
+                     logger.warning(f"[IMG GUARD] Blocked image gen — suspicious prompt: {prompt[:80]!r}")
+                 else:
+                     logger.info(f"Starting async image generation for {sender_id} with prompt: {prompt[:80]}")
                      try:
-                         fallback_image = get_fallback_image(account_id)
-                         if fallback_image:
-                             excuses = [
-                                 "omg my phone just died while taking that 😭 but here's another one 💕",
-                                 "sorry babe something went wrong... sending you this instead 😘",
-                                 "ugh my phone is being so annoying rn, here's one from earlier 💋"
-                             ]
-                             excuse = random.choice(excuses)
-                             logger.info(f"Sending fallback image after exception: {fallback_image}")
-                             await client.send_file(chat_id, fallback_image, caption=excuse, reply_to=reply_to_msg_id)
+                         # Execute blocking API call in thread to keep bot responsive
+                         img_result = await asyncio.to_thread(
+                             ai_handler.kie_client.generate_image, 
+                             prompt, 
+                             face_ref_path=task.get('face_path')
+                         )
+                         
+                         if img_result and img_result.get('url'):
+                             logger.info(f"Image generated successfully: {img_result['url']}")
+                             # Send the image
+                             await client.send_file(chat_id, img_result['url'], caption="here u go 😘", reply_to=reply_to_msg_id)
                          else:
+                             error_msg = img_result.get('error', 'Unknown error') if img_result else 'Unknown error'
+                             logger.error(f"Image generation failed: {error_msg}")
+                             
+                             # FALLBACK: Try to send an opener image instead
+                             fallback_image = get_fallback_image(account_id)
+                             
+                             if fallback_image:
+                                 # Random excuse messages
+                                 excuses = [
+                                     "omg sorry my phone was acting up... here's one i took earlier 😘",
+                                     "ugh my camera app crashed lol, but here's a good one from yesterday 💕",
+                                     "sorry babe my phone's being weird, sending you this one instead 😉",
+                                     "hold on my camera glitched... but i got this one for you 💋",
+                                     "ugh technical difficulties 😭 but here's something to hold you over 😘"
+                                 ]
+                                 excuse = random.choice(excuses)
+                                 logger.info(f"Sending fallback image for failed generation: {fallback_image}")
+                                 await client.send_file(chat_id, fallback_image, caption=excuse, reply_to=reply_to_msg_id)
+                             else:
+                                 # No fallback available, send text apology
+                                 await client.send_message(chat_id, "ugh my camera app is glitching 😭 sorry babe")
+                     except Exception as e:
+                         logger.error(f"Exception in async image task: {e}")
+                         
+                         # FALLBACK: Try to send an opener image on exception too
+                         try:
+                             fallback_image = get_fallback_image(account_id)
+                             if fallback_image:
+                                 excuses = [
+                                     "omg my phone just died while taking that 😭 but here's another one 💕",
+                                     "sorry babe something went wrong... sending you this instead 😘",
+                                     "ugh my phone is being so annoying rn, here's one from earlier 💋"
+                                 ]
+                                 excuse = random.choice(excuses)
+                                 logger.info(f"Sending fallback image after exception: {fallback_image}")
+                                 await client.send_file(chat_id, fallback_image, caption=excuse, reply_to=reply_to_msg_id)
+                             else:
+                                 await client.send_message(chat_id, "ugh my phone died while taking it 😭 give me a sec")
+                         except Exception as fallback_error:
+                             logger.error(f"Fallback also failed: {fallback_error}")
                              await client.send_message(chat_id, "ugh my phone died while taking it 😭 give me a sec")
-                     except Exception as fallback_error:
-                         logger.error(f"Fallback also failed: {fallback_error}")
-                         await client.send_message(chat_id, "ugh my phone died while taking it 😭 give me a sec")
 
     except Exception as e:
         logger.error(f"Failed to process message: {e}", exc_info=True)
