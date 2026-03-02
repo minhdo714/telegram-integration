@@ -56,10 +56,13 @@ except Exception as e:
 
 try:
     from auth_handler import register_user, login_user
-    from ai_config_manager import get_ai_configs, save_ai_config, delete_ai_config
-    logger.info("Auth and AI Config handlers imported successfully")
+    from ai_config_manager import (
+        get_ai_configs, save_ai_config, delete_ai_config,
+        get_outreach_configs, save_outreach_config, delete_outreach_config
+    )
+    logger.info("Auth, AI Config, and Outreach handlers imported successfully")
 except Exception as e:
-    logger.error(f"Error importing Auth/AI handlers: {e}")
+    logger.error(f"Error importing Auth/AI/Outreach handlers: {e}")
 
 from werkzeug.utils import secure_filename
 import sqlite3
@@ -466,6 +469,60 @@ def delete_ai_config_route(config_id):
     except Exception as e:
          return jsonify({"error": str(e)}), 500
 
+# Outreach Config Routes
+
+@app.route('/api/outreach-configs', methods=['GET'])
+def list_outreach_configs():
+    try:
+        user_id = request.args.get('userId')
+        if not user_id:
+            return jsonify({"error": "User ID required"}), 400
+            
+        result = get_outreach_configs(int(user_id))
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/outreach-configs/save', methods=['POST'])
+def save_outreach_config_route():
+    try:
+        data = request.json
+        result = save_outreach_config(
+            user_id=data.get('user_id') or data.get('userId'),
+            name=data.get('name'),
+            system_prompt=data.get('system_prompt') or data.get('systemPrompt'),
+            model_provider=data.get('model_provider') or data.get('modelProvider'),
+            model_name=data.get('model_name') or data.get('modelName'),
+            temperature=data.get('temperature', 0.7),
+            opener_images=data.get('opener_images'),
+            model_face_ref=data.get('model_face_ref'),
+            model_body_ref=data.get('model_body_ref'),
+            room_bg_ref=data.get('room_bg_ref'),
+            outreach_message=data.get('outreach_message'),
+            example_chatflow=data.get('example_chatflow'),
+            part3_chatflow=data.get('part3_chatflow'),
+            blast_list=data.get('blast_list'),
+            account_id=data.get('accountId') or data.get('account_id'),
+            config_id=data.get('config_id') or data.get('id')
+        )
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/outreach-configs/<config_id>', methods=['DELETE'])
+def delete_outreach_config_route(config_id):
+    try:
+        user_id = request.args.get('userId')
+        if not user_id:
+             return jsonify({"error": "User ID required"}), 400
+             
+        result = delete_outreach_config(config_id, user_id)
+        if 'error' in result:
+             return jsonify(result), 500
+        return jsonify(result), 200
+    except Exception as e:
+         return jsonify({"error": str(e)}), 500
+
 @app.route('/api/send-dm', methods=['POST'])
 def send_dm_route():
     """Send a direct message via Telegram"""
@@ -699,15 +756,45 @@ def get_asset_config():
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
         
-        # Check active config
+        # Check active config (AI or Outreach)
         c.execute('''
-            SELECT ta.active_config_id, ac.opener_images, ac.model_face_ref, ac.model_body_ref, ac.room_bg_ref, ac.outreach_message, ac.example_chatflow, ac.blast_list
+            SELECT ta.active_config_id, ta.active_outreach_config_id,
+                   ac.opener_images, ac.model_face_ref, ac.model_body_ref, ac.room_bg_ref, ac.outreach_message, ac.example_chatflow, ac.blast_list,
+                   oc.opener_images as outreach_openers, oc.model_face_ref as outreach_face, oc.model_body_ref as outreach_body, 
+                   oc.room_bg_ref as outreach_room, oc.outreach_message as outreach_msg, oc.example_chatflow as outreach_flow, 
+                   oc.part3_chatflow as outreach_part3, oc.blast_list as outreach_blast
             FROM telegram_accounts ta
             LEFT JOIN ai_config_presets ac ON ta.active_config_id = ac.id
+            LEFT JOIN outreach_configs oc ON ta.active_outreach_config_id = oc.id
             WHERE ta.id = ?
         ''', (account_id,))
         acc_info = c.fetchone()
         
+        # Priority 1: Outreach Config (if specifically requested or if it's the intended context)
+        # For now, if active_outreach_config_id is set, it might override or be accessible via a different key.
+        # Let's return both if available, or prioritize based on a flag.
+        is_outreach_context = request.args.get('context') == 'outreach'
+        
+        if is_outreach_context:
+            if acc_info and acc_info['active_outreach_config_id']:
+                assets = {
+                    "account_id": account_id,
+                    "opener_images": acc_info['outreach_openers'],
+                    "model_face_ref": acc_info['outreach_face'],
+                    "model_body_ref": acc_info['outreach_body'],
+                    "room_bg_ref": acc_info['outreach_room'],
+                    "outreach_message": acc_info['outreach_msg'],
+                    "example_chatflow": acc_info['outreach_flow'],
+                    "part3_chatflow": acc_info['outreach_part3'],
+                    "blast_list": acc_info['outreach_blast']
+                }
+                conn.close()
+                return jsonify({"status": "success", "assets": assets, "source": "outreach_preset"}), 200
+            else:
+                # If specifically requested outreach but no preset set, return null so frontend uses its own defaults
+                conn.close()
+                return jsonify({"status": "success", "assets": None, "source": "outreach_none"}), 200
+
         if acc_info and acc_info['active_config_id']:
             assets = {
                 "account_id": account_id,
@@ -962,13 +1049,49 @@ def delete_asset():
         return jsonify({"message": str(e)}), 500
 
 bot_process = None
+current_bot_type = None # 'engagement' or 'outreach'
+
+def kill_all_bot_runners():
+    """Robustly kill any running bot_runner.py processes to prevent orphans."""
+    try:
+        import psutil
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+            try:
+                cmdline = proc.info.get('cmdline') or []
+                if any('bot_runner.py' in arg for arg in cmdline):
+                    print(f"DEBUG: Killing orphaned bot_runner (PID: {proc.info['pid']})")
+                    proc.kill()
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
+    except ImportError:
+        # Fallback to shell command if psutil not available
+        if os.name == 'nt':
+            # Windows
+            subprocess.run(['taskkill', '/F', '/IM', 'python.exe', '/FI', 'WINDOWTITLE eq bot_runner.py*'], capture_output=True)
+            # Brute force if needed
+            subprocess.run(['powershell', '-Command', 'Get-Process | Where-Object { $_.CommandLine -like "*bot_runner.py*" } | Stop-Process -Force'], capture_output=True)
+        else:
+            # Linux/Mac
+            subprocess.run(['pkill', '-f', 'bot_runner.py'], capture_output=True)
+
+# Initial cleanup on worker startup
+kill_all_bot_runners()
 
 @app.route('/api/bot/start', methods=['POST'])
 def start_bot():
-    global bot_process
+    global bot_process, current_bot_type
     try:
+        # 1. Kill any existing processes (Robust exclusivity)
+        kill_all_bot_runners()
+        
         if bot_process and bot_process.poll() is None:
-            return jsonify({"status": "already_running", "pid": bot_process.pid}), 200
+            try:
+                bot_process.terminate()
+                bot_process.wait(timeout=5)
+            except:
+                pass
+        
+        bot_process = None
         
         # Start the bot runner as a subprocess
         # Redirect stdout/stderr to files so we can debug crashes
@@ -979,7 +1102,11 @@ def start_bot():
         stderr_f = open(err_log, 'w')
         
         bot_runner_path = os.path.join(os.path.dirname(__file__), 'bot_runner.py')
-        bot_process = subprocess.Popen([sys.executable, bot_runner_path],
+        bot_type = request.json.get('type', 'engagement')
+        global current_bot_type
+        current_bot_type = bot_type
+
+        bot_process = subprocess.Popen([sys.executable, bot_runner_path, "--type", bot_type],
                                      stdout=stdout_f,
                                      stderr=stderr_f)
         
@@ -990,15 +1117,20 @@ def start_bot():
 
 @app.route('/api/bot/stop', methods=['POST'])
 def stop_bot():
-    global bot_process
+    global bot_process, current_bot_type
     try:
+        kill_all_bot_runners()
+        
         if bot_process and bot_process.poll() is None:
             bot_process.terminate()
-            bot_process.wait()
-            bot_process = None
-            return jsonify({"status": "stopped"}), 200
-        else:
-            return jsonify({"status": "not_running"}), 200
+            try:
+                bot_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                bot_process.kill()
+            
+        bot_process = None
+        current_bot_type = None
+        return jsonify({"status": "stopped"}), 200
     except Exception as e:
         traceback.print_exc()
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -1010,7 +1142,8 @@ def get_bot_status():
         is_running = bot_process is not None and bot_process.poll() is None
         return jsonify({
             "status": "running" if is_running else "stopped", 
-            "pid": bot_process.pid if is_running else None
+            "pid": bot_process.pid if is_running else None,
+            "type": current_bot_type if is_running else None
         }), 200
     except Exception as e:
         traceback.print_exc()

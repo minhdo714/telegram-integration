@@ -1,0 +1,418 @@
+.uploadZone {
+    border: 2px dashed rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    background: rgba(0, 0, 0, 0.2);
+    transition: all 0.2s;
+    margin-bottom: 20px;
+}
+
+.uploadZone:hover {
+    border-color: var(--color-primary);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.previewImage {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+.openerGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+    padding: 8px;
+    overflow: visible;
+}
+
+.openerItem {
+    position: relative;
+    border-radius: 6px;
+    overflow: visible;
+    height: 80px;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    user-select: none;
+}
+
+.openerItem:active {
+    cursor: grabbing !important;
+}
+
+.openerItem img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+    border-radius: 6px;
+}
+
+.deleteBtn {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: rgba(239, 68, 68, 0.95);
+    color: white;
+    border: 2px solid white;
+    border-radius: 50%;
+    width: 26px;
+    height: 26px;
+    font-size: 16px;
+    font-weight: bold;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s ease;
+    z-index: 10;
+}
+
+.deleteBtn:hover {
+    background: rgba(220, 38, 38, 1);
+    transform: scale(1.15);
+    box-shadow: 0 3px 12px rgba(239, 68, 68, 0.5);
+}
+
+.accountSelector {
+    padding: 12px;
+    background: rgba(30, 30, 30, 0.95);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 8px;
+    color: #ffffff;
+    width: 100%;
+    margin-bottom: 20px;
+    font-size: 16px;
+    appearance: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.accountSelector option {
+    background: #1e1e1e;
+    color: #ffffff;
+    padding: 12px;
+}
+
+.accountSelector:hover {
+    border-color: rgba(139, 92, 246, 0.5);
+    background: rgba(30, 30, 30, 1);
+}
+
+.accountSelector:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+/* Responsive Grid Layout */
+.configGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 40px;
+}
+
+@media (max-width: 968px) {
+    .configGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Info Tooltip Styles */
+.tooltipContainer {
+    position: relative;
+    display: inline-flex;
+    cursor: help;
+    user-select: none;
+}
+
+.infoIcon {
+    font-size: 16px;
+    opacity: 0.7;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.infoIcon:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.tooltip {
+    position: fixed;
+    background: rgba(0, 0, 0, 0.95);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: normal;
+    max-width: min(280px, calc(100vw - 40px));
+    min-width: 200px;
+    width: max-content;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    z-index: 10000;
+    animation: fadeIn 0.2s ease;
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    pointer-events: none;
+    margin-top: 8px;
+}
+
+.tooltip::after {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 20px;
+    border: 6px solid transparent;
+    border-bottom-color: rgba(0, 0, 0, 0.95);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+
+/* Responsive tooltip positioning */
+@media (max-width: 768px) {
+    .tooltip {
+        max-width: 220px;
+        font-size: 12px;
+        padding: 10px 12px;
+    }
+}
+
+/* Discovery & Outreach Styles */
+.tabs {
+    display: none;
+    /* Removing tabs as per request */
+}
+
+/* Info Icon & Tooltips */
+.tooltipContainer {
+    display: inline-flex;
+    position: relative;
+    cursor: pointer;
+    z-index: 1000;
+}
+
+.infoIcon {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+    font-size: 10px;
+    transition: all 0.2s;
+}
+
+.infoIcon:hover {
+    background: var(--color-primary);
+    transform: scale(1.1);
+}
+
+.tooltip {
+    position: fixed;
+    background: #222;
+    color: #fff;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 13px;
+    width: 280px;
+    line-height: 1.5;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    pointer-events: none;
+    z-index: 10001;
+    animation: fadeInScale 0.2s ease-out;
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.discoveryPanel {
+    animation: fadeIn 0.3s ease;
+}
+
+.discoveryPanel h3 {
+    font-size: 18px;
+    margin-bottom: 20px;
+    color: #fff;
+}
+
+.groupGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    max-height: 280px;
+    overflow-y: auto;
+    padding-right: 8px;
+}
+
+.groupCard {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: transform 0.2s;
+}
+
+.groupCard:hover {
+    transform: translateY(-2px);
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+.groupInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.groupInfo strong {
+    font-size: 14px;
+    color: #fff;
+}
+
+.groupInfo span {
+    font-size: 12px;
+    color: #888;
+}
+
+.searchInput {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 12px;
+    color: #fff;
+    outline: none;
+}
+
+.searchInput:focus {
+    border-color: var(--color-primary);
+}
+
+.keywordGrid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.keywordPill {
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    color: #a5b4fc;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.keywordPill:hover {
+    background: var(--color-primary);
+    color: #fff;
+    transform: scale(1.05);
+}
+
+.resultList {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    padding: 8px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.resultItem {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.resultItem:last-child {
+    border-bottom: none;
+}
+
+.leadTableContainer {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 12px;
+    overflow-y: auto;
+    max-height: 520px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.leadTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.leadTable th {
+    text-align: left;
+    padding: 12px 16px;
+    background: #1a1a1a;
+    /* Opaque background for sticky */
+    color: #666;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.leadTable td {
+    padding: 12px 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    color: #ddd;
+}
+
+.statusBadge {
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+.statusBadge.new {
+    background: rgba(99, 102, 241, 0.2);
+    color: #a5b4fc;
+}
+
+.statusBadge.blasted {
+    background: rgba(46, 213, 115, 0.2);
+    color: #2ed573;
+}
+
+.statusBadge.skipped {
+    background: rgba(255, 71, 87, 0.2);
+    color: #ff4757;
+}

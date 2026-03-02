@@ -736,8 +736,32 @@ def send_dm(account_id, recipient, message):
                                     INSERT INTO outreach_history (account_id, telegram_id, username, status)
                                     VALUES (?, ?, ?, ?)
                                 ''', (account_id, str(recipient_id), recipient_username, 'sent'))
+
+                            # NEW: Create Chat Session so AI doesn't send duplicate opener
+                            # Check if session already exists
+                            c_db.execute('SELECT id FROM chat_sessions WHERE account_id = ? AND remote_user_id = ?', (account_id, str(recipient_id)))
+                            session_row = c_db.fetchone()
+                            
+                            if not session_row:
+                                # Create new session in OPENER_SENT state
+                                c_db.execute('''
+                                    INSERT INTO chat_sessions (account_id, remote_user_id, username, state)
+                                    VALUES (?, ?, ?, ?)
+                                ''', (account_id, str(recipient_id), recipient_username, 'OPENER_SENT'))
+                                session_id = c_db.lastrowid
+                            else:
+                                session_id = session_row[0]
+                                # Update existing session to OPENER_SENT
+                                c_db.execute('UPDATE chat_sessions SET state = "OPENER_SENT", last_message_at = CURRENT_TIMESTAMP WHERE id = ?', (session_id,))
+
+                            # Log the assistant message
+                            c_db.execute('''
+                                INSERT INTO chat_messages (session_id, role, content)
+                                VALUES (?, 'assistant', ?)
+                            ''', (session_id, message))
+
                         except Exception as h_e:
-                            print(f"Warning: Failed to log outreach history: {h_e}")
+                            print(f"Warning: Failed to log outreach history/session: {h_e}")
 
                         conn_db.commit()
                         conn_db.close()

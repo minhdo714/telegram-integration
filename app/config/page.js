@@ -74,6 +74,7 @@ function AIConfigContent() {
     const [accounts, setAccounts] = useState([]);
     const [selectedAccountId, setSelectedAccountId] = useState(searchParams.get('accountId') || '');
     const [botStatus, setBotStatus] = useState('stopped');
+    const [botType, setBotType] = useState(null);
     const [pid, setPid] = useState(null);
     const [loading, setLoading] = useState(false);
     const [logs, setLogs] = useState([]);
@@ -87,66 +88,66 @@ function AIConfigContent() {
     const [openers, setOpeners] = useState([]);
     const [draggedIndex, setDraggedIndex] = useState(null);
 
+    const DEFAULT_OUTREACH_MESSAGES = [
+        "did you really just say that in {{group}} {{name}}? i'm dying lol",
+        "ok i have a confession to make to you {{name}} about why i'm DMing you from {{group}}...",
+        "wait {{name}}, are you the same person that's always in {{group}}? i think i remember you",
+        "i was just scrolling {{group}} and your profile hit me like a brick, {{name}}",
+        "saw you in {{group}} and had to double take {{name}}. wow.",
+        "hey {{name}}, i saw you in {{group}} and just had a random thought... curious what you'd think",
+        "your energy in {{group}} is... a lot, {{name}}. in a good way though 😉",
+        "i usually don't do this {{name}} but {{group}} led me to you and i'm taking it as a sign",
+        "stop me if this is weird {{name}}, but i noticed you in {{group}} and had to say hi",
+        "you seem like the type of person who causes trouble in {{group}}... am i right {{name}}?",
+        "just saw your name in {{group}} and suddenly i'm distracted, {{name}}. thanks for that.",
+        "hey {{name}}, you win the prize for 'most intriguing person in {{group}}' today",
+        "i've been lurking in {{group}} for a bit and i think you're the only sane one there {{name}}",
+        "how's your day treating you {{name}}? (saw you in {{group}} and figured i'd check in)",
+        "um {{name}}, i hope i'm not interrupting anything but {{group}} led me here...",
+        "your profile in {{group}} caught my eye {{name}} and now i'm curious about the human behind it",
+        "ok {{name}}, tell the truth... what's your secret to being so active in {{group}}?",
+        "hey {{name}}, i'm the one who just saw you in {{group}} and decided life is too short not to say hi",
+        "you caught my attention in {{group}} {{name}}... let's see if you can keep it",
+        "curiosity got the better of me after seeing you in {{group}}... what's up {{name}}?",
+        "hey {{name}}, if i guess what you're doing right now (based on {{group}} vibes) do i get a prize?",
+        "i feel like you're the main character of {{group}} today lol {{name}}",
+        "honestly {{name}}? seeing you in {{group}} was the highlight of my scrolls today",
+        "hey {{name}}, quick poll: are people in {{group}} usually this wild or is it just you?",
+        "i was gonna keep scrolling through {{group}} but then i saw you and... here we are {{name}}",
+        "hey {{name}}, do you always stand out this much in groups like {{group}}?",
+        "saw you in {{group}} and i just have this feeling we'd vibe {{name}}. hi!",
+        "ok fine {{name}}, you caught me. i'm the girl from {{group}} who thinks you're interesting.",
+        "so {{name}}... {{group}} brought us together. what are you gonna do about it? 😉",
+        "hey {{name}}, i hope your evening is as interesting as your profile in {{group}}",
+        "i was looking for something else in {{group}} but i found you instead {{name}}. better deal.",
+        "is it just me or is {{group}} getting boring? you seemed like the only interesting part {{name}}.",
+        "hey {{name}}, i saw you in {{group}} and i'm making a snap judgment: you're fun to talk to.",
+        "i'm usually shy {{name}} but {{group}} gave me a boost of confidence to DM you",
+        "you have a very specific 'dont mess with me' vibe in {{group}} and i'm into it lol {{name}}",
+        "hey {{name}}, caught you in {{group}}. how's the real world treating you today?",
+        "i'll keep it brief {{name}}: saw you in {{group}}, thought you were hot, had to say hey.",
+        "you seem like you have some stories to tell {{name}} based on {{group}}. i'm all ears.",
+        "hey {{name}}, i'm starting a rebellion against {{group}} boredom. you in?",
+        "i saw your profile in {{group}} {{name}} and now i have questions. many questions.",
+        "don't mean to be a total stranger {{name}} but {{group}} made me feel like i already know you",
+        "hey {{name}}, saw you in {{group}} and i just had to know... what's your go-to weekend vibe?",
+        "i was just thinking how {{group}} needs more people like you {{name}}. hi!",
+        "okay {{name}}, i'm officially curious about you after seeing you in {{group}}",
+        "hey {{name}}, is it weird that i recognized you from {{group}}? you're hard to miss.",
+        "saw you in {{group}} and i'm betting $5 that you're even cooler in private chat {{name}}",
+        "hey {{name}}, i saw you in {{group}} and decided to skip the small talk... what's on your mind?",
+        "you're the first person from {{group}} i've actually wanted to talk to {{name}}. congrats 😉",
+        "hey {{name}}, saw you in {{group}} and i'm just here to disrupt your day in a good way",
+        "i was gonna say something clever about {{group}} but i forgot it when i saw your profile {{name}}",
+        "hey {{name}}, found you in {{group}}. you look like you need a distraction.",
+        "saw you in {{group}} {{name}}... you seem like the type of trouble i like."
+    ].join('\n');
+
     // Outreach State
     const [usernames, setUsernames] = useState('');
     const [blastListMode, setBlastListMode] = useState('text'); // 'text' | 'list'
     const [selectedBlastItems, setSelectedBlastItems] = useState(new Set());
-    const [outreachMessage, setOutreachMessage] = useState([
-        "did you really just say that in {{group}}? i'm dying lol",
-        "ok i have a confession to make about why i'm DMing you from {{group}}...",
-        "wait, are you the same {{name}} that's always in {{group}}? i think i remember you",
-        "i was just scrolling {{group}} and your profile hit me like a brick",
-        "quick question about something you posted in {{group}}... promise i'm not a creep",
-        "i feel like we'd either be best friends or worst enemies based on {{group}} lol",
-        "hey {{name}}, i saw you in {{group}} and just had a random thought... curious what you'd think",
-        "your energy in {{group}} is... a lot. in a good way though 😉",
-        "i usually don't do this but {{group}} led me to you and i'm taking it as a sign",
-        "stop me if this is weird, but i noticed you in {{group}} and had to say hi",
-        "you seem like the type of person who causes trouble in {{group}}... am i right?",
-        "just saw your name in {{group}} and suddenly i'm distracted. thanks for that.",
-        "hey {{name}}, you win the prize for 'most intriguing person in {{group}}' today",
-        "i've been lurking in {{group}} for a bit and i think you're the only sane one there",
-        "how's your day treating you? (saw you in {{group}} and figured i'd check in)",
-        "um, i hope i'm not interrupting anything but {{group}} led me here...",
-        "your profile in {{group}} caught my eye and now i'm curious about the human behind it",
-        "ok, tell the truth... what's your secret to being so active in {{group}}?",
-        "hey {{name}}, i'm the one who just saw you in {{group}} and decided life is too short not to say hi",
-        "you caught my attention in {{group}}... let's see if you can keep it",
-        "curiosity got the better of me after seeing you in {{group}}... what's up?",
-        "saw you in {{group}} and had to double take. wow.",
-        "hey {{name}}, if i guess what you're doing right now (based on {{group}} vibes) do i get a prize?",
-        "i feel like you're the main character of {{group}} today lol",
-        "honestly? seeing you in {{group}} was the highlight of my scrolls today",
-        "hey {{name}}, quick poll: are people in {{group}} usually this wild or is it just you?",
-        "i was gonna keep scrolling through {{group}} but then i saw you and... here we are",
-        "hey {{name}}, do you always stand out this much in groups like {{group}}?",
-        "saw you in {{group}} and i just have this feeling we'd vibe. hi!",
-        "ok fine, you caught me. i'm the girl from {{group}} who thinks you're interesting.",
-        "so... {{group}} brought us together. what are you gonna do about it? 😉",
-        "hey {{name}}, i hope your evening is as interesting as your profile in {{group}}",
-        "i was looking for something else in {{group}} but i found you instead. better deal.",
-        "is it just me or is {{group}} getting boring? you seemed like the only interesting part.",
-        "hey {{name}}, i saw you in {{group}} and i'm making a snap judgment: you're fun to talk to.",
-        "i'm usually shy but {{group}} gave me a boost of confidence to DM you",
-        "you have a very specific 'dont mess with me' vibe in {{group}} and i'm into it lol",
-        "hey {{name}}, caught you in {{group}}. how's the real world treating you today?",
-        "i'll keep it brief: saw you in {{group}}, thought you were hot, had to say hey.",
-        "you seem like you have some stories to tell based on {{group}}. i'm all ears.",
-        "hey {{name}}, i'm starting a rebellion against {{group}} boredom. you in?",
-        "i saw your profile in {{group}} and now i have questions. many questions.",
-        "don't mean to be a total stranger but {{group}} made me feel like i already know you",
-        "hey {{name}}, saw you in {{group}} and i just had to know... what's your go-to weekend vibe?",
-        "i was just thinking how {{group}} needs more people like you. hi!",
-        "okay, i'm officially curious about you after seeing you in {{group}}",
-        "hey {{name}}, is it weird that i recognized you from {{group}}? you're hard to miss.",
-        "saw you in {{group}} and i'm betting $5 that you're even cooler in private chat",
-        "hey {{name}}, i saw you in {{group}} and decided to skip the small talk... what's on your mind?",
-        "you're the first person from {{group}} i've actually wanted to talk to. congrats 😉",
-        "hey {{name}}, saw you in {{group}} and i'm just here to disrupt your day in a good way",
-        "i was gonna say something clever about {{group}} but i forgot it when i saw your profile",
-        "hey {{name}}, found you in {{group}}. you look like you need a distraction.",
-        "saw you in {{group}}... you seem like the type of trouble i like."
-    ].join('\n'));
+    const [outreachMessage, setOutreachMessage] = useState(DEFAULT_OUTREACH_MESSAGES);
     const [exampleChatflow, setExampleChatflow] = useState(`Aria: Hey, I couldn't help but notice your vibe in the [group name] chat – you seem like someone who really gets the thrill of it all. Rough day or just chilling? 😏
 User: Just chilling, yeah.
 Aria: Nice, everyone needs that escape sometimes. What drew you into the group anyway? Looking for some fun convos or something more specific? I'm all ears, hun.
@@ -220,6 +221,7 @@ Aria: Perfect choice, hun – you're gonna love this. Send the tip via [PPV link
     const [aiKeywords, setAiKeywords] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
     const [scrapingGroupId, setScrapingGroupId] = useState(null);
+    const [joiningGroupId, setJoiningGroupId] = useState(null);
     const [selectedLeadIds, setSelectedLeadIds] = useState([]);
     const [niche, setNiche] = useState('dating');
 
@@ -286,11 +288,14 @@ Aria: Perfect choice, hun – you're gonna love this. Send the tip via [PPV link
         try {
             const res = await fetch('/api/bot/status');
             const data = await res.json();
-            setBotStatus(data.status || 'stopped');
-            setPid(data.pid);
+            // Only show "running" on this page if the active agent is engagement (or null/undefined for legacy)
+            const isThisPageAgent = !data.type || data.type === 'engagement';
+            setBotStatus(data.status === 'running' && isThisPageAgent ? 'running' : 'stopped');
+            setPid(isThisPageAgent ? data.pid : null);
+            setBotType(data.type);
         } catch (error) {
             console.error('Failed to check status:', error);
-            setBotStatus('stopped'); // Default to stopped on error
+            setBotStatus('stopped');
         }
     };
 
@@ -306,7 +311,11 @@ Aria: Perfect choice, hun – you're gonna love this. Send the tip via [PPV link
 
                 setFaceRef(getProxyUrl(data.assets.model_face_ref));
                 setRoomRef(getProxyUrl(data.assets.room_bg_ref));
-                if (data.assets.outreach_message) setOutreachMessage(data.assets.outreach_message);
+                if (data.assets.outreach_message) {
+                    setOutreachMessage(data.assets.outreach_message);
+                } else {
+                    setOutreachMessage(DEFAULT_OUTREACH_MESSAGES);
+                }
                 if (data.assets.example_chatflow) setExampleChatflow(data.assets.example_chatflow);
 
                 if (data.assets.opener_images) {
@@ -330,6 +339,7 @@ Aria: Perfect choice, hun – you're gonna love this. Send the tip via [PPV link
                 setFaceRef(null);
                 setRoomRef(null);
                 setOpeners([]);
+                setOutreachMessage(DEFAULT_OUTREACH_MESSAGES);
             }
         } catch (error) {
             console.error('Failed to fetch assets:', error);
@@ -733,6 +743,7 @@ Aria: Perfect choice, hun – you're gonna love this. Send the tip via [PPV link
 
     const handleJoinAndScrape = async (username) => {
         if (!selectedAccountId) return alert('Select an account');
+        setJoiningGroupId(username);
         addLog(`[Discovery] Joining group @${username}...`);
         try {
             const res = await fetch('/api/groups/join', {
@@ -743,39 +754,132 @@ Aria: Perfect choice, hun – you're gonna love this. Send the tip via [PPV link
             const data = await res.json();
             if (data.status === 'success') {
                 addLog(`✅ Joined @${username}. Starting scrape...`);
+                setJoiningGroupId(null);
                 handleScrapeGroup(username);
             } else {
                 addLog(`❌ Join failed: ${data.message}`);
+                setJoiningGroupId(null);
             }
         } catch (error) {
             addLog(`❌ Join error: ${error.message}`);
+            setJoiningGroupId(null);
+        }
+    };
+
+    const handleDeleteAllLeads = async () => {
+        if (!confirm('Are you sure you want to delete ALL leads? This cannot be undone.')) return;
+        try {
+            const res = await fetch('/api/leads/delete-all', { method: 'DELETE' });
+            const text = await res.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                console.error('Raw response from delete-all:', text);
+                toast.error('Server returned invalid data');
+                return;
+            }
+
+            if (res.ok && data.status === 'success') {
+                toast.success(`Deleted ${data.deleted_count} leads`);
+                setSelectedLeadIds([]);
+                fetchLeads();
+            } else {
+                toast.error(`Delete all failed: ${data.message || data.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            console.error('Delete all error:', error);
+            toast.error('Delete all failed');
         }
     };
 
     const toggleBot = async () => {
         setLoading(true);
-        const action = botStatus === 'running' ? 'stop' : 'start';
 
-        try {
-            const res = await fetch(`/api/bot/${action}`, { method: 'POST' });
-            const data = await res.json();
+        if (botStatus === 'stopped') {
+            // Check for conflict (Outreach running)
+            try {
+                const statusRes = await fetch('/api/bot/status');
+                const statusData = await statusRes.json();
 
-            if (data.status === 'started') {
-                setBotStatus('running');
-                setPid(data.pid);
-                addLog('✅ Bot started successfully');
-            } else if (data.status === 'stopped') {
-                setBotStatus('stopped');
-                setPid(null);
-                addLog('🛑 Bot stopped');
-            } else if (data.status === 'error') {
-                addLog(`❌ Error: ${data.message}`);
+                if (statusData.status === 'running' && statusData.type === 'outreach') {
+                    if (!confirm("The Outreach Agent is currently running. Would you like to stop it and start the Fan Engagement Agent instead?")) {
+                        setLoading(false);
+                        return;
+                    }
+                    // Stop the existing outreach bot
+                    await fetch('/api/bot/stop', { method: 'POST' });
+                    addLog('🛑 Stopped Outreach Agent to switch');
+                }
+            } catch (e) { console.error("Conflict check failed", e); }
+
+            // AUTO-SAVE engagement config before starting so the bot can load it
+            try {
+                const userId = document.cookie.split('; ').find(row => row.startsWith('user_id='))?.split('=')[1] || '1';
+                const saveRes = await fetch('/api/ai-configs/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId,
+                        name: 'Active Engagement Config',
+                        model_face_ref: faceRef?.replace('/api/uploads/', ''),
+                        room_bg_ref: roomRef?.replace('/api/uploads/', ''),
+                        opener_images: JSON.stringify(openers.map(p => p.replace('/api/uploads/', ''))),
+                        outreach_message: outreachMessage,
+                        example_chatflow: exampleChatflow,
+                        blast_list: usernames
+                    })
+                });
+                const saveData = await saveRes.json();
+                if (saveData.status === 'success' && saveData.id) {
+                    // Link it to the account
+                    await fetch(`/api/accounts/${selectedAccountId}/assign-config`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ activeConfigId: saveData.id })
+                    });
+                    addLog('💾 Engagement config saved & linked to account');
+                }
+            } catch (saveErr) {
+                console.error('Auto-save failed:', saveErr);
+                addLog('⚠️ Could not auto-save config, bot may use defaults');
             }
-        } catch (error) {
-            addLog(`❌ Network Error: ${error.message}`);
-        } finally {
-            setLoading(false);
+
+            // Start Engagement Bot
+            try {
+                const res = await fetch('/api/bot/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'engagement' })
+                });
+                const data = await res.json();
+                if (data.status === 'started' || data.status === 'already_running') {
+                    setBotStatus('running');
+                    setBotType('engagement');
+                    setPid(data.pid);
+                    addLog('✅ Engagement Agent started successfully');
+                } else {
+                    addLog(`❌ Error starting: ${data.message || 'Unknown error'}`);
+                }
+            } catch (error) {
+                addLog(`❌ Network Error: ${error.message}`);
+            }
+        } else {
+            // Stop Bot (Only if THIS one is running, or stop whatever is running)
+            try {
+                const res = await fetch('/api/bot/stop', { method: 'POST' });
+                const data = await res.json();
+                if (data.status === 'stopped' || data.status === 'not_running') {
+                    setBotStatus('stopped');
+                    setBotType(null);
+                    setPid(null);
+                    addLog('🛑 Agent stopped');
+                }
+            } catch (error) {
+                addLog(`❌ Stop error: ${error.message}`);
+            }
         }
+        setLoading(false);
     };
 
     const addLog = (msg) => {
@@ -812,6 +916,10 @@ Aria: Perfect choice, hun – you're gonna love this. Send the tip via [PPV link
             const data = await res.json();
             if (data.status === 'success') {
                 toast.success('Configuration saved!');
+                // Auto-trigger the "Save as Preset" modal to unify the workflow
+                setTimeout(() => {
+                    setIsSavePresetModalOpen(true);
+                }, 500);
             } else {
                 toast.error(data.error || 'Failed to save');
             }
@@ -827,7 +935,11 @@ Aria: Perfect choice, hun – you're gonna love this. Send the tip via [PPV link
 
         if (preset.model_face_ref) setFaceRef(getProxyUrl(preset.model_face_ref));
         if (preset.room_bg_ref) setRoomRef(getProxyUrl(preset.room_bg_ref));
-        if (preset.outreach_message) setOutreachMessage(preset.outreach_message);
+        if (preset.outreach_message) {
+            setOutreachMessage(preset.outreach_message);
+        } else {
+            setOutreachMessage(DEFAULT_OUTREACH_MESSAGES);
+        }
         if (preset.example_chatflow) setExampleChatflow(preset.example_chatflow);
         if (preset.blast_list) setUsernames(preset.blast_list);
 
@@ -848,15 +960,19 @@ Aria: Perfect choice, hun – you're gonna love this. Send the tip via [PPV link
         if (!confirm(`Are you sure you want to delete ${selectedLeadIds.length} leads?`)) return;
 
         try {
-            console.log('Sending bulk delete request...');
             const res = await fetch('/api/leads/bulk-delete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ leadIds: selectedLeadIds })
             });
-            console.log('Bulk delete response status:', res.status);
-            const data = await res.json();
-            console.log('Bulk delete response data:', data);
+            const text = await res.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                toast.error('Invalid server response');
+                return;
+            }
 
             if (res.ok) {
                 toast.success(`Deleted ${data.deleted_count} leads`);
@@ -864,7 +980,6 @@ Aria: Perfect choice, hun – you're gonna love this. Send the tip via [PPV link
                 fetchLeads();
             } else {
                 toast.error(`Bulk delete failed: ${data.message || data.error}`);
-                console.error('Bulk delete error:', data.error);
             }
         } catch (error) {
             console.error('Bulk delete error:', error);
@@ -876,8 +991,16 @@ Aria: Perfect choice, hun – you're gonna love this. Send the tip via [PPV link
         if (!confirm('Are you sure you want to delete this lead?')) return;
         try {
             const res = await fetch(`/api/leads/${lead_id}`, { method: 'DELETE' });
-            const data = await res.json();
-            if (data.status === 'success') {
+            const text = await res.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                toast.error('Invalid server response');
+                return;
+            }
+
+            if (res.ok && data.status === 'success') {
                 toast.success('Lead deleted');
                 fetchLeads();
             } else {
@@ -938,16 +1061,29 @@ Aria: Perfect choice, hun – you're gonna love this. Send the tip via [PPV link
                             <div className={styles.form}>
                                 <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
                                     <button
-                                        className="btn btn-primary"
-                                        onClick={() => setIsSavePresetModalOpen(true)}
-                                        style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', fontSize: '13px', padding: '8px 16px' }}
+                                        onClick={handleSaveAssets}
+                                        className="btn"
+                                        style={{
+                                            flex: 1,
+                                            background: 'linear-gradient(135deg, #00f2fe 0%, #4facfe 100%)',
+                                            color: '#fff',
+                                            border: 'none',
+                                            padding: '12px 24px',
+                                            fontSize: '14px',
+                                            fontWeight: 'bold',
+                                            borderRadius: '8px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '8px'
+                                        }}
                                     >
-                                        💾 Save Current as Preset
+                                        💾 Save Configuration
                                     </button>
                                     <button
                                         className="btn"
                                         onClick={() => setIsLoadPresetModalOpen(true)}
-                                        style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', fontSize: '13px', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', fontSize: '14px', padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}
                                     >
                                         📂 Load Preset
                                     </button>
@@ -1139,11 +1275,15 @@ Aria: Perfect choice, hun – you're gonna love this. Send the tip via [PPV link
                                                 </div>
                                                 <button
                                                     className="btn"
-                                                    style={{ fontSize: '12px', background: isSessionExpired ? '#444' : '#2ed573' }}
+                                                    style={{ fontSize: '12px', background: isSessionExpired ? '#444' : '#2ed573', minWidth: '100px' }}
                                                     onClick={() => !isSessionExpired && handleJoinAndScrape(group.username || group.id)}
-                                                    disabled={isSessionExpired}
+                                                    disabled={isSessionExpired || joiningGroupId === (group.username || group.id) || scrapingGroupId === (group.username || group.id)}
                                                 >
-                                                    {isSessionExpired ? 'Session Expired' : 'Join & Scrape'}
+                                                    {isSessionExpired ? 'Session Expired' : (
+                                                        joiningGroupId === (group.username || group.id) ? 'Joining...' : (
+                                                            scrapingGroupId === (group.username || group.id) ? 'Scraping...' : 'Join & Scrape'
+                                                        )
+                                                    )}
                                                 </button>
                                                 {isSessionExpired && (
                                                     <small style={{ color: '#ff4757', display: 'block', marginTop: '4px', textAlign: 'right' }}>
@@ -1202,6 +1342,22 @@ Aria: Perfect choice, hun – you're gonna love this. Send the tip via [PPV link
                                             >
                                                 {selectedLeadIds.length === scrapedLeads.length && scrapedLeads.length > 0 ? 'Deselect All' : 'Select All'}
                                             </button>
+                                            {selectedLeadIds.length > 0 && (
+                                                <button
+                                                    className="btn"
+                                                    style={{ fontSize: '12px', background: '#ff4757', color: 'white' }}
+                                                    onClick={handleBulkDeleteLeads}
+                                                >
+                                                    Delete Selected ({selectedLeadIds.length})
+                                                </button>
+                                            )}
+                                            <button
+                                                className="btn"
+                                                style={{ fontSize: '12px', background: 'rgba(255, 71, 87, 0.1)', color: '#ff4757', border: '1px solid rgba(255, 71, 87, 0.2)' }}
+                                                onClick={handleDeleteAllLeads}
+                                            >
+                                                Delete All
+                                            </button>
                                             <button className="btn btn-primary" style={{ fontSize: '12px' }} onClick={() => {
                                                 const selectedLeads = scrapedLeads.filter(l => selectedLeadIds.includes(l.id) && l.username);
                                                 if (selectedLeads.length === 0) return alert('Please select at least one prospect with a username');
@@ -1228,6 +1384,7 @@ Aria: Perfect choice, hun – you're gonna love this. Send the tip via [PPV link
                                                     <th>Source Group</th>
                                                     <th>Status</th>
                                                     <th>Scraped At</th>
+                                                    <th style={{ textAlign: 'right' }}>Actions</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -1251,6 +1408,21 @@ Aria: Perfect choice, hun – you're gonna love this. Send the tip via [PPV link
                                                         </td>
                                                         <td style={{ fontSize: '10px', color: '#888' }}>
                                                             {new Date(lead.scraped_at).toLocaleDateString()}
+                                                        </td>
+                                                        <td style={{ textAlign: 'right' }}>
+                                                            <button
+                                                                onClick={() => handleDeleteLead(lead.id)}
+                                                                style={{
+                                                                    background: 'none',
+                                                                    border: 'none',
+                                                                    cursor: 'pointer',
+                                                                    padding: '4px',
+                                                                    opacity: 0.6
+                                                                }}
+                                                                title="Delete Lead"
+                                                            >
+                                                                <TrashIcon />
+                                                            </button>
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -1592,33 +1764,40 @@ Aria: You seem interesting... what's your vibe?"
                                                     background: botStatus === 'running' ? 'rgba(46, 213, 115, 0.2)' : 'rgba(255, 71, 87, 0.2)',
                                                     color: botStatus === 'running' ? '#2ed573' : '#ff4757',
                                                     fontWeight: 'bold',
-                                                    fontSize: '12px'
+                                                    fontSize: '11px',
+                                                    textTransform: 'uppercase'
                                                 }}>
-                                                    {(botStatus || 'stopped').toUpperCase()}
+                                                    {botStatus === 'running' ? `RUNNING (${botType === 'outreach' ? 'Outreach' : 'Engagement'})` : 'STOPPED'}
                                                 </div>
                                             </div>
                                             <InfoTooltip text="The Agent Auto-Reply system automatically handles incoming DMs based on your AI configuration. Keep this running to ensure 24/7 engagement with your fans." />
                                         </div>
 
-                                        <button
-                                            onClick={toggleBot}
-                                            disabled={loading}
-                                            className="btn"
-                                            style={{
-                                                width: '100%',
-                                                background: botStatus === 'running' ? '#ff4757' : '#2ed573',
-                                                color: '#fff',
-                                                border: 'none',
-                                                padding: '16px',
-                                                fontSize: '18px',
-                                                fontWeight: 'bold',
-                                                cursor: loading ? 'wait' : 'pointer',
-                                                opacity: loading ? 0.7 : 1,
-                                                borderRadius: '8px'
-                                            }}
-                                        >
-                                            {loading ? 'Processing...' : (botStatus === 'running' ? '🛑 STOP AGENT' : '🚀 START AGENT')}
-                                        </button>
+                                        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                                            <button
+                                                onClick={toggleBot}
+                                                disabled={loading}
+                                                className="btn"
+                                                style={{
+                                                    flex: 1,
+                                                    background: botStatus === 'running' ? '#ff4757' : '#2ed573',
+                                                    color: '#fff',
+                                                    border: 'none',
+                                                    padding: '16px',
+                                                    fontSize: '16px',
+                                                    fontWeight: 'bold',
+                                                    cursor: loading ? 'wait' : 'pointer',
+                                                    opacity: loading ? 0.7 : 1,
+                                                    borderRadius: '8px'
+                                                }}
+                                            >
+                                                {loading ? 'Processing...' : (
+                                                    botStatus === 'running'
+                                                        ? (botType === 'outreach' ? '🛑 STOP OUTREACH AGENT' : '🛑 STOP ENGAGEMENT AGENT')
+                                                        : '🚀 START ENGAGEMENT AGENT'
+                                                )}
+                                            </button>
+                                        </div>
 
                                         <div style={{ marginTop: '20px', background: 'rgba(0,0,0,0.3)', padding: '16px', borderRadius: '8px', height: '150px', overflowY: 'auto', border: '1px solid rgba(255,255,255,0.05)' }}>
                                             <h4 style={{ margin: '0 0 10px 0', color: '#888', fontSize: '11px', letterSpacing: '0.05em' }}>SYSTEM LOGS</h4>

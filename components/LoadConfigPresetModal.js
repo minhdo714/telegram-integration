@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { FiX, FiFolder, FiTrash2, FiCheck, FiLoader } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 
-export default function LoadConfigPresetModal({ isOpen, onClose, userId, onLoad, onPresetLoaded }) {
+export default function LoadConfigPresetModal({ isOpen, onClose, userId, onLoad, onPresetLoaded, context = 'standard' }) {
     const [presets, setPresets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [loadingPresetId, setLoadingPresetId] = useState(null);
@@ -23,7 +23,8 @@ export default function LoadConfigPresetModal({ isOpen, onClose, userId, onLoad,
             const userIdToUse = userId || cookieValue || '1';
             console.log('DEBUG: Using userId for fetch:', userIdToUse);
 
-            const res = await fetch(`/api/ai-configs?userId=${userIdToUse}`);
+            const apiPath = context === 'outreach' ? `/api/outreach-configs?userId=${userIdToUse}` : `/api/ai-configs?userId=${userIdToUse}`;
+            const res = await fetch(apiPath);
             console.log('DEBUG: Fetch presets status:', res.status);
 
             const data = await res.json();
@@ -63,7 +64,8 @@ export default function LoadConfigPresetModal({ isOpen, onClose, userId, onLoad,
 
         try {
             const userIdFromCookie = document.cookie.split('; ').find(row => row.startsWith('user_id='))?.split('=')[1] || '1';
-            const res = await fetch(`/api/ai-configs/${id}?userId=${userId || userIdFromCookie}`, { method: 'DELETE' });
+            const apiPath = context === 'outreach' ? `/api/outreach-configs/${id}?userId=${userId || userIdFromCookie}` : `/api/ai-configs/${id}?userId=${userId || userIdFromCookie}`;
+            const res = await fetch(apiPath, { method: 'DELETE' });
             const data = await res.json();
             if (data.status === 'success') {
                 toast.success('Preset deleted');

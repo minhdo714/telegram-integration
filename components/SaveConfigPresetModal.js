@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { FiX, FiSave, FiTag } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 
-export default function SaveConfigPresetModal({ isOpen, onClose, currentAssets, outreachMessage, exampleChatflow, blastList, onSave }) {
+export default function SaveConfigPresetModal({ isOpen, onClose, currentAssets, outreachMessage, exampleChatflow, part3Chatflow, blastList, onSave, context = 'standard' }) {
     const [name, setName] = useState('');
     const [saving, setSaving] = useState(false);
 
@@ -15,16 +15,17 @@ export default function SaveConfigPresetModal({ isOpen, onClose, currentAssets, 
         }
 
         setSaving(true);
-        console.log('DEBUG: Attempting to save preset:', name);
+        console.log(`DEBUG: Attempting to save ${context} preset:`, name);
         try {
             const cookieValue = document.cookie.split('; ').find(row => row.startsWith('user_id='))?.split('=')[1];
             const userId = cookieValue || '1';
-            console.log('DEBUG: Using userId for save:', userId);
 
             const payload = {
                 user_id: parseInt(userId),
                 name: name.trim(),
-                system_prompt: "You are a flirty, fun, and engaging OF model. Keep messages short, lowercase, and casual.",
+                system_prompt: context === 'outreach'
+                    ? "Outreach Agent: Flirty and professional, focused on selling the self-serve webapp."
+                    : "You are a flirty, fun, and engaging OF model. Keep messages short, lowercase, and casual.",
                 model_provider: "openrouter",
                 model_name: "anthropic/claude-3-haiku",
                 temperature: 0.7,
@@ -33,11 +34,12 @@ export default function SaveConfigPresetModal({ isOpen, onClose, currentAssets, 
                 room_bg_ref: currentAssets.roomRef?.replace('/api/uploads/', ''),
                 outreach_message: outreachMessage,
                 example_chatflow: exampleChatflow,
+                part3_chatflow: part3Chatflow,
                 blast_list: blastList
             };
-            console.log('DEBUG: Save payload:', payload);
 
-            const res = await fetch('/api/ai-configs/save', {
+            const apiPath = context === 'outreach' ? '/api/outreach-configs/save' : '/api/ai-configs/save';
+            const res = await fetch(apiPath, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)

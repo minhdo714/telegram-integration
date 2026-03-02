@@ -1,3 +1,4 @@
+import { NextResponse } from 'next/server';
 import { WORKER_URL } from '@/lib/worker-url';
 
 export async function DELETE() {

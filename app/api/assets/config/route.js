@@ -5,13 +5,18 @@ import { WORKER_URL } from '@/lib/worker-url';
 export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const accountId = searchParams.get('accountId');
+    const context = searchParams.get('context');
 
     if (!accountId) {
         return NextResponse.json({ error: 'Account ID required' }, { status: 400 });
     }
 
     try {
-        const response = await fetch(`${WORKER_URL}/api/assets/config?accountId=${accountId}`);
+        let url = `${WORKER_URL}/api/assets/config?accountId=${accountId}`;
+        if (context) {
+            url += `&context=${context}`;
+        }
+        const response = await fetch(url);
         const text = await response.text();
         try {
             const data = JSON.parse(text);

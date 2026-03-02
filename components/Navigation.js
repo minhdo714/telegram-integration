@@ -15,6 +15,10 @@ export default function Navigation() {
     }, []);
 
     const scrollToSection = (sectionId) => {
+        if (window.location.pathname !== '/') {
+            window.location.href = `/#${sectionId}`;
+            return;
+        }
         const element = document.getElementById(sectionId);
         if (element) {
             element.scrollIntoView({ behavior: 'smooth' });
@@ -28,7 +32,7 @@ export default function Navigation() {
             top: 0,
             left: 0,
             right: 0,
-            zIndex: 1000,
+            zIndex: 9999,
             background: 'rgba(10, 10, 20, 0.95)',
             backdropFilter: 'blur(10px)',
             borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
@@ -69,8 +73,9 @@ export default function Navigation() {
                     <button onClick={() => scrollToSection('pricing')} className="nav-link">Pricing</button>
                     <button onClick={() => scrollToSection('testimonials')} className="nav-link">Testimonials</button>
                     <button onClick={() => scrollToSection('faq')} className="nav-link">FAQ</button>
-                    <Link href="/accounts" className="nav-link">Accounts</Link>
-                    <Link href="/config" className="nav-link">Configure AI</Link>
+                    <Link href="/accounts" className="nav-link" style={{ textDecoration: 'none', display: 'inline-block' }}>Accounts</Link>
+                    <Link href="/config" className="nav-link" style={{ textDecoration: 'none', display: 'inline-block' }}>Configure AI</Link>
+                    <Link href="/outreach-config" className="nav-link" style={{ color: '#a855f7', fontWeight: 'bold', textDecoration: 'none', display: 'inline-block' }}>Outreach Config</Link>
 
                     {isLoggedIn ? (
                         <button onClick={() => scrollToSection('accounts')} className="btn btn-primary" style={{ padding: '0.5rem 1.5rem' }}>
@@ -122,8 +127,9 @@ export default function Navigation() {
                     <button onClick={() => scrollToSection('pricing')} className="nav-link">Pricing</button>
                     <button onClick={() => scrollToSection('testimonials')} className="nav-link">Testimonials</button>
                     <button onClick={() => scrollToSection('faq')} className="nav-link">FAQ</button>
-                    <Link href="/accounts" className="nav-link" style={{ textAlign: 'center' }}>Accounts</Link>
-                    <Link href="/config" className="nav-link" style={{ textAlign: 'center' }}>Configure AI</Link>
+                    <Link href="/accounts" className="nav-link" style={{ textAlign: 'center', textDecoration: 'none', display: 'block' }}>Accounts</Link>
+                    <Link href="/config" className="nav-link" style={{ textAlign: 'center', textDecoration: 'none', display: 'block' }}>Configure AI</Link>
+                    <Link href="/outreach-config" className="nav-link" style={{ textAlign: 'center', color: '#a855f7', fontWeight: 'bold', textDecoration: 'none', display: 'block' }}>Outreach Config</Link>
 
                     {isLoggedIn ? (
                         <button onClick={() => scrollToSection('accounts')} className="btn btn-primary">

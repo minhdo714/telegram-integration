@@ -1,13 +1,13 @@
 import sqlite3
 import os
 
-db_path = 'users.db'
+db_path = 'workers/users.db'
 print("=" * 60)
 print("FULL SYSTEM CHECK")
 print("=" * 60)
 
 if not os.path.exists(db_path):
-    print(f"❌ ERROR: {db_path} does not exist!")
+    print(f"ERROR: {db_path} does not exist!")
 else:
     try:
         conn = sqlite3.connect(db_path)
@@ -16,7 +16,7 @@ else:
         # Check accounts
         c.execute('SELECT count(*) FROM telegram_accounts')
         count = c.fetchone()[0]
-        print(f"\n📊 Total accounts in DB: {count}")
+        print(f"\nTotal accounts in DB: {count}")
         
         if count > 0:
             c.execute('''
@@ -30,14 +30,14 @@ else:
                 print(f"  Username: {row[2]}")
                 print(f"  Status: {row[3]}")
                 print(f"  Session Status: {row[4]}")
-                print(f"  Session Length: {row[5]} chars")
-                print(f"  Session Preview: {row[6]}...")
+                print(f"  Session Length: {row[5] if row[5] else 0} chars")
+                print(f"  Session Preview: {row[6] if row[6] else 'N/A'}...")
                 
                 # Check if it looks like a valid StringSession
                 if row[5] and row[5] > 100:
-                    print(f"  ✅ Session looks valid (good length)")
+                    print(f"  [OK] Session looks valid (good length)")
                 else:
-                    print(f"  ❌ Session looks INVALID (too short!)")
+                    print(f"  [ERROR] Session looks INVALID (too short!)")
         
         # Check active sessions
         c.execute('''
@@ -45,11 +45,11 @@ else:
             WHERE status = 'active' AND session_status = 'active'
         ''')
         active = c.fetchone()[0]
-        print(f"\n✅ Active accounts ready for bot: {active}")
+        print(f"\n[OK] Active accounts ready for bot: {active}")
         
         conn.close()
     except Exception as e:
-        print(f"❌ DB Error: {e}")
+        print(f"DB Error: {e}")
 
 # Check if bot_runner is running
 print("\n" + "=" * 60)

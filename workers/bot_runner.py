@@ -6,6 +6,7 @@ import logging
 import sqlite3
 import json
 import random
+import argparse
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 from dotenv import load_dotenv
@@ -32,12 +33,15 @@ try:
     API_HASH = os.getenv('TELEGRAM_API_HASH')
     ai_handler = AIHandler()
     clients = {} # account_id -> client
+    
+    # Global bot type from CLI
+    BOT_TYPE = 'engagement'
 except Exception as e:
     logger.critical(f"Failed to import dependencies: {e}")
     sys.exit(1)
 
-def get_fallback_image(account_id):
-    """Get a random opener image from account's library as fallback"""
+def get_fallback_image(account_id, display_name=None):
+    """Get a random opener image from account's library as fallback, with name overlay applied."""
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
@@ -72,6 +76,15 @@ def get_fallback_image(account_id):
                 image_path = os.path.join(upload_base, selected_image)
                 
                 if os.path.exists(image_path):
+                    # Apply handwritten name overlay if we have a display_name
+                    if display_name:
+                        try:
+                            from image_overlay import overlay_name_on_image
+                            overlaid_path = overlay_name_on_image(image_path, display_name)
+                            if overlaid_path and os.path.exists(overlaid_path):
+                                return overlaid_path
+                        except Exception as overlay_err:
+                            logger.warning(f"Overlay failed in fallback image: {overlay_err}")
                     return image_path
         
         return None
@@ -79,10 +92,12 @@ def get_fallback_image(account_id):
         logger.error(f"Failed to get fallback image: {e}")
         return None
 
-async def process_incoming_message(client, account_id, sender_id, message_text, username, chat_id, reply_to_msg_id=None):
+async def process_incoming_message(client, account_id, sender_id, message_text, username, chat_id, reply_to_msg_id=None, first_name=None):
     """Core logic to process a single message, shared by event handler and polling"""
     try:
-        logger.info(f"📨 PROCESSING: [Acc:{account_id}] From:{sender_id} Msg:{message_text[:50]}")
+        # Build the best display name: first_name > @username > None
+        display_name = first_name or username
+        logger.info(f"📨 PROCESSING: [Acc:{account_id}] From:{sender_id} Name:{display_name} Msg:{message_text[:50]}")
         
         # 1. PING PONG TEST
         if message_text.strip().lower() == '/ping':
@@ -92,7 +107,7 @@ async def process_incoming_message(client, account_id, sender_id, message_text, 
         # 2. AI Processing
         try:
             response = await asyncio.wait_for(
-                asyncio.to_thread(ai_handler.handle_message, account_id, sender_id, message_text, username),
+                asyncio.to_thread(ai_handler.handle_message, account_id, sender_id, message_text, display_name, bot_type=BOT_TYPE),
                 timeout=60.0
             )
             
@@ -119,11 +134,26 @@ async def process_incoming_message(client, account_id, sender_id, message_text, 
             await client.send_message(chat_id, response['text'], reply_to=reply_to_msg_id)
             logger.info(f"[OK] Sent reply to {sender_id}")
 
+        # 3b. Send opener image if present (with handwritten name overlay)
+        if response.get('image_path'):
+            img_path = response['image_path']
+            if os.path.exists(img_path):
+                try:
+                    await client.send_file(chat_id, img_path, reply_to=reply_to_msg_id)
+                    logger.info(f"[OK] Sent opener image to {sender_id}: {img_path}")
+                except Exception as img_err:
+                    logger.error(f"Failed to send opener image: {img_err}")
+            else:
+                logger.warning(f"Opener image not found: {img_path}")
+
         # 4. Async Tasks (Image Generation Handling)
         if response.get('async_task'):
              task = response['async_task']
              if task.get('type') == 'image_gen':
                  prompt = task.get('prompt') or ''
+                 # Use the raw short user request for Kie (avoids long-prompt timeouts).
+                 # Fall back to the LLM text if no kie_prompt is set.
+                 kie_prompt = task.get('kie_prompt') or prompt
                  
                  # ── PROMPT GUARD ──────────────────────────────────────────────────────
                  # The prompt is the LLM's reply text. If the bot responded to spam with
@@ -143,25 +173,36 @@ async def process_incoming_message(client, account_id, sender_id, message_text, 
                  if _is_spam_prompt:
                      logger.warning(f"[IMG GUARD] Blocked image gen — suspicious prompt: {prompt[:80]!r}")
                  else:
-                     logger.info(f"Starting async image generation for {sender_id} with prompt: {prompt[:80]}")
+                     logger.info(f"Starting async image generation for {sender_id} with prompt: {kie_prompt[:80]}")
                      try:
                          # Execute blocking API call in thread to keep bot responsive
                          img_result = await asyncio.to_thread(
                              ai_handler.kie_client.generate_image, 
-                             prompt, 
+                             kie_prompt,  # Use raw short request, not LLM paragraph
                              face_ref_path=task.get('face_path')
                          )
                          
                          if img_result and img_result.get('url'):
                              logger.info(f"Image generated successfully: {img_result['url']}")
-                             # Send the image
-                             await client.send_file(chat_id, img_result['url'], caption="here u go 😘", reply_to=reply_to_msg_id)
+                             # Seductive rotating captions to accompany the generated image
+                             seductive_captions = [
+                                 "just for you baby 🔥",
+                                 "this one's yours... don't share it 😏",
+                                 "told you i'd deliver 😘",
+                                 "hope this is what you had in mind 💋",
+                                 "caught this one right after... you like? 😈",
+                                 "couldn't stop thinking about what you said so... here 😏",
+                                 "this is what you do to me 🥵",
+                                 "exclusive. just for you 🫦",
+                             ]
+                             caption = random.choice(seductive_captions)
+                             await client.send_file(chat_id, img_result['url'], caption=caption, reply_to=reply_to_msg_id)
                          else:
                              error_msg = img_result.get('error', 'Unknown error') if img_result else 'Unknown error'
                              logger.error(f"Image generation failed: {error_msg}")
                              
                              # FALLBACK: Try to send an opener image instead
-                             fallback_image = get_fallback_image(account_id)
+                             fallback_image = get_fallback_image(account_id, display_name)
                              
                              if fallback_image:
                                  # Random excuse messages
@@ -183,7 +224,7 @@ async def process_incoming_message(client, account_id, sender_id, message_text, 
                          
                          # FALLBACK: Try to send an opener image on exception too
                          try:
-                             fallback_image = get_fallback_image(account_id)
+                             fallback_image = get_fallback_image(account_id, display_name)
                              if fallback_image:
                                  excuses = [
                                      "omg my phone just died while taking that 😭 but here's another one 💕",
@@ -233,7 +274,8 @@ async def start_bot(account_id, session_string):
             sender = await event.get_sender()
             await process_incoming_message(
                 client, account_id, event.sender_id, event.message.message, 
-                getattr(sender, 'username', None), event.chat_id, event.id
+                getattr(sender, 'username', None), event.chat_id, event.id,
+                first_name=getattr(sender, 'first_name', None)
             )
 
         # Polling Fallback
@@ -256,7 +298,8 @@ async def start_bot(account_id, session_string):
                             sender = await m.get_sender()
                             await process_incoming_message(
                                 client, account_id, m.sender_id, m.text, 
-                                getattr(sender, 'username', None), m.chat_id, m.id
+                                getattr(sender, 'username', None), m.chat_id, m.id,
+                                first_name=getattr(sender, 'first_name', None)
                             )
                 except Exception as e:
                     logger.error(f"Poll Error: {e}")
@@ -325,4 +368,12 @@ async def main():
 if __name__ == "__main__":
     if sys.platform == 'win32':
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+        
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--type", default="engagement", help="Bot type: engagement or outreach")
+    args = parser.parse_args()
+    
+    BOT_TYPE = args.type
+    logger.info(f"Bot starting with type: {BOT_TYPE}")
+    
     asyncio.run(main())

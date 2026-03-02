@@ -1,10 +1,56 @@
-node_modules
-.env
-users.db
-workers/uploads/
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js build output
 .next/
-*.map
-*.session
-*.log
+out/
+
+# Environment files - NEVER commit these
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Python
 __pycache__/
-*.db
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+dist/
+build/
+
+# Database (SQLite - contains user data)
+workers/users.db
+workers/*.db
+workers/users.db-journal
+
+# Telegram session files (auth secrets)
+*.session
+workers/*.session
+
+# Uploads (user files, too large for git)
+workers/uploads/
+
+# Logs
+workers/*.log
+workers/debug_ai.log
+workers/kie_debug.log
+workers/bot.log
+*.log
+
+# QR session files in root
+qr_*.session
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/

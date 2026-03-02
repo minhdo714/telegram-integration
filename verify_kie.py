@@ -6,6 +6,10 @@ import time
 import io
 import sys
 from PIL import Image
+from dotenv import load_dotenv
+
+# Load env vars
+load_dotenv()
 
 # Mock settings just in case, but we need real API key
 API_KEY = os.getenv('KIE_API_KEY')

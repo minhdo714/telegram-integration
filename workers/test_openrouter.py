@@ -51,9 +51,12 @@ def test_openrouter():
         print("\nSUCCESS: OpenRouter integration working.")
     except Exception as e:
         print(f"\nFAILURE DETAILS: {e}")
-        # also print .response if exists
+        # If it's an OpenAI error, it might have response attribute
         if hasattr(e, 'response'):
-             print(f"Response Body: {e.response}")
+             print(f"Status Code: {e.response.status_code}")
+             print(f"Response Body: {e.response.text}")
+        elif hasattr(e, 'body'):
+             print(f"Error Body: {e.body}")
 
 if __name__ == "__main__":
     test_openrouter()
