@@ -54,3 +54,5 @@ Thumbs.db
 # Editor
 .vscode/
 .idea/
+.vercel
+.env*.local

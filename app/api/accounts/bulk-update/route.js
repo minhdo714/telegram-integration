@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { WORKER_URL } from '@/lib/worker-url';
 
 export async function POST(request) {
     try {
@@ -8,8 +9,6 @@ export async function POST(request) {
         if (!accountIds || !Array.isArray(accountIds)) {
             return NextResponse.json({ status: 'error', message: 'accountIds is required and must be an array' }, { status: 400 });
         }
-
-        import { WORKER_URL } from '@/lib/worker-url';
 
         const response = await fetch(`${WORKER_URL}/api/accounts/bulk-update`, {
             method: 'POST',
