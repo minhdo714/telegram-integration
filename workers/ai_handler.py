@@ -64,7 +64,7 @@ Hey {{name}}! I saw you in the {{group}} group and thought you looked familiar �
 {{name}}! 👋 I was just in the {{group}} group and saw your name. Figured I'd come say hello instead of just watching from afar 🌸 Hope you're well!
 Hey hey {{name}}! Spotted you in the {{group}} group. You seem like the type of person who actually reads messages before replying 📖 Rare these days! How are you?
 Hi {{name}}! I saw you in the {{group}} group earlier. You had some good things to say 💭 Thought I'd introduce myself. Nice to meet you!
-{{name}}! I'm in the {{group}} group with you and I've noticed you're always so polite in there 🧡 Just wanted to send a message and say that's really nice to see. How's your day going?"""
+{{name}}! I'm in the {{group}} group with you and I've noticed you're always so polite in there 🤍 Just wanted to send a message and say that's really nice to see. How's your day going?"""
 
 DEFAULT_PART2_CHATFLOW = """OFCharmer: Hey, saw you in those late-night Telegram groups again... guys just chilling, venting about shitty days or feeling invisible. Kinda hits different when you're on the other side of it too, doesn't it? 😔
 Jane: Omg yes. It's the same thing every night. I'm Jane, content ready, always down for live sex chats or PPV, but actually getting those quiet lurkers to pay? It's fucking exhausting. I sit there for hours scrolling, trying to figure out who might actually buy, and most just ghost or flake the second I bring up anything real. Leaves me drained and honestly? Feeling like I'm begging sometimes.
@@ -479,11 +479,11 @@ class AIHandler:
                         "Write a 2-3 sentence message to send WITH the photo. This message will also be "
                         "used as the image generation prompt, so be very visual and specific.\n"
                         "RULES:\n"
-                        "- Describe exactly what you look like in the photo: body, outfit (or lack of it), pose, expression, setting.\n"
-                        "- Be explicitly seductive and sensual — lean into what they asked for. Don't hold back.\n"
-                        "- Use first-person, texting style. Lowercase, casual, hot.\n"
-                        "- NO asterisks, NO emojis unless totally natural, NO disclaimers.\n"
-                        "- End with a teasing line that makes them want more."
+                        "- Describe exactly what you look like in the photo: body type, exact outfit (colors, textures), pose (sitting, lying, arching, etc.), expression (naughty, messy, focused), and the setting (messy bed, shower, late night lights).\n"
+                        "- Be explicitly seductive, raw, and intimate — lean hard into exactly what they asked for. No censorship, keep it real and unfiltered.\n"
+                        "- Use first-person, texting style. Lowercase, casual, hot. Use 'i' instead of 'I'.\n"
+                        "- NO asterisks, NO emojis unless totally natural, NO cheesy romance, NO disclaimers.\n"
+                        "- Keep it to 2-3 sentences. End with a teasing direct question or statement that hooks them."
                     )
                     history = self._get_conversation_history(session['id'], limit=10)
                     descriptive_text = self.text_gen.generate_reply(history, img_system_prompt, model=assets.get('model_name'))

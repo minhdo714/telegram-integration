@@ -184,18 +184,8 @@ async def process_incoming_message(client, account_id, sender_id, message_text, 
                          
                          if img_result and img_result.get('url'):
                              logger.info(f"Image generated successfully: {img_result['url']}")
-                             # Seductive rotating captions to accompany the generated image
-                             seductive_captions = [
-                                 "just for you baby 🔥",
-                                 "this one's yours... don't share it 😏",
-                                 "told you i'd deliver 😘",
-                                 "hope this is what you had in mind 💋",
-                                 "caught this one right after... you like? 😈",
-                                 "couldn't stop thinking about what you said so... here 😏",
-                                 "this is what you do to me 🥵",
-                                 "exclusive. just for you 🫦",
-                             ]
-                             caption = random.choice(seductive_captions)
+                             # Use the AI-generated seductive description as the caption
+                             caption = prompt if prompt else "just for you baby 🔥"
                              await client.send_file(chat_id, img_result['url'], caption=caption, reply_to=reply_to_msg_id)
                          else:
                              error_msg = img_result.get('error', 'Unknown error') if img_result else 'Unknown error'
@@ -251,7 +241,13 @@ async def start_bot(account_id, session_string):
         if isinstance(session_string, bytes):
             session_string = session_string.decode('utf-8')
             
-        client = TelegramClient(StringSession(session_string), API_ID, API_HASH, sequential_updates=True)
+        try:
+            session = StringSession(session_string)
+        except ValueError as ve:
+            logger.error(f"❌ Telethon session parsing failed for account {account_id}: {ve}")
+            return
+            
+        client = TelegramClient(session, API_ID, API_HASH, sequential_updates=True)
         
         logger.info(f"Connecting client for account {account_id}...")
         await client.connect()
@@ -347,6 +343,11 @@ async def main():
             active_ids = {a['id'] for a in accounts}
             for acc in accounts:
                 if acc['id'] not in running_tasks:
+                    # Skip obviously invalid sessions to prevent task churn
+                    s = acc['session_string']
+                    if not s or s.lower() == 'dummy_session' or len(s) < 20:
+                        continue
+
                     logger.info(f"Starting/Restarting bot for account {acc['id']}")
                     running_tasks[acc['id']] = asyncio.create_task(start_bot(acc['id'], acc['session_string']))
             

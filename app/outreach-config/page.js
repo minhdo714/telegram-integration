@@ -270,6 +270,15 @@ function OutreachConfigContent() {
                     } catch (e) { setOpeners([]); }
                 } else { setOpeners([]); }
                 if (data.assets.blast_list) setUsernames(data.assets.blast_list);
+            } else {
+                // CLEAR UI if no assets are found (Strict Isolation)
+                setFaceRef(null);
+                setRoomRef(null);
+                setOpeners([]);
+                setOutreachMessage(DEFAULT_PART1_OPENERS);
+                setExampleChatflow(DEFAULT_PART2_CHATFLOW);
+                setPart3Chatflow(DEFAULT_PART3_CHATFLOW);
+                setUsernames('');
             }
         } catch (error) {
             console.error('Failed to fetch assets:', error);
@@ -282,6 +291,7 @@ function OutreachConfigContent() {
         formData.append('file', file);
         formData.append('accountId', selectedAccountId);
         formData.append('type', type);
+        formData.append('context', 'outreach');
 
         try {
             const res = await fetch('/api/assets/upload', { method: 'POST', body: formData });
@@ -695,6 +705,37 @@ function OutreachConfigContent() {
         </svg>
     );
 
+    const deleteAsset = async (type, assetPath) => {
+        if (!selectedAccountId) return;
+        if (!confirm('Are you sure you want to delete this asset?')) return;
+
+        try {
+            const cleanPath = assetPath.replace('/api/uploads/', '');
+            const res = await fetch('/api/assets/delete', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    account_id: selectedAccountId,
+                    type,
+                    filename: cleanPath,
+                    context: 'outreach'
+                })
+            });
+
+            if (res.ok) {
+                if (type === 'face') setFaceRef(null);
+                if (type === 'opener') setOpeners(prev => prev.filter(p => p !== assetPath));
+                toast.success('Asset deleted');
+            } else {
+                const err = await res.json();
+                toast.error('Delete failed: ' + err.error);
+            }
+        } catch (error) {
+            console.error('Delete error:', error);
+            toast.error('Error deleting asset');
+        }
+    };
+
     return (
         <>
             <Navigation />
@@ -739,7 +780,7 @@ function OutreachConfigContent() {
                                                 <label htmlFor="face-upload" style={{ cursor: 'pointer', display: 'block', width: '100%', height: '100%' }} title="Click to Replace">
                                                     <img src={faceRef} className={assetStyles.previewImage} alt="Face Ref" />
                                                 </label>
-                                                <button onClick={() => setFaceRef(null)} style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', padding: '4px', cursor: 'pointer', zIndex: 10 }}><TrashIcon /></button>
+                                                <button onClick={() => deleteAsset('face', faceRef)} style={{ position: 'absolute', top: '10px', right: '10px', background: 'rgba(0,0,0,0.6)', border: 'none', borderRadius: '50%', padding: '4px', cursor: 'pointer', zIndex: 10 }}><TrashIcon /></button>
                                             </div>
                                         ) : (
                                             <label htmlFor="face-upload" style={{ cursor: 'pointer', textAlign: 'center' }}>📸<br />Click to upload Face</label>
@@ -753,7 +794,7 @@ function OutreachConfigContent() {
                                         {openers.map((src, i) => (
                                             <div key={i} className={assetStyles.openerItem}>
                                                 <img src={src} alt="Opener" />
-                                                <button className={assetStyles.deleteBtn} onClick={() => setOpeners(prev => prev.filter(p => p !== src))}>✕</button>
+                                                <button className={assetStyles.deleteBtn} onClick={() => deleteAsset('opener', src)}>✕</button>
                                             </div>
                                         ))}
                                         <div className={assetStyles.uploadZone} style={{ height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

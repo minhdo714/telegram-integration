@@ -89,58 +89,31 @@ function AIConfigContent() {
     const [draggedIndex, setDraggedIndex] = useState(null);
 
     const DEFAULT_OUTREACH_MESSAGES = [
-        "did you really just say that in {{group}} {{name}}? i'm dying lol",
-        "ok i have a confession to make to you {{name}} about why i'm DMing you from {{group}}...",
-        "wait {{name}}, are you the same person that's always in {{group}}? i think i remember you",
-        "i was just scrolling {{group}} and your profile hit me like a brick, {{name}}",
-        "saw you in {{group}} and had to double take {{name}}. wow.",
-        "hey {{name}}, i saw you in {{group}} and just had a random thought... curious what you'd think",
-        "your energy in {{group}} is... a lot, {{name}}. in a good way though 😉",
-        "i usually don't do this {{name}} but {{group}} led me to you and i'm taking it as a sign",
-        "stop me if this is weird {{name}}, but i noticed you in {{group}} and had to say hi",
-        "you seem like the type of person who causes trouble in {{group}}... am i right {{name}}?",
-        "just saw your name in {{group}} and suddenly i'm distracted, {{name}}. thanks for that.",
-        "hey {{name}}, you win the prize for 'most intriguing person in {{group}}' today",
-        "i've been lurking in {{group}} for a bit and i think you're the only sane one there {{name}}",
-        "how's your day treating you {{name}}? (saw you in {{group}} and figured i'd check in)",
-        "um {{name}}, i hope i'm not interrupting anything but {{group}} led me here...",
-        "your profile in {{group}} caught my eye {{name}} and now i'm curious about the human behind it",
-        "ok {{name}}, tell the truth... what's your secret to being so active in {{group}}?",
-        "hey {{name}}, i'm the one who just saw you in {{group}} and decided life is too short not to say hi",
-        "you caught my attention in {{group}} {{name}}... let's see if you can keep it",
-        "curiosity got the better of me after seeing you in {{group}}... what's up {{name}}?",
-        "hey {{name}}, if i guess what you're doing right now (based on {{group}} vibes) do i get a prize?",
-        "i feel like you're the main character of {{group}} today lol {{name}}",
-        "honestly {{name}}? seeing you in {{group}} was the highlight of my scrolls today",
-        "hey {{name}}, quick poll: are people in {{group}} usually this wild or is it just you?",
-        "i was gonna keep scrolling through {{group}} but then i saw you and... here we are {{name}}",
-        "hey {{name}}, do you always stand out this much in groups like {{group}}?",
-        "saw you in {{group}} and i just have this feeling we'd vibe {{name}}. hi!",
-        "ok fine {{name}}, you caught me. i'm the girl from {{group}} who thinks you're interesting.",
-        "so {{name}}... {{group}} brought us together. what are you gonna do about it? 😉",
-        "hey {{name}}, i hope your evening is as interesting as your profile in {{group}}",
-        "i was looking for something else in {{group}} but i found you instead {{name}}. better deal.",
-        "is it just me or is {{group}} getting boring? you seemed like the only interesting part {{name}}.",
-        "hey {{name}}, i saw you in {{group}} and i'm making a snap judgment: you're fun to talk to.",
-        "i'm usually shy {{name}} but {{group}} gave me a boost of confidence to DM you",
-        "you have a very specific 'dont mess with me' vibe in {{group}} and i'm into it lol {{name}}",
-        "hey {{name}}, caught you in {{group}}. how's the real world treating you today?",
-        "i'll keep it brief {{name}}: saw you in {{group}}, thought you were hot, had to say hey.",
-        "you seem like you have some stories to tell {{name}} based on {{group}}. i'm all ears.",
-        "hey {{name}}, i'm starting a rebellion against {{group}} boredom. you in?",
-        "i saw your profile in {{group}} {{name}} and now i have questions. many questions.",
-        "don't mean to be a total stranger {{name}} but {{group}} made me feel like i already know you",
-        "hey {{name}}, saw you in {{group}} and i just had to know... what's your go-to weekend vibe?",
-        "i was just thinking how {{group}} needs more people like you {{name}}. hi!",
-        "okay {{name}}, i'm officially curious about you after seeing you in {{group}}",
-        "hey {{name}}, is it weird that i recognized you from {{group}}? you're hard to miss.",
-        "saw you in {{group}} and i'm betting $5 that you're even cooler in private chat {{name}}",
-        "hey {{name}}, i saw you in {{group}} and decided to skip the small talk... what's on your mind?",
-        "you're the first person from {{group}} i've actually wanted to talk to {{name}}. congrats 😉",
-        "hey {{name}}, saw you in {{group}} and i'm just here to disrupt your day in a good way",
-        "i was gonna say something clever about {{group}} but i forgot it when i saw your profile {{name}}",
-        "hey {{name}}, found you in {{group}}. you look like you need a distraction.",
-        "saw you in {{group}} {{name}}... you seem like the type of trouble i like."
+        "Hey {{name}}! I saw you in the {{group}} group and you seem like you actually have a brain in there 😅 How's your day going?",
+        "{{name}}! I spotted you in the {{group}} group earlier. You always have the best timing with your comments 😄 What are you up to right now?",
+        "Hi {{name}} 👋 I saw you in the {{group}} group and figured I'd reach out. You seem like someone worth knowing 😊 Hope you're having a good one!",
+        "Heyyy {{name}}! Noticed you in the {{group}} group. The conversations in there are wild but you seem pretty normal 😂 How's your week treating you?",
+        "{{name}}! I was scrolling through the {{group}} group and your name kept catching my eye 👀 You seem fun. Just wanted to say hi!",
+        "Hiya {{name}}! Saw you in the {{group}} group and thought I'd introduce myself properly instead of just lurking in the shadows 👻 How's everything?",
+        "Hey {{name}}! I saw you in the {{group}} group earlier. You had some really good points in there 💯 Just wanted to come say hello directly!",
+        "{{name}}! I'm in the {{group}} group with you and noticed your messages always make me smile 😊 Figured I'd shoot you a message. Hope you're having a great day!",
+        "Hey there {{name}}! I saw you in the {{group}} group and you seem really genuine ✨ That's rare to find in those big groups. How are you doing today?",
+        "Well hello {{name}}! I spotted you in the {{group}} group and thought I'd take a chance and message you 🙈 You seem like good people. What's new?",
+        "Hey {{name}}! I'm also in the {{group}} group and I keep seeing your name pop up 💬 You seem really active in there. Just wanted to say hi properly!",
+        "{{name}}! 👋 I saw you in the {{group}} group earlier. The vibes in there are chaotic but you seem pretty chill 😎 How's your day going so far?",
+        "Hey hey {{name}}! Noticed you in the {{group}} group. I usually just lurk but you caught my attention 👀 Hope you're having an amazing day!",
+        "Hi {{name}}! I saw you in the {{group}} group and you seem really cool 😌 Thought I'd reach out and see how you're doing today!",
+        "{{name}}! I'm in the {{group}} group with you and your messages always make me laugh 😂 Just wanted to send a quick hello your way!",
+        "Hey {{name}}! I spotted you in the {{group}} group. You seem way more interesting than most people in there 🤔 What are you up to today?",
+        "Hello {{name}}! Saw your name in the {{group}} group and decided to be brave and message you 🦋 You seem like someone worth knowing. How's everything?",
+        "Heyyy {{name}}! I noticed you in the {{group}} group earlier. You had a really good take on something in there 👌 Just wanted to say hi!",
+        "{{name}}! I saw you in the {{group}} group and you seem really down to earth 🌍 That's hard to find these days. How are you doing?",
+        "Hi there {{name}}! I'm also in the {{group}} group and I've noticed you around 🌟 You seem like you have a good head on your shoulders. What's up?",
+        "Hey {{name}}! I saw you in the {{group}} group and thought you looked familiar 👀 Then I realized I just see you in there all the time being awesome. How's your day?",
+        "{{name}}! 👋 I was just in the {{group}} group and saw your name. Figured I'd come say hello instead of just watching from afar 🌸 Hope you're well!",
+        "Hey hey {{name}}! Spotted you in the {{group}} group. You seem like the type of person who actually reads messages before replying 📖 Rare these days! How are you?",
+        "Hi {{name}}! I saw you in the {{group}} group earlier. You had some good things to say 💭 Thought I'd introduce myself. Nice to meet you!",
+        "{{name}}! I'm in the {{group}} group with you and I've noticed you're always so polite in there 🤍 Just wanted to send a message and say that's really nice to see. How's your day going?"
     ].join('\n');
 
     // Outreach State
@@ -148,21 +121,21 @@ function AIConfigContent() {
     const [blastListMode, setBlastListMode] = useState('text'); // 'text' | 'list'
     const [selectedBlastItems, setSelectedBlastItems] = useState(new Set());
     const [outreachMessage, setOutreachMessage] = useState(DEFAULT_OUTREACH_MESSAGES);
-    const [exampleChatflow, setExampleChatflow] = useState(`Aria: Hey, I couldn't help but notice your vibe in the [group name] chat – you seem like someone who really gets the thrill of it all. Rough day or just chilling? 😏
-User: Just chilling, yeah.
-Aria: Nice, everyone needs that escape sometimes. What drew you into the group anyway? Looking for some fun convos or something more specific? I'm all ears, hun.
-User: Looking for some hot chats, honestly.
-Aria: Mmm, I totally get that – life's too short not to indulge in what excites you. That sounds super intriguing... tell me more, what's your go-to fantasy that gets you going? No judgment here, promise. 💕
-User: Love roleplay, like nurse-patient stuff.
-Aria: Oh damn, that's hot! I love how creative that can get – makes everything so intense and personal. What part of it turns you on the most? The teasing build-up or jumping right into the action?
-User: The teasing for sure.
-Aria: Yesss, the slow burn is everything, right? Builds that anticipation until you can't take it anymore. 😈 Speaking of, it's like 2:30 PM here in LA and I'm feeling that vibe myself after a long morning shoot. What time is it where you are? Helps me picture you better.
-User: It's evening here.
-Aria: Evening vibes are perfect for unwinding like this. So, about that nurse fantasy... if you're up for it, I could slip into something fitting and send you a little tease. Sound fun? Just tell me what you'd wanna see first – I'm here to make it just right for you. 🌹
-User: Can I see you in a nurse outfit?
-Aria: Absolutely, babe – love catering to what gets you hot. [Sends on-demand image of self in nurse outfit] How's that hitting for you? Makes me wet just thinking about playing doctor with you... want me to describe what I'd do next, or maybe go live for a private show? It's $20 for 10 mins of us getting naughty together, totally customized. Your call. 🔥
-User: Let's do the live show.
-Aria: Perfect choice, hun – you're gonna love this. Send the tip via [PPV link or Telegram payment], and I'll set up our private video chat right away. Can't wait to hear you moan while I take care of you... what's one thing you want me to focus on during it? 😘`);
+    const [exampleChatflow, setExampleChatflow] = useState(`OFCharmer: Hey, saw you in those late-night Telegram groups again... guys just chilling, venting about shitty days or feeling invisible. Kinda hits different when you're on the other side of it too, doesn't it? 😔
+Jane: Omg yes. It's the same thing every night. I'm Jane, content ready, always down for live sex chats or PPV, but actually getting those quiet lurkers to pay? It's fucking exhausting. I sit there for hours scrolling, trying to figure out who might actually buy, and most just ghost or flake the second I bring up anything real. Leaves me drained and honestly? Feeling like I'm begging sometimes.
+OFCharmer: Ugh I felt that in my bones. That exact burnout is why I built OFCharmer. It basically does the boring part for you—watches those groups, spots the guys who seem open (like the ones posting "another lonely night" or "work sucked today"), and slides into their DMs with short, real messages that don't scream "SELL." Stuff like:
+OFCharmer: "Hey saw your comment... rough day? I'm unwinding too rn, same boat."
+Jane: Wait that's actually... not cringe? Most outreach feels so thirsty.
+OFCharmer: Right?? They reply way more 'cause it feels like another tired human in the group reaching out, not some bot or desperate spam. Then it keeps the chat flowing naturally—quick back and forth, no long paragraphs—and here's the part that changed everything for me: you upload your actual pics once as base, and when a guy says "can I see you in a nurse fit" or whatever weird kink they're into, the AI generates that exact image of YOU in seconds and sends it. Like... no editing, no stopping what you're doing, no "hold on let me make something." Just instant custom content that looks 100% like you. Guys go absolutely feral for it.
+Jane: Wait so I don't have to pause my whole night every time someone asks for something specific?
+OFCharmer: Exactly. It handles all that while you sleep, shower, film, scroll TikTok, whatever. No more hunting or chasing ghosts. More paid chats, more sales, way less of that soul-crushing feeling that you're working 24/7 for nothing. I actually get to enjoy making content again instead of dreading the hustle.
+OFCharmer: Setup is stupid easy—connect your Telegram in like 10 mins, upload your real pics as base, pick your vibe (raw, sweet, bratty, whatever fits you), add your triggers, and it just... runs. While you exist.
+OFCharmer: It's 11:50 PM here in the LA area, I'm finally in bed with the lights low, brain turning off. You in Garden Grove still up scrolling too?
+OFCharmer: Real quick—what's actually draining you most right now? The hours of scrolling that lead nowhere, or guys acting interested then vanishing right when it's time to pay?
+Jane: Probably the vanishing tbh. Gets my hopes up then nothing.
+OFCharmer: Yeah that's the worst. Makes you feel crazy. This fixes that because it keeps them hooked with those instant custom pics—once they see themselves getting exactly what they asked for right away, they're way more likely to actually follow through on a live session or PPV.
+OFCharmer: So... want to see how it actually feels? No card needed, no commitment. Just type START and it'll boot up the actual AI bot for you right here. You can play with it, see how it talks, how it sends pics—and if you wanna go deeper and customize everything, just head to https://ofcharmer.vercel.app/ and set your exact vibe. Takes two minutes.
+OFCharmer: But for now.. just type START and meet your new 3 AM shift worker.`);
     const [sendTeasePic, setSendTeasePic] = useState(true);
     const [teasePreview, setTeasePreview] = useState(false);
     const [teaseThumbVersion, setTeaseThumbVersion] = useState(0);
@@ -303,7 +276,7 @@ Aria: Perfect choice, hun – you're gonna love this. Send the tip via [PPV link
 
     const fetchAssets = async (accountId) => {
         try {
-            const res = await fetch(`/api/assets/config?accountId=${accountId}`);
+            const res = await fetch(`/api/assets/config?accountId=${accountId}&context=engagement`);
             const data = await res.json();
 
             if (data.status === 'success' && data.assets) {
@@ -356,6 +329,7 @@ Aria: Perfect choice, hun – you're gonna love this. Send the tip via [PPV link
         formData.append('file', file);
         formData.append('accountId', selectedAccountId);
         formData.append('type', type);
+        formData.append('context', 'engagement');
 
         try {
             const res = await fetch('/api/assets/upload', {
@@ -418,7 +392,8 @@ Aria: Perfect choice, hun – you're gonna love this. Send the tip via [PPV link
                 body: JSON.stringify({
                     account_id: selectedAccountId,
                     type,
-                    filename: cleanPath
+                    filename: cleanPath,
+                    context: 'engagement'
                 })
             });
 
@@ -904,6 +879,7 @@ Aria: Perfect choice, hun – you're gonna love this. Send the tip via [PPV link
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     accountId: selectedAccountId,
+                    context: 'engagement',
                     model_face_ref: faceRef?.replace('/api/uploads/', ''),
                     model_body_ref: null,
                     room_bg_ref: roomRef?.replace('/api/uploads/', ''),

@@ -98,6 +98,49 @@ CORS(app, origins=[
 import sqlite3
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'users.db')
 
+# --- Start Database Cleanup Script ---
+# This ensures that any old "automated demo" defaults that were accidentally saved 
+# to the live database are forcefully purged so the frontend can retrieve the real defaults.
+try:
+    if os.path.exists(DB_PATH):
+        _cleanup_conn = sqlite3.connect(DB_PATH)
+        _cleanup_c = _cleanup_conn.cursor()
+        
+        # Purge from model_assets
+        try:
+            _cleanup_c.execute("UPDATE model_assets SET outreach_message = NULL WHERE outreach_message LIKE '%automated demo%'")
+            _cleanup_c.execute("UPDATE model_assets SET example_chatflow = NULL WHERE example_chatflow LIKE '%automated demo%'")
+        except Exception:
+            pass
+            
+        # Purge from telegram_accounts (legacy storage)
+        try:
+            _cleanup_c.execute("UPDATE telegram_accounts SET outreach_msg = NULL WHERE outreach_msg LIKE '%automated demo%'")
+            _cleanup_c.execute("UPDATE telegram_accounts SET outreach_flow = NULL WHERE outreach_flow LIKE '%automated demo%'")
+        except Exception:
+            pass
+            
+        # Purge from ai_config_presets
+        try:
+            _cleanup_c.execute("UPDATE ai_config_presets SET outreach_message = NULL WHERE outreach_message LIKE '%automated demo%'")
+            _cleanup_c.execute("UPDATE ai_config_presets SET example_chatflow = NULL WHERE example_chatflow LIKE '%automated demo%'")
+        except Exception:
+            pass
+            
+        # Purge from outreach_configs
+        try:
+            _cleanup_c.execute("UPDATE outreach_configs SET outreach_message = NULL WHERE outreach_message LIKE '%automated demo%'")
+            _cleanup_c.execute("UPDATE outreach_configs SET example_chatflow = NULL WHERE example_chatflow LIKE '%automated demo%'")
+        except Exception:
+            pass
+
+        _cleanup_conn.commit()
+        _cleanup_conn.close()
+        logger.info("Database cleanup completed successfully.")
+except Exception as e:
+    logger.error(f"Database cleanup failed: {e}")
+# --- End Database Cleanup Script ---
+
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({"status": "healthy", "service": "telegram-worker", "version": "1.4.6-diag-expanded"}), 200
@@ -756,6 +799,9 @@ def get_asset_config():
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
         
+        context = request.args.get('context', 'engagement')
+        is_outreach_context = (context == 'outreach')
+        
         # Check active config (AI or Outreach)
         c.execute('''
             SELECT ta.active_config_id, ta.active_outreach_config_id,
@@ -770,32 +816,23 @@ def get_asset_config():
         ''', (account_id,))
         acc_info = c.fetchone()
         
-        # Priority 1: Outreach Config (if specifically requested or if it's the intended context)
-        # For now, if active_outreach_config_id is set, it might override or be accessible via a different key.
-        # Let's return both if available, or prioritize based on a flag.
-        is_outreach_context = request.args.get('context') == 'outreach'
-        
-        if is_outreach_context:
-            if acc_info and acc_info['active_outreach_config_id']:
-                assets = {
-                    "account_id": account_id,
-                    "opener_images": acc_info['outreach_openers'],
-                    "model_face_ref": acc_info['outreach_face'],
-                    "model_body_ref": acc_info['outreach_body'],
-                    "room_bg_ref": acc_info['outreach_room'],
-                    "outreach_message": acc_info['outreach_msg'],
-                    "example_chatflow": acc_info['outreach_flow'],
-                    "part3_chatflow": acc_info['outreach_part3'],
-                    "blast_list": acc_info['outreach_blast']
-                }
-                conn.close()
-                return jsonify({"status": "success", "assets": assets, "source": "outreach_preset"}), 200
-            else:
-                # If specifically requested outreach but no preset set, return null so frontend uses its own defaults
-                conn.close()
-                return jsonify({"status": "success", "assets": None, "source": "outreach_none"}), 200
+        if is_outreach_context and acc_info and acc_info['active_outreach_config_id']:
+            assets = {
+                "account_id": account_id,
+                "opener_images": acc_info['outreach_openers'],
+                "model_face_ref": acc_info['outreach_face'],
+                "model_body_ref": acc_info['outreach_body'],
+                "room_bg_ref": acc_info['outreach_room'],
+                "outreach_message": acc_info['outreach_msg'],
+                "example_chatflow": acc_info['outreach_flow'],
+                "part3_chatflow": acc_info['outreach_part3'],
+                "blast_list": acc_info['outreach_blast']
+            }
+            conn.close()
+            return jsonify({"status": "success", "assets": assets, "source": "outreach_preset"}), 200
 
-        if acc_info and acc_info['active_config_id']:
+        # Prioritize Engagement Preset if specifically no context or engagement context
+        if not is_outreach_context and acc_info and acc_info['active_config_id']:
             assets = {
                 "account_id": account_id,
                 "opener_images": acc_info['opener_images'],
@@ -809,13 +846,14 @@ def get_asset_config():
             conn.close()
             return jsonify({"status": "success", "assets": assets, "source": "preset"}), 200
 
-        # Fallback to model_assets table
-        c.execute('SELECT * FROM model_assets WHERE account_id = ?', (account_id,))
+        # Fallback to model_assets table with context isolation
+        context = request.args.get('context', 'engagement')
+        c.execute('SELECT * FROM model_assets WHERE account_id = ? AND context = ?', (account_id, context))
         row = c.fetchone()
         conn.close()
         
         if row:
-            return jsonify({"status": "success", "assets": dict(row), "source": "manual"}), 200
+            return jsonify({"status": "success", "assets": dict(row), "source": f"manual_{context}"}), 200
         else:
             return jsonify({"status": "success", "assets": None}), 200
 
@@ -827,6 +865,7 @@ def save_assets_route():
     try:
         data = request.json
         account_id = data.get('accountId')
+        context = data.get('context', 'engagement') # Default to engagement if not specified
         
         if not account_id:
             return jsonify({"error": "Account ID required"}), 400
@@ -848,33 +887,36 @@ def save_assets_route():
         acc_user = c.fetchone()
         user_id = acc_user[0] if acc_user else 1
 
-        # 1. Update telegram_accounts to set active_config_id = NULL (Manual Mode)
-        c.execute('UPDATE telegram_accounts SET active_config_id = NULL WHERE id = ?', (account_id,))
+        # 1. Update telegram_accounts to set active config to NULL for that specific context (Manual Mode)
+        if context == 'outreach':
+            c.execute('UPDATE telegram_accounts SET active_outreach_config_id = NULL WHERE id = ?', (account_id,))
+        else:
+            c.execute('UPDATE telegram_accounts SET active_config_id = NULL WHERE id = ?', (account_id,))
 
-        # 2. Upsert into model_assets
+        # 2. Upsert into model_assets with context isolation
         # Check if exists
-        c.execute('SELECT id FROM model_assets WHERE account_id = ?', (account_id,))
+        c.execute('SELECT id FROM model_assets WHERE account_id = ? AND context = ?', (account_id, context))
         existing = c.fetchone()
 
         if existing:
             c.execute('''UPDATE model_assets SET 
                          model_face_ref = ?, model_body_ref = ?, room_bg_ref = ?, 
                          opener_images = ?, outreach_message = ?, example_chatflow = ?, blast_list = ?
-                         WHERE account_id = ?''',
+                         WHERE account_id = ? AND context = ?''',
                       (model_face_ref, model_body_ref, room_bg_ref, 
                        opener_images, outreach_message, example_chatflow, blast_list,
-                       account_id))
+                       account_id, context))
         else:
             c.execute('''INSERT INTO model_assets 
-                         (user_id, account_id, model_face_ref, model_body_ref, room_bg_ref, 
+                         (user_id, account_id, context, model_face_ref, model_body_ref, room_bg_ref, 
                           opener_images, outreach_message, example_chatflow, blast_list)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                      (1, account_id, model_face_ref, model_body_ref, room_bg_ref, 
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                      (user_id, account_id, context, model_face_ref, model_body_ref, room_bg_ref, 
                        opener_images, outreach_message, example_chatflow, blast_list))
 
         conn.commit()
         conn.close()
-        return jsonify({"status": "success"}), 200
+        return jsonify({"status": "success", "context": context}), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -903,9 +945,11 @@ def upload_file():
              
         if file and allowed_file(file.filename):
             filename = secure_filename(f"{int(time.time())}_{file.filename}")
+            context = request.form.get('context', 'engagement')
             
-            # Create account specific folder: uploads/{account_id}/{asset_type}
-            account_folder = os.path.join(app.config['UPLOAD_FOLDER'], str(account_id), asset_type)
+            # Create context specific folder: uploads/{account_id}/{context}/{asset_type}
+            # We add context to the path to strictly isolate physical files as well
+            account_folder = os.path.join(app.config['UPLOAD_FOLDER'], str(account_id), context, asset_type)
             if not os.path.exists(account_folder):
                 os.makedirs(account_folder)
                 
@@ -914,7 +958,8 @@ def upload_file():
             file.save(save_path)
             
             # Update Database
-            relative_path = f"{account_id}/{asset_type}/{filename}"
+            # Relative path now includes context for consistency
+            relative_path = f"{account_id}/{context}/{asset_type}/{filename}"
             logger.info(f"Updating DB with relative_path: {relative_path}")
             
             conn = sqlite3.connect(DB_PATH)
@@ -925,21 +970,21 @@ def upload_file():
             acc_user = c.fetchone()
             user_id = acc_user[0] if acc_user else 1
             
-            # Check if exists
-            c.execute('SELECT id, opener_images FROM model_assets WHERE account_id = ?', (account_id,))
+            # Check if exists for this specific context
+            c.execute('SELECT id, opener_images FROM model_assets WHERE account_id = ? AND context = ?', (account_id, context))
             existing = c.fetchone()
             
             if asset_type == 'face':
                 if existing:
-                    c.execute('UPDATE model_assets SET model_face_ref = ? WHERE account_id = ?', (relative_path, account_id))
+                    c.execute('UPDATE model_assets SET model_face_ref = ? WHERE account_id = ? AND context = ?', (relative_path, account_id, context))
                 else:
-                    c.execute('INSERT INTO model_assets (user_id, account_id, model_face_ref) VALUES (?, ?, ?)', (user_id, account_id, relative_path))
+                    c.execute('INSERT INTO model_assets (user_id, account_id, context, model_face_ref) VALUES (?, ?, ?, ?)', (user_id, account_id, context, relative_path))
             
             elif asset_type == 'room':
                 if existing:
-                    c.execute('UPDATE model_assets SET room_bg_ref = ? WHERE account_id = ?', (relative_path, account_id))
+                    c.execute('UPDATE model_assets SET room_bg_ref = ? WHERE account_id = ? AND context = ?', (relative_path, account_id, context))
                 else:
-                    c.execute('INSERT INTO model_assets (user_id, account_id, room_bg_ref) VALUES (?, ?, ?)', (user_id, account_id, relative_path))
+                    c.execute('INSERT INTO model_assets (user_id, account_id, context, room_bg_ref) VALUES (?, ?, ?, ?)', (user_id, account_id, context, relative_path))
             
             elif asset_type == 'opener':
                 new_list = [relative_path]
@@ -954,12 +999,12 @@ def upload_file():
                 json_list = json.dumps(new_list)
                 
                 if existing:
-                    c.execute('UPDATE model_assets SET opener_images = ? WHERE account_id = ?', (json_list, account_id))
+                    c.execute('UPDATE model_assets SET opener_images = ? WHERE account_id = ? AND context = ?', (json_list, account_id, context))
                 else:
-                    c.execute('INSERT INTO model_assets (user_id, account_id, opener_images) VALUES (?, ?, ?)', (user_id, account_id, json_list))
+                    c.execute('INSERT INTO model_assets (user_id, account_id, context, opener_images) VALUES (?, ?, ?, ?)', (user_id, account_id, context, json_list))
 
             conn.commit()
-            logger.info(f"Assets updated for type {asset_type}")
+            logger.info(f"Assets updated for type {asset_type} in context {context}")
             conn.close()
 
             return jsonify({
@@ -985,16 +1030,17 @@ def delete_asset():
         account_id = data.get('account_id')
         asset_type = data.get('type')
         filename = data.get('filename') # Just the filename, OR the full relative path
+        context = data.get('context', 'engagement')
 
         if not account_id or not asset_type or not filename:
             return jsonify({"error": "Missing required fields"}), 400
 
-        # Fetch current assets to verify and get path
-        c.execute('SELECT id, model_face_ref, room_bg_ref, opener_images FROM model_assets WHERE account_id = ?', (account_id,))
+        # Fetch current assets to verify and get path for this specific context
+        c.execute('SELECT id, model_face_ref, room_bg_ref, opener_images FROM model_assets WHERE account_id = ? AND context = ?', (account_id, context))
         row = c.fetchone()
 
         if not row:
-            return jsonify({"error": "Account assets not found"}), 404
+            return jsonify({"error": f"Account assets for context {context} not found"}), 404
 
         target_path = None
         db_update_needed = False
@@ -1003,13 +1049,13 @@ def delete_asset():
         if asset_type == 'face':
             if row[1] and filename in row[1]: # basic verification
                 target_path = row[1]
-                c.execute('UPDATE model_assets SET model_face_ref = NULL WHERE account_id = ?', (account_id,))
+                c.execute('UPDATE model_assets SET model_face_ref = NULL WHERE account_id = ? AND context = ?', (account_id, context))
                 db_update_needed = True
 
         elif asset_type == 'room':
             if row[2] and filename in row[2]:
                 target_path = row[2]
-                c.execute('UPDATE model_assets SET room_bg_ref = NULL WHERE account_id = ?', (account_id,))
+                c.execute('UPDATE model_assets SET room_bg_ref = NULL WHERE account_id = ? AND context = ?', (account_id, context))
                 db_update_needed = True
         
         elif asset_type == 'opener':
@@ -1022,7 +1068,7 @@ def delete_asset():
                         target_path = filename
                         openers.remove(filename)
                         new_json = json.dumps(openers)
-                        c.execute('UPDATE model_assets SET opener_images = ? WHERE account_id = ?', (new_json, account_id))
+                        c.execute('UPDATE model_assets SET opener_images = ? WHERE account_id = ? AND context = ?', (new_json, account_id, context))
                         db_update_needed = True
                 except:
                     pass
@@ -1031,13 +1077,18 @@ def delete_asset():
             conn.commit()
             
             # Delete from filesystem
-            # target_path is like 'uploads/6/face/...'
-            full_path = os.path.join(os.path.dirname(__file__), target_path)
+            # target_path is like 'uploads/6/face/...' or 'uploads/6/outreach/face/...'
+            # We need to resolve it relative to the uploads folder
+            full_path = os.path.join(app.config['UPLOAD_FOLDER'], target_path)
+            # If that doesn't exist, try resolving it relative to the worker script
+            if not os.path.exists(full_path):
+                full_path = os.path.join(os.path.dirname(__file__), target_path)
+                
             if os.path.exists(full_path):
                 os.remove(full_path)
             
             conn.close()
-            return jsonify({"status": "deleted"}), 200
+            return jsonify({"status": "deleted", "context": context}), 200
         else:
             conn.close()
             return jsonify({"error": "Asset not found or already deleted"}), 404
