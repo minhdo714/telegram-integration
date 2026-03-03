@@ -72,7 +72,7 @@ def get_fallback_image(account_id, display_name=None):
                 selected_image = random.choice(opener_images)
                 
                 # Construct absolute path
-                upload_base = '/tmp/uploads' if os.name != 'nt' else os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+                upload_base = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
                 image_path = os.path.join(upload_base, selected_image)
                 
                 if os.path.exists(image_path):

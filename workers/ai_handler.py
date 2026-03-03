@@ -321,7 +321,7 @@ class AIHandler:
         
         # Reconstruct absolute paths
         # Reconstruct absolute paths
-        upload_base = '/tmp/uploads' if os.name != 'nt' else os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+        upload_base = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
         
         # Track whether we already logged the user message (to avoid duplicates)
         user_msg_logged = False
@@ -469,7 +469,7 @@ class AIHandler:
                     face_path = None
                     if assets and assets.get('model_face_ref'):
                         # Reconstruct path - use the same logic as above
-                        upload_base = '/tmp/uploads' if os.name != 'nt' else os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+                        upload_base = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
                         face_path = os.path.join(upload_base, str(session['account_id']), 'face', os.path.basename(assets['model_face_ref']))
                     
                     # 2. Text Generation for Image Description
