@@ -794,7 +794,8 @@ def allowed_file(filename):
 def _upload_image_to_github(account_id, context, asset_type, filename, local_path):
     """
     Upload an image file to GitHub under assets/{account_id}/{context}/{asset_type}/{filename}.
-    Returns the permanent raw.githubusercontent.com URL on success, or None on failure.
+    Returns a worker-proxied URL (/api/assets/image/<github_path>) on success so the
+    private GitHub repo can be served via the worker with auth. Returns None on failure.
     """
     github_token = os.getenv('GITHUB_TOKEN')
     github_repo = os.getenv('GITHUB_SESSIONS_REPO')  # e.g. 'minhdo714/telegram-sessions'
@@ -832,10 +833,11 @@ def _upload_image_to_github(account_id, context, asset_type, filename, local_pat
 
         put_resp = requests.put(api_url, json=payload, headers=headers, timeout=30)
         if put_resp.status_code in (200, 201):
-            # Build the raw CDN URL
-            raw_url = f'https://raw.githubusercontent.com/{github_repo}/main/{github_path}'
-            logger.info(f'GitHub upload success: {raw_url}')
-            return raw_url
+            # Return a worker-proxied URL so the private repo stays private.
+            # The /api/assets/image/<path> route fetches from GitHub with auth server-side.
+            proxy_url = f'/api/assets/image/{github_path}'
+            logger.info(f'GitHub upload success, proxy URL: {proxy_url}')
+            return proxy_url
         else:
             logger.error(f'GitHub upload failed ({put_resp.status_code}): {put_resp.text[:200]}')
             return None
@@ -843,9 +845,52 @@ def _upload_image_to_github(account_id, context, asset_type, filename, local_pat
         logger.error(f'GitHub upload exception: {e}')
         return None
 
+
 @app.route('/uploads/<path:filename>')
 def serve_upload(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+
+@app.route('/api/assets/image/<path:github_path>')
+def serve_github_image(github_path):
+    """
+    Authenticated proxy for images stored in the private GitHub repo.
+    Fetches the file from GitHub using the stored token and streams it back.
+    Stored URLs look like /api/assets/image/assets/9/engagement/face/filename.jpg
+    """
+    github_token = os.getenv('GITHUB_TOKEN')
+    github_repo = os.getenv('GITHUB_SESSIONS_REPO')
+    if not github_token or not github_repo:
+        return jsonify({'error': 'GitHub not configured'}), 500
+
+    api_url = f'https://api.github.com/repos/{github_repo}/contents/{github_path}'
+    headers = {
+        'Authorization': f'Bearer {github_token}',
+        'Accept': 'application/vnd.github.raw',  # Returns raw file bytes
+    }
+    try:
+        resp = requests.get(api_url, headers=headers, timeout=20)
+        if resp.status_code == 200:
+            # Detect content type from extension
+            ext = os.path.splitext(github_path)[-1].lower()
+            content_type_map = {'.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+                                '.png': 'image/png', '.webp': 'image/webp'}
+            content_type = content_type_map.get(ext, 'image/jpeg')
+            from flask import Response
+            return Response(
+                resp.content,
+                status=200,
+                headers={
+                    'Content-Type': content_type,
+                    'Cache-Control': 'public, max-age=86400',  # Cache for 1 day
+                }
+            )
+        else:
+            logger.error(f'GitHub image fetch failed ({resp.status_code}): {github_path}')
+            return jsonify({'error': 'Image not found'}), 404
+    except Exception as e:
+        logger.error(f'GitHub image proxy error: {e}')
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/assets/config', methods=['GET'])
 def get_asset_config():

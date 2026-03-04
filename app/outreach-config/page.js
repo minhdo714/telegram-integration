@@ -286,6 +286,7 @@ function OutreachConfigContent() {
                 const getProxyUrl = (path) => {
                     if (!path) return null;
                     if (path.startsWith('http://') || path.startsWith('https://')) return path;
+                    if (path.startsWith('/api/assets/image/') || path.startsWith('/api/uploads/')) return path;
                     return `/api/uploads/${path}`;
                 };
                 setFaceRef(getProxyUrl(data.assets.model_face_ref));
