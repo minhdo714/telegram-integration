@@ -282,7 +282,12 @@ function OutreachConfigContent() {
             const data = await res.json();
 
             if (data.status === 'success' && data.assets) {
-                const getProxyUrl = (relativePath) => relativePath ? `/api/uploads/${relativePath}` : null;
+                // getProxyUrl: if the stored path is already a full URL (GitHub CDN), use it directly.
+                const getProxyUrl = (path) => {
+                    if (!path) return null;
+                    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+                    return `/api/uploads/${path}`;
+                };
                 setFaceRef(getProxyUrl(data.assets.model_face_ref));
                 setRoomRef(getProxyUrl(data.assets.room_bg_ref));
                 if (data.assets.outreach_message) setOutreachMessage(data.assets.outreach_message);
@@ -322,7 +327,10 @@ function OutreachConfigContent() {
             const res = await fetch('/api/assets/upload', { method: 'POST', body: formData });
             const data = await res.json();
             if (data.status === 'success') {
-                const proxyUrl = `/api/uploads/${data.path}`;
+                // data.path is either a full GitHub URL or a local relative path
+                const proxyUrl = (data.path && (data.path.startsWith('http://') || data.path.startsWith('https://'))
+                    ? data.path
+                    : `/api/uploads/${data.path}`);
                 if (type === 'face') setFaceRef(proxyUrl);
                 if (type === 'room') setRoomRef(proxyUrl);
                 if (type === 'opener') setOpeners(prev => [...prev, proxyUrl]);
@@ -371,7 +379,12 @@ function OutreachConfigContent() {
     };
 
     const handlePresetLoaded = (preset) => {
-        const getProxyUrl = (relativePath) => relativePath ? `/api/uploads/${relativePath}` : null;
+        // getProxyUrl: if the stored path is already a full URL (GitHub CDN), use it directly.
+        const getProxyUrl = (path) => {
+            if (!path) return null;
+            if (path.startsWith('http://') || path.startsWith('https://')) return path;
+            return `/api/uploads/${path}`;
+        };
         if (preset.model_face_ref) setFaceRef(getProxyUrl(preset.model_face_ref));
         if (preset.room_bg_ref) setRoomRef(getProxyUrl(preset.room_bg_ref));
         if (preset.outreach_message) setOutreachMessage(preset.outreach_message);

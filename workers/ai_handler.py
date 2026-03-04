@@ -377,7 +377,8 @@ class AIHandler:
                     logger.warning(f"Failed to parse opener_images: {e}")
             
             if opener_path:
-                full_opener_path = os.path.join(upload_base, opener_path)
+                # opener_path may be a GitHub URL or a legacy local relative path
+                full_opener_path = self._resolve_image_path(opener_path, upload_base)
                 # Overlay the recipient's handwritten name on the opener image
                 try:
                     from image_overlay import overlay_name_on_image
@@ -468,9 +469,9 @@ class AIHandler:
                     # 1. Asset Lookup (copied from PREF_ASKED)
                     face_path = None
                     if assets and assets.get('model_face_ref'):
-                        # Reconstruct path - use the same logic as above
+                        # Resolve path — handles GitHub URLs and legacy local relative paths
                         upload_base = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
-                        face_path = os.path.join(upload_base, str(session['account_id']), 'face', os.path.basename(assets['model_face_ref']))
+                        face_path = self._resolve_image_path(assets['model_face_ref'], upload_base)
                     
                     # 2. Text Generation for Image Description
                     img_system_prompt = (
@@ -570,13 +571,13 @@ class AIHandler:
             if assets:
                 print(f"DEBUG: Assets found: {assets.keys()}")
                 if assets.get('model_face_ref'):
-                    face_path = os.path.join(upload_base, str(assets['account_id']), 'face', os.path.basename(assets['model_face_ref']))
-                    if os.path.exists(face_path):
-                        print(f"DEBUG: Face Path: {face_path}, Exists: {os.path.exists(face_path)}")
+                    face_path = self._resolve_image_path(assets['model_face_ref'], upload_base)
+                    if face_path and os.path.exists(face_path):
+                        print(f"DEBUG: Face Path: {face_path}, Exists: True")
                         with open("debug_ai.log", "a") as f:
-                            f.write(f"[{datetime.now()}] DEBUG: Face Path: {face_path}, Exists: {os.path.exists(face_path)}\n")
+                            f.write(f"[{datetime.now()}] DEBUG: Face Path: {face_path}, Exists: True\n")
                     else:
-                        print(f"DEBUG: Face path not found: {face_path}")
+                        print(f"DEBUG: Face path not found or download failed: {face_path}")
                 else:
                     print("DEBUG: model_face_ref key MISSING or EMPTY in assets")
                     with open("debug_ai.log", "a") as f:
@@ -676,6 +677,41 @@ class AIHandler:
         
         response['new_state'] = new_state
         return response
+
+    def _resolve_image_path(self, path_or_url, upload_base):
+        """
+        Resolve a stored image path to a usable local file path.
+        - If it's a GitHub/HTTP URL: download to a temp file and return that path.
+        - If it's a legacy local relative path: join with upload_base and return.
+        Returns None if the path can't be resolved.
+        """
+        if not path_or_url:
+            return None
+        if path_or_url.startswith('http://') or path_or_url.startswith('https://'):
+            try:
+                import requests as _req
+                import tempfile
+                r = _req.get(path_or_url, timeout=20)
+                if r.ok:
+                    suffix = os.path.splitext(path_or_url.split('?')[0])[-1] or '.jpg'
+                    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+                    tmp.write(r.content)
+                    tmp.close()
+                    import logging
+                    logging.getLogger(__name__).info(f'Downloaded image from GitHub to temp: {tmp.name}')
+                    return tmp.name
+                else:
+                    import logging
+                    logging.getLogger(__name__).error(f'Failed to download image from URL ({r.status_code}): {path_or_url}')
+                    return None
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f'Error downloading image from URL: {e}')
+                return None
+        else:
+            # Legacy local relative path
+            resolved = os.path.join(upload_base, path_or_url)
+            return resolved if os.path.exists(resolved) else None
 
     def _get_session(self, account_id, remote_user_id):
         conn = sqlite3.connect(DB_PATH)

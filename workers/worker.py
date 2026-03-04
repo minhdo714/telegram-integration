@@ -784,6 +784,65 @@ if not os.path.exists(UPLOAD_FOLDER):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+
+# ---------------------------------------------------------------------------
+# GitHub Persistent Image Storage
+# Images are uploaded to GitHub so they survive Railway restarts.
+# The raw.githubusercontent.com URL is stored in the DB instead of a local path.
+# ---------------------------------------------------------------------------
+
+def _upload_image_to_github(account_id, context, asset_type, filename, local_path):
+    """
+    Upload an image file to GitHub under assets/{account_id}/{context}/{asset_type}/{filename}.
+    Returns the permanent raw.githubusercontent.com URL on success, or None on failure.
+    """
+    github_token = os.getenv('GITHUB_TOKEN')
+    github_repo = os.getenv('GITHUB_SESSIONS_REPO')  # e.g. 'minhdo714/telegram-sessions'
+
+    if not github_token or not github_repo:
+        logger.warning('GitHub credentials not set — skipping GitHub image upload')
+        return None
+
+    try:
+        import base64
+        with open(local_path, 'rb') as f:
+            file_bytes = f.read()
+        encoded = base64.b64encode(file_bytes).decode('utf-8')
+
+        github_path = f'assets/{account_id}/{context}/{asset_type}/{filename}'
+        api_url = f'https://api.github.com/repos/{github_repo}/contents/{github_path}'
+        headers = {
+            'Authorization': f'Bearer {github_token}',
+            'Content-Type': 'application/json',
+        }
+
+        # Check if file already exists (need its SHA for update)
+        get_resp = requests.get(api_url, headers=headers, timeout=15)
+        sha = None
+        if get_resp.status_code == 200:
+            sha = get_resp.json().get('sha')
+
+        payload = {
+            'message': f'Upload asset {asset_type} for account {account_id}',
+            'content': encoded,
+            'branch': 'main',
+        }
+        if sha:
+            payload['sha'] = sha
+
+        put_resp = requests.put(api_url, json=payload, headers=headers, timeout=30)
+        if put_resp.status_code in (200, 201):
+            # Build the raw CDN URL
+            raw_url = f'https://raw.githubusercontent.com/{github_repo}/main/{github_path}'
+            logger.info(f'GitHub upload success: {raw_url}')
+            return raw_url
+        else:
+            logger.error(f'GitHub upload failed ({put_resp.status_code}): {put_resp.text[:200]}')
+            return None
+    except Exception as e:
+        logger.error(f'GitHub upload exception: {e}')
+        return None
+
 @app.route('/uploads/<path:filename>')
 def serve_upload(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
@@ -956,11 +1015,19 @@ def upload_file():
             save_path = os.path.join(account_folder, filename)
             logger.info(f"Saving to: {save_path}")
             file.save(save_path)
-            
-            # Update Database
-            # Relative path now includes context for consistency
-            relative_path = f"{account_id}/{context}/{asset_type}/{filename}"
-            logger.info(f"Updating DB with relative_path: {relative_path}")
+
+            # Try to upload to GitHub for persistent storage across Railway restarts
+            github_url = _upload_image_to_github(account_id, context, asset_type, filename, save_path)
+
+            # If GitHub upload succeeded, store the full URL; otherwise fall back to local relative path
+            if github_url:
+                relative_path = github_url
+                logger.info(f"Using GitHub URL as stored path: {relative_path}")
+            else:
+                relative_path = f"{account_id}/{context}/{asset_type}/{filename}"
+                logger.warning(f"GitHub upload failed — storing local relative path: {relative_path}")
+
+            logger.info(f"Updating DB with path: {relative_path}")
             
             conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
