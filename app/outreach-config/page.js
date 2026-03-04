@@ -592,6 +592,7 @@ function OutreachConfigContent() {
 
         setIsSending(true);
         setStopRequested(false);
+        window.stopOutreachRequested = false;
         setSentUsernames([]);
         setFailedUsernames([]);
         setCurrentTarget(null);
@@ -644,7 +645,9 @@ function OutreachConfigContent() {
                     body: JSON.stringify({ accountId: selectedAccountId, recipient, message: msgToSend })
                 });
 
-                if (res.ok) {
+                const data = await res.json();
+
+                if (res.ok && data.status !== 'error') {
                     addLog(`[Outreach] ✅ Sent to @${recipient}`);
                     setSentUsernames(prev => [...prev, recipient]);
 
@@ -673,8 +676,13 @@ function OutreachConfigContent() {
                             }).catch(e => console.error('Tease fail:', e));
                     }
                 } else {
-                    addLog(`[Outreach] ❌ Failed for @${recipient}`);
+                    addLog(`[Outreach] ❌ Failed @${recipient}: ${data.message || data.error || 'Unknown error'}`);
                     setFailedUsernames(prev => [...prev, recipient]);
+
+                    if (data.error_type === 'session_invalid' || data.error_type === 'connection_failed') {
+                        addLog(`[Outreach] 🛑 Aborting blast due to critical error: ${data.message || data.error_type}`);
+                        break;
+                    }
                 }
             } catch (error) {
                 addLog(`[Outreach] ❌ Error for @${recipient}: ${error.message}`);
@@ -683,11 +691,27 @@ function OutreachConfigContent() {
 
             // Delay between messages (1-2 mins)
             if (i < targetList.length - 1) {
+                if (window.stopOutreachRequested) break;
+
                 const waitSecs = Math.floor(Math.random() * (120 - 60 + 1)) + 60;
                 addLog(`[Outreach] ⏳ Waiting ${waitSecs}s before next...`);
-                setCountdown(waitSecs);
-                await new Promise(r => setTimeout(r, waitSecs * 1000));
+
+                let remaining = waitSecs;
+                setCountdown(remaining);
+
+                while (remaining > 0) {
+                    if (window.stopOutreachRequested) {
+                        setCountdown(null);
+                        break;
+                    }
+                    await new Promise(r => setTimeout(r, 1000));
+                    remaining--;
+                    setCountdown(remaining);
+                }
                 setCountdown(null);
+
+                // If stopped during the wait, break the main loop
+                if (window.stopOutreachRequested) break;
             }
         }
 

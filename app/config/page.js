@@ -430,6 +430,7 @@ OFCharmer: But for now.. just type START and meet your new 3 AM shift worker.`);
 
         setIsSending(true);
         setStopRequested(false);
+        window.stopOutreachRequested = false;
         setSentUsernames([]);
         setFailedUsernames([]);
         setCurrentTarget(null);
@@ -484,7 +485,7 @@ OFCharmer: But for now.. just type START and meet your new 3 AM shift worker.`);
 
                 const data = await res.json();
 
-                if (res.ok) {
+                if (res.ok && data.status !== 'error') {
                     addLog(`[Outreach] ✅ Sent to @${recipient}`);
                     setSentUsernames(prev => [...prev, recipient]);
 
@@ -517,15 +518,21 @@ OFCharmer: But for now.. just type START and meet your new 3 AM shift worker.`);
                 } else {
                     addLog(`[Outreach] ❌ Failed @${recipient}: ${data.message || data.error || 'Unknown error'}`);
                     setFailedUsernames(prev => [...prev, recipient]);
+
+                    if (data.error_type === 'session_invalid' || data.error_type === 'connection_failed') {
+                        addLog(`[Outreach] 🛑 Aborting blast due to critical error: ${data.message || data.error_type}`);
+                        break;
+                    }
                 }
             } catch (err) {
                 addLog(`[Outreach] ❌ Error @${recipient}: ${err.message}`);
+                setFailedUsernames(prev => [...prev, recipient]);
             }
 
             // SAFETY: Delay logic (only if not the last message)
             if (i < targetList.length - 1) {
                 // If stop was requested after sending, don't start the next delay
-                if (stopRequested) break;
+                if (window.stopOutreachRequested) break;
 
                 const minDelay = 5 * 60;
                 const maxDelay = 15 * 60;
@@ -537,7 +544,7 @@ OFCharmer: But for now.. just type START and meet your new 3 AM shift worker.`);
                 setCountdown(remaining);
 
                 while (remaining > 0) {
-                    if (stopRequested) {
+                    if (window.stopOutreachRequested) {
                         setCountdown(null);
                         break;
                     }
@@ -548,7 +555,7 @@ OFCharmer: But for now.. just type START and meet your new 3 AM shift worker.`);
                 setCountdown(null);
 
                 // If stopped during the wait, break the main loop
-                if (stopRequested) break;
+                if (window.stopOutreachRequested) break;
             }
         }
 
