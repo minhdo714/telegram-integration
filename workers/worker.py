@@ -921,6 +921,39 @@ def force_reset_context():
     return jsonify({'status': 'ok', 'rows_deleted': rows_deleted})
 
 
+@app.route('/api/assets/dump-rows', methods=['GET'])
+def dump_rows():
+    """Debug: return all model_assets rows for an account with exact id/context values."""
+    account_id = request.args.get('accountId', '')
+    secret = request.args.get('secret', '')
+    if secret != os.getenv('ADMIN_SECRET', 'ofcharmer-reset-2026'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    c.execute('SELECT id, user_id, account_id, context, model_face_ref, opener_images FROM model_assets WHERE CAST(account_id AS TEXT) = CAST(? AS TEXT)', (account_id,))
+    rows = c.fetchall()
+    conn.close()
+    result = []
+    for r in rows:
+        face = r['model_face_ref'] or ''
+        openers_raw = r['opener_images'] or '[]'
+        try:
+            opener_count = len(json.loads(openers_raw))
+        except Exception:
+            opener_count = -1
+        result.append({
+            'id': r['id'],
+            'account_id': r['account_id'],
+            'context': r['context'],
+            'context_repr': repr(r['context']),
+            'face_is_proxy': str(face).startswith('/api/assets/image'),
+            'face_preview': face[:60],
+            'opener_count': opener_count,
+        })
+    return jsonify({'rows': result, 'total': len(result)})
+
+
 @app.route('/api/assets/config', methods=['GET'])
 def get_asset_config():
     try:
