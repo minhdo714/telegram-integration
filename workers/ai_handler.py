@@ -681,13 +681,44 @@ class AIHandler:
     def _resolve_image_path(self, path_or_url, upload_base):
         """
         Resolve a stored image path to a usable local file path.
+        - If it's a /api/assets/image/ proxy path: build full URL from RAILWAY_WORKER_URL and download.
         - If it's a GitHub/HTTP URL: download to a temp file and return that path.
         - If it's a legacy local relative path: join with upload_base and return.
         Returns None if the path can't be resolved.
         """
+        import logging
+        logger = logging.getLogger(__name__)
+
         if not path_or_url:
             return None
-        if path_or_url.startswith('http://') or path_or_url.startswith('https://'):
+
+        # New proxy URL format: /api/assets/image/assets/{accountId}/{context}/{type}/{filename}
+        # The worker self-serves these via the /api/assets/image/ route which fetches from GitHub with auth.
+        if str(path_or_url).startswith('/api/assets/image/'):
+            # Build the full URL — use RAILWAY_WORKER_URL if set (production),
+            # otherwise fall back to localhost (local dev).
+            worker_base = os.getenv('RAILWAY_WORKER_URL', 'http://localhost:5000').rstrip('/')
+            full_url = f'{worker_base}{path_or_url}'
+            logger.info(f'Resolving proxy image path via worker: {full_url}')
+            try:
+                import requests as _req
+                import tempfile
+                r = _req.get(full_url, timeout=30)
+                if r.ok:
+                    suffix = os.path.splitext(path_or_url.split('?')[0])[-1] or '.jpg'
+                    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+                    tmp.write(r.content)
+                    tmp.close()
+                    logger.info(f'Downloaded proxy image to temp file: {tmp.name} ({len(r.content)} bytes)')
+                    return tmp.name
+                else:
+                    logger.error(f'Failed to download proxy image ({r.status_code}): {full_url}')
+                    return None
+            except Exception as e:
+                logger.error(f'Error downloading proxy image: {e}')
+                return None
+
+        elif path_or_url.startswith('http://') or path_or_url.startswith('https://'):
             try:
                 import requests as _req
                 import tempfile
@@ -697,21 +728,24 @@ class AIHandler:
                     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
                     tmp.write(r.content)
                     tmp.close()
-                    import logging
-                    logging.getLogger(__name__).info(f'Downloaded image from GitHub to temp: {tmp.name}')
+                    logger.info(f'Downloaded image from URL to temp: {tmp.name}')
                     return tmp.name
                 else:
-                    import logging
-                    logging.getLogger(__name__).error(f'Failed to download image from URL ({r.status_code}): {path_or_url}')
+                    logger.error(f'Failed to download image from URL ({r.status_code}): {path_or_url}')
                     return None
             except Exception as e:
-                import logging
-                logging.getLogger(__name__).error(f'Error downloading image from URL: {e}')
+                logger.error(f'Error downloading image from URL: {e}')
                 return None
+
         else:
             # Legacy local relative path
             resolved = os.path.join(upload_base, path_or_url)
-            return resolved if os.path.exists(resolved) else None
+            if os.path.exists(resolved):
+                return resolved
+            else:
+                logger.warning(f'Local image path not found: {resolved}')
+                return None
+
 
     def _get_session(self, account_id, remote_user_id):
         conn = sqlite3.connect(DB_PATH)

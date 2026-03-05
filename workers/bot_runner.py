@@ -41,7 +41,8 @@ except Exception as e:
     sys.exit(1)
 
 def get_fallback_image(account_id, display_name=None):
-    """Get a random opener image from account's library as fallback, with name overlay applied."""
+    """Get a random opener image from account's library as fallback, with name overlay applied.
+    Works with both legacy local paths and new /api/assets/image/ proxy paths."""
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
@@ -71,11 +72,13 @@ def get_fallback_image(account_id, display_name=None):
                 # Pick random image
                 selected_image = random.choice(opener_images)
                 
-                # Construct absolute path
                 upload_base = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
-                image_path = os.path.join(upload_base, selected_image)
+
+                # Use ai_handler._resolve_image_path to handle both local paths
+                # and the new /api/assets/image/ proxy URL format correctly.
+                image_path = ai_handler._resolve_image_path(selected_image, upload_base)
                 
-                if os.path.exists(image_path):
+                if image_path and os.path.exists(image_path):
                     # Apply handwritten name overlay if we have a display_name
                     if display_name:
                         try:
@@ -86,6 +89,8 @@ def get_fallback_image(account_id, display_name=None):
                         except Exception as overlay_err:
                             logger.warning(f"Overlay failed in fallback image: {overlay_err}")
                     return image_path
+                else:
+                    logger.warning(f"Fallback image could not be resolved: {selected_image}")
         
         return None
     except Exception as e:
