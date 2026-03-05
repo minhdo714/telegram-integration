@@ -954,6 +954,61 @@ def dump_rows():
     return jsonify({'rows': result, 'total': len(result)})
 
 
+@app.route('/api/assets/update-preset-assets', methods=['POST'])
+def update_preset_assets():
+    """
+    Admin endpoint: updates model_face_ref and opener_images in the active outreach/AI preset
+    for a given account. Used when images were uploaded to model_assets but the page reads
+    from the preset tables (outreach_configs / ai_config_presets).
+    """
+    data = request.json or {}
+    account_id = data.get('account_id')
+    context = data.get('context', 'outreach')  # 'outreach' or 'engagement'
+    secret = data.get('secret')
+    face_ref = data.get('model_face_ref')
+    opener_images = data.get('opener_images')  # JSON string
+
+    if secret != os.getenv('ADMIN_SECRET', 'ofcharmer-reset-2026'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    if not account_id:
+        return jsonify({'error': 'Missing account_id'}), 400
+
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    # Find the active preset ID for this account/context
+    if context == 'outreach':
+        c.execute('SELECT active_outreach_config_id FROM telegram_accounts WHERE id = ?', (account_id,))
+        row = c.fetchone()
+        preset_id = row[0] if row else None
+        if preset_id:
+            if face_ref:
+                c.execute('UPDATE outreach_configs SET model_face_ref = ? WHERE id = ?', (face_ref, preset_id))
+            if opener_images:
+                c.execute('UPDATE outreach_configs SET opener_images = ? WHERE id = ?', (opener_images, preset_id))
+            conn.commit()
+            conn.close()
+            return jsonify({'status': 'ok', 'preset_id': preset_id, 'context': context})
+        else:
+            conn.close()
+            return jsonify({'status': 'no_active_preset', 'note': 'No active outreach preset found; model_assets will be used as fallback'})
+    else:
+        c.execute('SELECT active_config_id FROM telegram_accounts WHERE id = ?', (account_id,))
+        row = c.fetchone()
+        preset_id = row[0] if row else None
+        if preset_id:
+            if face_ref:
+                c.execute('UPDATE ai_config_presets SET model_face_ref = ? WHERE id = ?', (face_ref, preset_id))
+            if opener_images:
+                c.execute('UPDATE ai_config_presets SET opener_images = ? WHERE id = ?', (opener_images, preset_id))
+            conn.commit()
+            conn.close()
+            return jsonify({'status': 'ok', 'preset_id': preset_id, 'context': context})
+        else:
+            conn.close()
+            return jsonify({'status': 'no_active_preset', 'note': 'No active AI preset found; model_assets will be used as fallback'})
+
+
 @app.route('/api/assets/config', methods=['GET'])
 def get_asset_config():
     try:
