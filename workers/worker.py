@@ -896,8 +896,8 @@ def serve_github_image(github_path):
 @app.route('/api/assets/force-reset-context', methods=['POST'])
 def force_reset_context():
     """
-    Admin endpoint: directly NULLs face_ref and opener_images for a given account/context.
-    Used for one-time production DB cleanup when stale rows block the normal update path.
+    Admin endpoint: deletes ALL rows for a given account/context so subsequent
+    uploads create a clean, single row with the correct proxy URLs.
     """
     data = request.json or {}
     account_id = data.get('account_id')
@@ -909,15 +909,16 @@ def force_reset_context():
         return jsonify({'error': 'Missing account_id or context'}), 400
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    # Use CAST to handle int/string mismatch in account_id
     c.execute(
-        'UPDATE model_assets SET model_face_ref = NULL, opener_images = NULL WHERE account_id = ? AND context = ?',
+        'DELETE FROM model_assets WHERE CAST(account_id AS TEXT) = CAST(? AS TEXT) AND context = ?',
         (account_id, context)
     )
-    rows_updated = c.rowcount
+    rows_deleted = c.rowcount
     conn.commit()
     conn.close()
-    logger.info(f'force-reset-context: account={account_id} context={context} rows={rows_updated}')
-    return jsonify({'status': 'ok', 'rows_updated': rows_updated})
+    logger.info(f'force-reset-context DELETE: account={account_id} context={context} rows={rows_deleted}')
+    return jsonify({'status': 'ok', 'rows_deleted': rows_deleted})
 
 
 @app.route('/api/assets/config', methods=['GET'])
