@@ -681,7 +681,7 @@ class AIHandler:
     def _resolve_image_path(self, path_or_url, upload_base):
         """
         Resolve a stored image path to a usable local file path.
-        - If it's a /api/assets/image/ proxy path: build full URL from RAILWAY_WORKER_URL and download.
+        - If it's a /api/assets/image/ proxy path: fetch directly from GitHub API and download.
         - If it's a GitHub/HTTP URL: download to a temp file and return that path.
         - If it's a legacy local relative path: join with upload_base and return.
         Returns None if the path can't be resolved.
@@ -693,29 +693,40 @@ class AIHandler:
             return None
 
         # New proxy URL format: /api/assets/image/assets/{accountId}/{context}/{type}/{filename}
-        # The worker self-serves these via the /api/assets/image/ route which fetches from GitHub with auth.
         if str(path_or_url).startswith('/api/assets/image/'):
-            # Build the full URL — use RAILWAY_WORKER_URL if set (production),
-            # otherwise fall back to localhost (local dev).
-            worker_base = os.getenv('RAILWAY_WORKER_URL', 'http://localhost:5000').rstrip('/')
-            full_url = f'{worker_base}{path_or_url}'
-            logger.info(f'Resolving proxy image path via worker: {full_url}')
+            # Strip prefix to get the path in the repo (e.g. assets/9/...)
+            github_path = str(path_or_url).replace('/api/assets/image/', '')
+            
+            github_token = os.getenv('GITHUB_TOKEN')
+            github_repo = os.getenv('GITHUB_SESSIONS_REPO')
+            
+            if not github_token or not github_repo:
+                logger.error('GITHUB_TOKEN or GITHUB_SESSIONS_REPO not set for direct resolution')
+                return None
+
+            api_url = f'https://api.github.com/repos/{github_repo}/contents/{github_path}'
+            headers = {
+                'Authorization': f'Bearer {github_token}',
+                'Accept': 'application/vnd.github.raw',
+            }
+            
+            logger.info(f'Resolving proxy image path via direct GitHub fetch: {api_url}')
             try:
                 import requests as _req
                 import tempfile
-                r = _req.get(full_url, timeout=30)
+                r = _req.get(api_url, headers=headers, timeout=30)
                 if r.ok:
-                    suffix = os.path.splitext(path_or_url.split('?')[0])[-1] or '.jpg'
+                    suffix = os.path.splitext(github_path.split('?')[0])[-1] or '.jpg'
                     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
                     tmp.write(r.content)
                     tmp.close()
-                    logger.info(f'Downloaded proxy image to temp file: {tmp.name} ({len(r.content)} bytes)')
+                    logger.info(f'Downloaded image from GitHub to temp file: {tmp.name} ({len(r.content)} bytes)')
                     return tmp.name
                 else:
-                    logger.error(f'Failed to download proxy image ({r.status_code}): {full_url}')
+                    logger.error(f'Failed to fetch from GitHub API ({r.status_code}): {api_url}')
                     return None
             except Exception as e:
-                logger.error(f'Error downloading proxy image: {e}')
+                logger.error(f'Error during direct GitHub fetch: {e}')
                 return None
 
         elif path_or_url.startswith('http://') or path_or_url.startswith('https://'):
