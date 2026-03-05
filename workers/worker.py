@@ -892,6 +892,34 @@ def serve_github_image(github_path):
         logger.error(f'GitHub image proxy error: {e}')
         return jsonify({'error': str(e)}), 500
 
+
+@app.route('/api/assets/force-reset-context', methods=['POST'])
+def force_reset_context():
+    """
+    Admin endpoint: directly NULLs face_ref and opener_images for a given account/context.
+    Used for one-time production DB cleanup when stale rows block the normal update path.
+    """
+    data = request.json or {}
+    account_id = data.get('account_id')
+    context = data.get('context')
+    secret = data.get('secret')
+    if secret != os.getenv('ADMIN_SECRET', 'ofcharmer-reset-2026'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    if not account_id or not context:
+        return jsonify({'error': 'Missing account_id or context'}), 400
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute(
+        'UPDATE model_assets SET model_face_ref = NULL, opener_images = NULL WHERE account_id = ? AND context = ?',
+        (account_id, context)
+    )
+    rows_updated = c.rowcount
+    conn.commit()
+    conn.close()
+    logger.info(f'force-reset-context: account={account_id} context={context} rows={rows_updated}')
+    return jsonify({'status': 'ok', 'rows_updated': rows_updated})
+
+
 @app.route('/api/assets/config', methods=['GET'])
 def get_asset_config():
     try:
