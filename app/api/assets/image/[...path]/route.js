@@ -6,16 +6,18 @@ import { WORKER_URL } from '@/lib/worker-url';
  * The worker fetches from GitHub with auth and returns raw image bytes.
  * URL format: /api/assets/image/assets/{accountId}/{context}/{type}/{filename}
  */
-export async function GET(request, { params }) {
+export async function GET(request, segmentContext) {
     try {
-        const pathParts = params.path; // array of path segments
-        const githubPath = pathParts.join('/');
+        const { path: pathParts } = await segmentContext.params; // await params (required in Next.js 15)
+        const githubPath = Array.isArray(pathParts) ? pathParts.join('/') : pathParts;
 
+        console.log(`[github-image] Proxying: ${githubPath} via ${WORKER_URL}`);
         const workerUrl = `${WORKER_URL}/api/assets/image/${githubPath}`;
         const resp = await fetch(workerUrl, { cache: 'no-store' });
 
         if (!resp.ok) {
-            return new NextResponse('Image not found', { status: 404 });
+            console.error(`[github-image] Worker returned ${resp.status} for ${workerUrl}`);
+            return new NextResponse(`Image not found (worker ${resp.status})`, { status: 404 });
         }
 
         const imageBuffer = await resp.arrayBuffer();
@@ -29,7 +31,7 @@ export async function GET(request, { params }) {
             },
         });
     } catch (error) {
-        console.error('GitHub image proxy error:', error);
-        return new NextResponse('Proxy error', { status: 500 });
+        console.error('[github-image] Proxy error:', error);
+        return new NextResponse(`Proxy error: ${error.message}`, { status: 500 });
     }
 }
