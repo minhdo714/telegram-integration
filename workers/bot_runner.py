@@ -19,7 +19,7 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler(bot_log_path),
+        logging.FileHandler(bot_log_path, encoding='utf-8'),
         logging.StreamHandler(sys.stdout)
     ]
 )
@@ -48,13 +48,22 @@ def get_fallback_image(account_id, display_name=None):
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
         
-        # Try to get opener images from active AI config preset first
-        c.execute('''
-            SELECT ac.opener_images
-            FROM telegram_accounts ta
-            LEFT JOIN ai_config_presets ac ON ta.active_config_id = ac.id
-            WHERE ta.id = ?
-        ''', (account_id,))
+        # Try to get opener images based on BOT_TYPE
+        if BOT_TYPE == 'outreach':
+            c.execute('''
+                SELECT oc.opener_images
+                FROM telegram_accounts ta
+                LEFT JOIN outreach_configs oc ON ta.active_outreach_config_id = oc.id
+                WHERE ta.id = ?
+            ''', (account_id,))
+        else:
+            c.execute('''
+                SELECT ac.opener_images
+                FROM telegram_accounts ta
+                LEFT JOIN ai_config_presets ac ON ta.active_config_id = ac.id
+                WHERE ta.id = ?
+            ''', (account_id,))
+        
         result = c.fetchone()
         opener_images_json = result['opener_images'] if result else None
         
@@ -102,7 +111,7 @@ async def process_incoming_message(client, account_id, sender_id, message_text, 
     try:
         # Build the best display name: first_name > @username > None
         display_name = first_name or username
-        logger.info(f"📨 PROCESSING: [Acc:{account_id}] From:{sender_id} Name:{display_name} Msg:{message_text[:50]}")
+        logger.info(f"PROCESSING: [Acc:{account_id}] From:{sender_id} Name:{display_name} Msg:{message_text[:50]}")
         
         # 1. PING PONG TEST
         if message_text.strip().lower() == '/ping':
@@ -173,7 +182,7 @@ async def process_incoming_message(client, account_id, sender_id, message_text, 
                  _is_spam_prompt = (
                      len(_p_lower) < 10  # Too short to be a real prompt
                      or any(kw in _p_lower for kw in _spam_keywords)
-                     or all(c in '🚫⛔❌ .!?,:;-–—\n\t' for c in prompt)  # only emoji/punct
+                     or all(c in ' .!?,:;-–—\n\t' for c in prompt)  # only emoji/punct
                  )
                  if _is_spam_prompt:
                      logger.warning(f"[IMG GUARD] Blocked image gen — suspicious prompt: {prompt[:80]!r}")
@@ -258,7 +267,15 @@ async def start_bot(account_id, session_string):
         await client.connect()
         
         if not await client.is_user_authorized():
-            logger.error(f"Account {account_id} NOT AUTHORIZED. Session string may be invalid or expired. Skipping.")
+            logger.error(f"Account {account_id} NOT AUTHORIZED. Session string may be invalid or expired. Marking as expired in DB.")
+            try:
+                conn = sqlite3.connect(DB_PATH)
+                c = conn.cursor()
+                c.execute("UPDATE telegram_accounts SET session_status = 'expired' WHERE id = ?", (account_id,))
+                conn.commit()
+                conn.close()
+            except Exception as db_err:
+                logger.error(f"Failed to mark account {account_id} as expired: {db_err}")
             return
 
         me = await client.get_me()

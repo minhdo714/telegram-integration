@@ -60,7 +60,8 @@ export default function AccountTable({
                         <th style={{ padding: '1rem', color: 'rgba(255,255,255,0.5)', fontWeight: '500' }}>Name</th>
                         <th style={{ padding: '1rem', color: 'rgba(255,255,255,0.5)', fontWeight: '500' }}>Proxies (IP)</th>
                         <th style={{ padding: '1rem', color: 'rgba(255,255,255,0.5)', fontWeight: '500' }}>Group</th>
-                        <th style={{ padding: '1rem', color: 'rgba(255,255,255,0.5)', fontWeight: '500' }}>AI Config</th>
+                        <th style={{ padding: '1rem', color: 'rgba(255,255,255,0.5)', fontWeight: '500' }}>Engagement Config</th>
+                        <th style={{ padding: '1rem', color: 'rgba(255,255,255,0.5)', fontWeight: '500' }}>Outreach Config</th>
                         <th style={{ padding: '1rem', color: 'rgba(255,255,255,0.5)', fontWeight: '500' }}>Status</th>
                         <th style={{ padding: '1rem', color: 'rgba(255,255,255,0.5)', fontWeight: '500', textAlign: 'right' }}>Action</th>
                     </tr>
@@ -117,6 +118,19 @@ export default function AccountTable({
                                         border: account.activeConfigId ? '1px solid rgba(99, 102, 241, 0.3)' : '1px solid transparent'
                                     }}>
                                         {account.activeConfigName || 'Not Set'}
+                                    </div>
+                                </td>
+                                <td style={{ padding: '1rem' }}>
+                                    <div style={{
+                                        background: account.activeOutreachConfigId ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255,255,255,0.05)',
+                                        color: account.activeOutreachConfigId ? '#10b981' : 'rgba(255,255,255,0.3)',
+                                        padding: '4px 8px',
+                                        borderRadius: '4px',
+                                        fontSize: '0.75rem',
+                                        display: 'inline-block',
+                                        border: account.activeOutreachConfigId ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid transparent'
+                                    }}>
+                                        {account.activeOutreachConfigName || 'Not Set'}
                                     </div>
                                 </td>
                                 <td style={{ padding: '1rem' }}>

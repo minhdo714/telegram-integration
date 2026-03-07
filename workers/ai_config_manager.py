@@ -24,12 +24,13 @@ def get_ai_configs(user_id):
 def save_ai_config(user_id, name, system_prompt, model_provider, model_name, temperature, 
                    opener_images=None, model_face_ref=None, model_body_ref=None, room_bg_ref=None,
                    outreach_message=None, example_chatflow=None, blast_list=None,
-                   config_id=None):
-    """Create or Update an AI config preset"""
+                   account_id=None, config_id=None):
+    """Create or Update an AI config preset and optionally set it as active for an account"""
     try:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
         
+        final_id = config_id
         if config_id:
             # Update
             c.execute('''UPDATE ai_config_presets SET 
@@ -51,11 +52,16 @@ def save_ai_config(user_id, name, system_prompt, model_provider, model_name, tem
                       (user_id, name, system_prompt, model_provider, model_name, temperature,
                        opener_images, model_face_ref, model_body_ref, room_bg_ref,
                        outreach_message, example_chatflow, blast_list))
-            new_id = c.lastrowid
+            final_id = c.lastrowid
+            
+        # If account_id is provided, set this as the active config for engagement
+        if account_id:
+            c.execute('UPDATE telegram_accounts SET active_config_id = ? WHERE id = ? AND user_id = ?',
+                      (final_id, account_id, user_id))
             
         conn.commit()
         conn.close()
-        return {'status': 'success', 'id': config_id if config_id else new_id}
+        return {'status': 'success', 'id': final_id}
     except Exception as e:
         return {'error': str(e)}
 

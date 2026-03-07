@@ -15,7 +15,7 @@ try:
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
-            logging.FileHandler(worker_log_path),
+            logging.FileHandler(worker_log_path, encoding='utf-8'),
             logging.StreamHandler(sys.stdout)
         ]
     )
@@ -32,6 +32,9 @@ except Exception as e:
 
 logger = logging.getLogger(__name__)
 logger.info(f"Worker starting. Log path attempted: {worker_log_path}")
+
+from ai_handler import AIHandler
+ai_handler = AIHandler()
 
 try:
     from telethon_handler import (
@@ -364,6 +367,7 @@ def save_ai_config_route():
             outreach_message=data.get('outreach_message'),
             example_chatflow=data.get('example_chatflow'),
             blast_list=data.get('blast_list'),
+            account_id=data.get('accountId') or data.get('account_id'),
             config_id=data.get('config_id') or data.get('id')
         )
         print(f"DEBUG: Save result: {result}")
@@ -586,7 +590,8 @@ def send_dm_route():
             return jsonify({"error": "Message too long (max 4096 characters)"}), 400
         
         # Send the message
-        result = send_dm(account_id, recipient, message)
+        send_opener = data.get('sendOpenerImage', False)
+        result = send_dm(account_id, recipient, message, send_opener=send_opener)
         
         if result['status'] == 'success':
             return jsonify(result), 200
@@ -1627,6 +1632,93 @@ def generate_tease_pic():
         return jsonify({"status": "started", "message": "Tease pic generation started in background"}), 200
         
     except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/chat/sessions', methods=['GET'])
+def get_chat_sessions():
+    try:
+        account_id = request.args.get('accountId')
+        logger.info(f"Fetching sessions for account: {account_id}")
+        if not account_id:
+            return jsonify({"error": "Account ID required"}), 400
+            
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        
+        c.execute('''
+            SELECT * FROM chat_sessions 
+            WHERE CAST(account_id AS TEXT) = CAST(? AS TEXT)
+            ORDER BY last_message_at DESC
+        ''', (account_id,))
+        
+        rows = c.fetchall()
+        logger.info(f"Found {len(rows)} sessions")
+        conn.close()
+        
+        sessions = [dict(row) for row in rows]
+        return jsonify({"status": "success", "sessions": sessions}), 200
+    except Exception as e:
+        logger.error(f"Error in get_chat_sessions: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/test/gen-image', methods=['POST'])
+def test_gen_image():
+    """Test image generation directly"""
+    try:
+        data = request.json
+        account_id = data.get('accountId')
+        prompt = data.get('prompt')
+        
+        # Get face ref from DB
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute('SELECT model_face_ref FROM model_assets WHERE account_id = ?', (account_id,))
+        row = c.fetchone()
+        conn.close()
+        
+        face_path = None
+        if row and row['model_face_ref']:
+            upload_base = os.path.dirname(os.path.abspath(__file__))
+            resolved_base = os.path.join(upload_base, 'uploads')
+            face_path = ai_handler._resolve_image_path(row['model_face_ref'], resolved_base)
+            
+        print(f"DEBUG: face_path={face_path}")
+        if face_path:
+            print(f"DEBUG: face_path_exists={os.path.exists(face_path)}")
+        
+        result = ai_handler.kie_client.generate_image(prompt, face_ref_path=face_path)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/chat/history', methods=['GET'])
+def get_chat_history():
+    try:
+        session_id = request.args.get('sessionId')
+        logger.info(f"Fetching history for session: {session_id}")
+        if not session_id:
+            return jsonify({"error": "Session ID required"}), 400
+            
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        
+        c.execute('''
+            SELECT * FROM chat_messages 
+            WHERE session_id = ?
+            ORDER BY created_at ASC
+        ''', (session_id,))
+        
+        rows = c.fetchall()
+        logger.info(f"Found {len(rows)} messages")
+        conn.close()
+        
+        messages = [dict(row) for row in rows]
+        return jsonify({"status": "success", "messages": messages}), 200
+    except Exception as e:
+        logger.error(f"Error in get_chat_history: {e}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':

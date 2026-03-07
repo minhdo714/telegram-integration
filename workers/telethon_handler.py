@@ -88,6 +88,7 @@ def initiate_qr_login():
                     'status': 'pending'
                 }
                 
+                print(f"DEBUG: QR ready for {job_id}")
                 # Signal that QR is ready
                 ready_event.set()
                 
@@ -97,6 +98,7 @@ def initiate_qr_login():
                 
             except Exception as e:
                 print(f"Error in QR login task: {e}")
+                traceback.print_exc()
                 # Ensure we don't block forever if error occurs before ready
                 ready_event.set()
 
@@ -108,10 +110,15 @@ def initiate_qr_login():
     thread.start()
     
     # Wait for the QR code to be generated
-    ready_event.wait(timeout=15)
+    print(f"DEBUG: Waiting for QR generation for {job_id}...")
+    ready_wait_success = ready_event.wait(timeout=30)
     
+    if not ready_wait_success:
+        print(f"ERROR: Timeout waiting for ready_event for {job_id}")
+        raise Exception("Timeout generating QR code (30s limit)")
+
     if 'data' not in result_container:
-        raise Exception("Timeout generating QR code")
+        raise Exception(f"Failed to generate QR code data for {job_id}")
         
     return result_container['data']
 
@@ -632,29 +639,35 @@ def validate_session(account_id):
     return loop.run_until_complete(check_session())
 
 
-def send_dm(account_id, recipient, message):
+def send_dm(account_id, recipient, message, send_opener=False):
     """Send a direct message using a Telegram account"""
     async def send_message():
         try:
             # Get session from database
             import sqlite3
+            import json
+            import random
             from auth_handler import DB_PATH
+            import os
             
             conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
             c = conn.cursor()
-            c.execute('SELECT session_string, proxy_url FROM telegram_accounts WHERE id = ?', (account_id,))
+            c.execute('SELECT session_string, proxy_url, active_outreach_config_id, active_config_id FROM telegram_accounts WHERE id = ?', (account_id,))
             result = c.fetchone()
-            conn.close()
             
-            if not result or not result[0]:
+            if not result or not result['session_string']:
+                if conn: conn.close()
                 return {
                     'status': 'error',
                     'error_type': 'session_invalid',
                     'message': 'Session not found in database'
                 }
             
-            session_data = result[0]
-            proxy_url = result[1]
+            session_data = result['session_string']
+            proxy_url = result['proxy_url']
+            active_outreach_id = result['active_outreach_config_id']
+            active_engagement_id = result['active_config_id']
             proxy = parse_proxy(proxy_url)
 
             if isinstance(session_data, bytes):
@@ -668,6 +681,7 @@ def send_dm(account_id, recipient, message):
                 
                 if not await client.is_user_authorized():
                     await client.disconnect()
+                    if conn: conn.close()
                     return {
                         'status': 'error',
                         'error_type': 'session_invalid',
@@ -688,6 +702,7 @@ def send_dm(account_id, recipient, message):
                     
                 except ValueError:
                     await client.disconnect()
+                    if conn: conn.close()
                     return {
                         'status': 'error',
                         'error_type': 'user_not_found',
@@ -695,93 +710,168 @@ def send_dm(account_id, recipient, message):
                     }
                 except Exception as resolve_error:
                     await client.disconnect()
+                    if conn: conn.close()
                     return {
                         'status': 'error',
                         'error_type': 'resolution_failed',
                         'message': f'Could not resolve recipient: {str(resolve_error)}'
                     }
                 
+                recipient_id = entity.id
+                recipient_username = getattr(entity, 'username', None)
+                first_name = getattr(entity, 'first_name', None)
+                display_name = first_name or recipient_username or recipient_clean
+
+                # OPTIONAL: Send Opener Image
+                opener_sent_successfully = False
+                if send_opener:
+                    try:
+                        # 1. Fetch opener images from DB
+                        opener_images_json = None
+                        # Try outreach config first
+                        if active_outreach_id:
+                            c.execute('SELECT opener_images FROM outreach_configs WHERE id = ?', (active_outreach_id,))
+                            row = c.fetchone()
+                            if row: opener_images_json = row['opener_images']
+                        
+                        # Fallback to engagement config
+                        if not opener_images_json and active_engagement_id:
+                            c.execute('SELECT opener_images FROM ai_config_presets WHERE id = ?', (active_engagement_id,))
+                            row = c.fetchone()
+                            if row: opener_images_json = row['opener_images']
+                            
+                        # Fallback to model_assets
+                        if not opener_images_json:
+                            c.execute('SELECT opener_images FROM model_assets WHERE account_id = ?', (account_id,))
+                            row = c.fetchone()
+                            if row: opener_images_json = row['opener_images']
+                            
+                        if opener_images_json:
+                            opener_images = json.loads(opener_images_json)
+                            if opener_images and len(opener_images) > 0:
+                                selected_image = random.choice(opener_images)
+                                
+                                upload_base = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+                                
+                                # Lightweight inline resolver for proxy/GitHub URLs
+                                final_image_path = None
+                                if str(selected_image).startswith('/api/assets/image/'):
+                                    github_path = str(selected_image).replace('/api/assets/image/', '')
+                                    github_token = os.getenv('GITHUB_TOKEN')
+                                    github_repo = os.getenv('GITHUB_SESSIONS_REPO')
+                                    if github_token and github_repo:
+                                        import requests as _req
+                                        import tempfile
+                                        api_url = f'https://api.github.com/repos/{github_repo}/contents/{github_path}'
+                                        r = _req.get(api_url, headers={'Authorization': f'Bearer {github_token}', 'Accept': 'application/vnd.github.raw'}, timeout=20)
+                                        if r.ok:
+                                            suffix = os.path.splitext(github_path)[1] or '.jpg'
+                                            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+                                            tmp.write(r.content)
+                                            tmp.close()
+                                            final_image_path = tmp.name
+                                elif str(selected_image).startswith('http'):
+                                    import requests as _req
+                                    import tempfile
+                                    r = _req.get(selected_image, timeout=15)
+                                    if r.ok:
+                                        tmp = tempfile.NamedTemporaryFile(delete=False, suffix='.jpg')
+                                        tmp.write(r.content)
+                                        tmp.close()
+                                        final_image_path = tmp.name
+                                else:
+                                    final_image_path = os.path.join(upload_base, selected_image)
+                                
+                                if final_image_path and os.path.exists(final_image_path):
+                                    # Apply overlay
+                                    try:
+                                        from image_overlay import overlay_name_on_image
+                                        overlay_path = overlay_name_on_image(final_image_path, display_name)
+                                        await client.send_file(entity, overlay_path)
+                                        opener_sent_successfully = True
+                                        print(f"SUCCESS: Sent opener image to {recipient}")
+                                    except Exception as overlay_err:
+                                        print(f"WARNING: Overlay/Send image failed: {overlay_err}")
+                                        # Fallback: try sending original
+                                        await client.send_file(entity, final_image_path)
+                                        opener_sent_successfully = True
+                    except Exception as opener_err:
+                        print(f"WARNING: Failed to process opener image: {opener_err}")
+
                 # Send the message
                 try:
                     sent_message = await client.send_message(entity, message)
                     
                     # Create/Update session in DB so AI knows the state
                     try:
-                        recipient_id = entity.id
-                        recipient_username = getattr(entity, 'username', None)
+                        # Try to find lead by telegram_id or username
+                        c.execute('SELECT id FROM scraped_leads WHERE telegram_id = ? OR (username IS NOT NULL AND username = ?)', (str(recipient_id), recipient_username))
+                        lead = c.fetchone()
                         
-                        # Import here to avoid circular dependency if possible, or move to top
-                        # We use raw SQL to avoid dependency on AIHandler for now
-                        conn_db = sqlite3.connect(DB_PATH)
-                        c_db = conn_db.cursor()
+                        if lead:
+                            lead_id = lead['id']
+                            # Mark as blasted
+                            c.execute('UPDATE scraped_leads SET status = "blasted" WHERE id = ?', (lead_id,))
+                            # Record in history
+                            c.execute('''
+                                INSERT INTO outreach_history (account_id, lead_id, telegram_id, username, status)
+                                VALUES (?, ?, ?, ?, ?)
+                            ''', (account_id, lead_id, str(recipient_id), recipient_username, 'sent'))
+                        else:
+                            # Not a known lead? Still log the history
+                            c.execute('''
+                                INSERT INTO outreach_history (account_id, telegram_id, username, status)
+                                VALUES (?, ?, ?, ?)
+                            ''', (account_id, str(recipient_id), recipient_username, 'sent'))
+
+                        # NEW: Create Chat Session so AI doesn't send duplicate opener
+                        # Check if session already exists
+                        c.execute('SELECT id, state FROM chat_sessions WHERE account_id = ? AND remote_user_id = ?', (account_id, str(recipient_id)))
+                        session_row = c.fetchone()
                         
-                        # Update scraped_leads and outreach_history
-                        try:
-                            # Try to find lead by telegram_id or username
-                            c_db.execute('SELECT id FROM scraped_leads WHERE telegram_id = ? OR (username IS NOT NULL AND username = ?)', (str(recipient_id), recipient_username))
-                            lead = c_db.fetchone()
-                            
-                            if lead:
-                                lead_id = lead[0]
-                                # Mark as blasted
-                                c_db.execute('UPDATE scraped_leads SET status = "blasted" WHERE id = ?', (lead_id,))
-                                # Record in history
-                                c_db.execute('''
-                                    INSERT INTO outreach_history (account_id, lead_id, telegram_id, username, status)
-                                    VALUES (?, ?, ?, ?, ?)
-                                ''', (account_id, lead_id, str(recipient_id), recipient_username, 'sent'))
-                            else:
-                                # Not a known lead? Still log the history
-                                c_db.execute('''
-                                    INSERT INTO outreach_history (account_id, telegram_id, username, status)
-                                    VALUES (?, ?, ?, ?)
-                                ''', (account_id, str(recipient_id), recipient_username, 'sent'))
+                        img_delivered = 1 if opener_sent_successfully else 0
+                        
+                        if not session_row:
+                            # Create new session in OPENER_SENT state
+                            c.execute('''
+                                INSERT INTO chat_sessions (account_id, remote_user_id, username, state, opener_img_sent)
+                                VALUES (?, ?, ?, ?, ?)
+                            ''', (account_id, str(recipient_id), recipient_username, 'OPENER_SENT', img_delivered))
+                            session_id = c.lastrowid
+                        else:
+                            session_id = session_row['id']
+                            # Update existing session. 
+                            # Avoid resetting state if it's already in a conversation state (e.g. SMALL_TALK)
+                            c.execute('''
+                                UPDATE chat_sessions 
+                                SET last_message_at = CURRENT_TIMESTAMP, 
+                                    opener_img_sent = MAX(opener_img_sent, ?) 
+                                WHERE id = ?
+                            ''', (img_delivered, session_id))
 
-                            # NEW: Create Chat Session so AI doesn't send duplicate opener
-                            # Check if session already exists
-                            c_db.execute('SELECT id FROM chat_sessions WHERE account_id = ? AND remote_user_id = ?', (account_id, str(recipient_id)))
-                            session_row = c_db.fetchone()
-                            
-                            if not session_row:
-                                # Create new session in OPENER_SENT state
-                                c_db.execute('''
-                                    INSERT INTO chat_sessions (account_id, remote_user_id, username, state)
-                                    VALUES (?, ?, ?, ?)
-                                ''', (account_id, str(recipient_id), recipient_username, 'OPENER_SENT'))
-                                session_id = c_db.lastrowid
-                            else:
-                                session_id = session_row[0]
-                                # Update existing session to OPENER_SENT
-                                c_db.execute('UPDATE chat_sessions SET state = "OPENER_SENT", last_message_at = CURRENT_TIMESTAMP WHERE id = ?', (session_id,))
+                        # Log the assistant message
+                        c.execute('''
+                            INSERT INTO chat_messages (session_id, role, content)
+                            VALUES (?, 'assistant', ?)
+                        ''', (session_id, message))
 
-                            # Log the assistant message
-                            c_db.execute('''
-                                INSERT INTO chat_messages (session_id, role, content)
-                                VALUES (?, 'assistant', ?)
-                            ''', (session_id, message))
+                    except Exception as h_e:
+                        print(f"Warning: Failed to log outreach history/session: {h_e}")
 
-                        except Exception as h_e:
-                            print(f"Warning: Failed to log outreach history/session: {h_e}")
-
-                        conn_db.commit()
-                        conn_db.close()
-                    except Exception as db_e:
-                        print(f"Warning: Failed to create session context: {db_e}")
-
+                    conn.commit()
+                    conn.close()
                     await client.disconnect()
-                    
-                    # Get recipient info
-                    recipient_name = getattr(entity, 'username', None) or getattr(entity, 'phone', 'Unknown')
                     
                     return {
                         'status': 'success',
                         'message_id': sent_message.id,
-                        'sent_to': recipient_name,
+                        'sent_to': display_name,
                         'timestamp': sent_message.date.isoformat()
                     }
                     
                 except FloodWaitError as flood_error:
                     await client.disconnect()
+                    if conn: conn.close()
                     return {
                         'status': 'error',
                         'error_type': 'rate_limited',
@@ -790,6 +880,7 @@ def send_dm(account_id, recipient, message):
                     }
                 except ChatWriteForbiddenError:
                     await client.disconnect()
+                    if conn: conn.close()
                     return {
                         'status': 'error',
                         'error_type': 'blocked',
@@ -797,6 +888,7 @@ def send_dm(account_id, recipient, message):
                     }
                 except UserIsBlockedError:
                     await client.disconnect()
+                    if conn: conn.close()
                     return {
                         'status': 'error',
                         'error_type': 'blocked',
@@ -804,6 +896,7 @@ def send_dm(account_id, recipient, message):
                     }
                 except Exception as send_error:
                     await client.disconnect()
+                    if conn: conn.close()
                     error_msg = str(send_error).lower()
                     if 'privacy' in error_msg:
                         return {
@@ -819,6 +912,7 @@ def send_dm(account_id, recipient, message):
                     
             except Exception as client_error:
                 await client.disconnect()
+                if conn: conn.close()
                 return {
                     'status': 'error',
                     'error_type': 'connection_failed',
@@ -831,6 +925,7 @@ def send_dm(account_id, recipient, message):
                 'error_type': 'unknown',
                 'message': f'Unexpected error: {str(e)}'
             }
+
     
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)

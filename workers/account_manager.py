@@ -100,14 +100,16 @@ def get_user_accounts(user_id):
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
         
-        # Join with ai_config_presets to get config name
+        # Join with ai_config_presets and outreach_configs to get config names
         c.execute('''
             SELECT ta.id, ta.phone_number, ta.telegram_user_id, ta.telegram_username, ta.first_name, ta.last_name,
                    ta.account_ownership, ta.session_status, ta.status, ta.created_at,
-                   ta.proxy_url, ta.active_config_id,
-                   ac.name as config_name
+                   ta.proxy_url, ta.active_config_id, ta.active_outreach_config_id,
+                   ac.name as config_name,
+                   oc.name as outreach_config_name
             FROM telegram_accounts ta
             LEFT JOIN ai_config_presets ac ON ta.active_config_id = ac.id
+            LEFT JOIN outreach_configs oc ON ta.active_outreach_config_id = oc.id
             WHERE ta.user_id = ? 
             ORDER BY ta.created_at DESC
         ''', (user_id,))
@@ -127,6 +129,8 @@ def get_user_accounts(user_id):
                 'proxyUrl': row['proxy_url'],
                 'activeConfigId': row['active_config_id'],
                 'activeConfigName': row['config_name'],
+                'activeOutreachConfigId': row['active_outreach_config_id'],
+                'activeOutreachConfigName': row['outreach_config_name'],
                 # Default values for optional fields
                 'dailyDmQuota': None,
                 'dailyDmSentToday': 0,

@@ -2,6 +2,7 @@ import sqlite3
 import json
 import os
 import re
+import random
 from datetime import datetime
 from kie_client import KieClient
 from text_gen_client import TextGenClient
@@ -30,9 +31,9 @@ BE A REAL PERSON TEXTING:
 
 # Appended to EVERY prompt — non-negotiable
 BREVITY_RULE = (
-    "\n\n⚠️ STRICT OUTPUT RULE: Reply with EXACTLY 1 SHORT SENTENCE. "
-    "Real texting style. No greetings, no sign-offs, no emojis unless natural. "
-    "If you write more than one sentence you have failed."
+    "\n\n⚠️ STRICT OUTPUT RULE: You MUST reply with EXACTLY 1 SHORT SENTENCE. "
+    "Use casual, lowercase texting style. No formal greetings, no sign-offs, no paragraphs. "
+    "Do NOT repeat yourself. If you write more than one sentence or repeat a previous line, you have failed."
 )
 
 # ==============================================================================
@@ -153,19 +154,17 @@ class AIHandler:
             # and deliver ONLY the next unsent line from your side of the script.
             dynamic_prompt = (
                 f"{base}\n\n"
-                "=== PART 2: PROMOTION SCRIPT — FOLLOW THIS EXACTLY ===\n"
-                "You are playing the FIRST SPEAKER role in the script below — the one on the LEFT — "
-                "the one doing the outreach/selling. The other speaker represents the prospect's replies.\n"
-                "HOW TO USE THIS SCRIPT:\n"
-                "1. Read the conversation history to find the last line YOUR ROLE has already sent.\n"
-                "2. Deliver ONLY the next unsent line from YOUR ROLE in the script.\n"
-                "3. Do NOT skip steps. Do NOT repeat lines you already sent. Do NOT ad-lib outside the script.\n"
-                "4. If the prospect says something unexpected, pick the CLOSEST matching script line and continue.\n\n"
-                "--- BEGIN SCRIPT ---\n"
+                "=== OUTREACH MODE: FOLLOW SCRIPT EXACTLY ===\n"
+                "You are playing the FIRST ROLE (the one on the left) in the script below.\n"
+                "1. Review the conversation history carefully.\n"
+                "2. Identify the VERY NEXT line from your role in the script that hasn't been sent yet.\n"
+                "3. Output ONLY that one line. Do NOT combine lines. Do NOT rewrite them.\n"
+                "4. Ensure your reply is 1 short sentence. If the script line is long, shorten it to its core vibe.\n"
+                "5. Never repeat a line you already sent in this session.\n\n"
+                "--- SCRIPT START ---\n"
                 f"{example_flow}\n"
-                "--- END SCRIPT ---"
+                "--- SCRIPT END ---"
             )
-            # For outreach, the script drives everything — no extra engagement nudge
             return dynamic_prompt + BREVITY_RULE
         elif example_flow:
             dynamic_prompt = (
@@ -190,7 +189,6 @@ class AIHandler:
         # Append engagement nudge only for non-outreach bots
         dynamic_prompt += "\n\nEnd with ONE short, casual question to keep them engaged."
         return dynamic_prompt + BREVITY_RULE
-
     # Telegram service/system message patterns to ignore completely
     TELEGRAM_SYSTEM_PREFIXES = [
         'spam', 'blocked', 'spam blocked', 'spam. ', 'spam.\n',
@@ -199,6 +197,17 @@ class AIHandler:
         'you have been', 'you are restricted', 'bot was blocked',
         'message failed', 'flood wait', 'too many requests',
     ]
+
+    def _update_session_img_sent(self, session_id):
+        """Mark the opener image as sent for this session."""
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            c.execute('UPDATE chat_sessions SET opener_img_sent = 1, last_image_sent_at = CURRENT_TIMESTAMP WHERE id = ?', (session_id,))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            print(f"Error updating opener_img_sent: {e}")
 
     def handle_message(self, account_id, remote_user_id, message_text, username=None, bot_type='engagement'):
         """
@@ -289,15 +298,13 @@ class AIHandler:
             # Part 3 prompt: LLM plays the MODEL role in the script (second party / Jane etc.)
             part3_prompt = (
                 f"{assets.get('system_prompt') or DEFAULT_SYSTEM_PROMPT}\n\n"
-                f"=== PART 3: MODEL IMITATION SCRIPT — YOU ARE '{model_name_in_script}' ===\n"
-                f"You are '{model_name_in_script}', the model persona. Imitate her voice, tone, and personality exactly from the script below.\n"
-                "HOW TO USE THIS SCRIPT:\n"
-                f"1. You play '{model_name_in_script}' — ONLY output lines that belong to her character.\n"
-                "2. Read the conversation history to find where you are in the script.\n"
-                "3. Deliver the NEXT unsent line from your character. Never repeat. Never skip.\n"
-                "4. If the prospect deviates, improvise IN HER VOICE and style, then return to the script arc.\n"
-                "5. Never break character. Never mention AI, bots, or scripts.\n\n"
-                "--- BEGIN PART 3 SCRIPT ---\n"
+                f"=== PART 3: MODEL PERSONA — START OF CONVERSATION ===\n"
+                f"You are now '{model_name_in_script}'. The prospect just activated the AI demo.\n"
+                "1. Follow the tone and persona established in the script below.\n"
+                "2. Find the NEXT line for your character in Part 3.\n"
+                "3. Deliver it as 1 short, flirty sentence.\n"
+                "4. NEVER mention scripts, bots, or AI. You ARE this person.\n\n"
+                "--- PART 3 SCRIPT ---\n"
                 f"{part3_script}\n"
                 "--- END PART 3 SCRIPT ---"
             )
@@ -327,330 +334,176 @@ class AIHandler:
         user_msg_logged = False
 
         if just_created:
-            # Check for reset command on first message (unlikely but possible if re-created immediately)
             if message_text.strip().lower() == '/reset':
                 return {'text': "Chat reset! Send me a message to start over."}
 
-            # New User! Send Opener.
-            import random
-            
-            # Log the user's first message to history BEFORE generating a reply,
-            # so subsequent turns have full context.
             self._log_message(session['id'], 'user', message_text)
             user_msg_logged = True
 
-            opener_path = None
-            raw_opener_text = None
+            display_name = (username or 'there').strip()
+            if display_name.startswith('@'): display_name = display_name[1:]
 
-            # Priority 1: Use configured outreach message from saved config (supports multi-line variations)
+            # Get Opener Text
+            raw_opener_text = None
             if assets and assets.get('outreach_message'):
                 variations = [v.strip() for v in assets['outreach_message'].split('\n') if v.strip()]
                 if variations:
                     raw_opener_text = random.choice(variations)
 
-            # Priority 2: Fall back to the page defaults (exact same as outreach config page)
             if not raw_opener_text:
                 variations = [v.strip() for v in DEFAULT_PART1_OPENERS.split('\n') if v.strip()]
                 raw_opener_text = random.choice(variations)
             
-            # Replace variables
-            # Use 'the group' as default if group info isn't specifically known here
             group_val = assets.get('group_name') if assets and assets.get('group_name') else 'the group'
-            
-            # Better name fallback logic
-            display_name = (username or 'there').strip()
-            if display_name.startswith('@'):
-                display_name = display_name[1:]
-                
             opener_text = self._replace_variables(raw_opener_text, {
                 'name': display_name, 
                 'username': display_name,
                 'group': group_val
             })
             
-            if assets and assets.get('opener_images'):
-                try:
-                    openers = json.loads(assets['opener_images'])
-                    if openers:
-                        opener_path = random.choice(openers)
-                except Exception as e:
-                    logger.warning(f"Failed to parse opener_images: {e}")
-            
-            if opener_path:
-                # opener_path may be a GitHub URL or a legacy local relative path
-                full_opener_path = self._resolve_image_path(opener_path, upload_base)
-                # Overlay the recipient's handwritten name on the opener image
-                try:
-                    from image_overlay import overlay_name_on_image
-                    full_opener_path = overlay_name_on_image(full_opener_path, display_name)
-                except Exception as overlay_err:
-                    import logging
-                    logging.getLogger(__name__).warning(f"Name overlay failed: {overlay_err}")
-                response['image_path'] = full_opener_path
+            # Use the new robust image sent flag
+            if not session.get('opener_img_sent'):
+                opener_img_path = self._get_opener_image_path(assets, display_name)
+                if opener_img_path:
+                    response['image_path'] = opener_img_path
+                    self._update_session_img_sent(session['id'])
             
             response['text'] = opener_text
-            # FIX: outreach sessions go to OUTREACH_PART1 so replies are handled correctly
             new_state = STATE_OUTREACH_PART1 if is_outreach else STATE_OPENER_SENT
 
-        elif current_state == STATE_OUTREACH_PART1:
-            # Prospect replied to our outreach opener.
-            # Use the user-configured chatflow as the strict, absolute-priority script.
-            # Analyze what they said, figure out where we are in the script, send the next step.
-            outreach_prompt = self._get_dynamic_prompt(assets, session['id'])
-            history = self._get_conversation_history(session['id'], limit=10)
-            history.append({'role': 'user', 'content': message_text})
-            response['text'] = self.text_gen.generate_reply(
-                history, outreach_prompt, model=assets.get('model_name')
-            )
-            new_state = STATE_OUTREACH_PART1  # stay in Part 1 until they type START
-
-        elif current_state == STATE_OPENER_SENT:
-            # User replied to opener. Check for immediate escalation
-            last_user_msg = message_text.lower()
-            escalate_keywords = ['pic', 'picture', 'photo', 'send', 'see', 'show', 'nude', 'hot', 'sexy', 'breast', 'boobs', 'tits']
-            should_escalate = any(keyword in last_user_msg for keyword in escalate_keywords)
+        else:
+            # Handle user reply to existing session
             
-            if should_escalate:
-                # Immediate escalation - use config chatflow as guide
-                base_cfg = assets.get('system_prompt') or DEFAULT_SYSTEM_PROMPT
-                chatflow_ctx = f"\n\n### CHATFLOW GUIDE ###\n{assets['example_chatflow']}" if assets.get('example_chatflow') else ""
-                system_prompt = (
-                    f"{base_cfg}{chatflow_ctx}\n\n"
-                    "The user is asking for photos. Ask what their 'type' is so you can pick the right pic."
-                    + BREVITY_RULE
-                )
-                history = self._get_conversation_history(session['id'], limit=5)
-                history.append({'role': 'user', 'content': message_text})
-                
-                response['text'] = self.text_gen.generate_reply(history, system_prompt, model=assets.get('model_name'))
-                new_state = STATE_PREF_ASKED
-            else:
-                # ENGAGE SMALL TALK instead of jumping to sales.
-                # Use consolidated prompt logic
-                dynamic_prompt = self._get_dynamic_prompt(assets, session['id'])
-                
-                # Fetch history (last 10 messages)
+            # FIRST: Check if opener image was missed (backwards compatibility or resumed session)
+            if not session.get('opener_img_sent'):
+                display_name = (username or 'there').strip()
+                if display_name.startswith('@'): display_name = display_name[1:]
+                opener_img_path = self._get_opener_image_path(assets, display_name)
+                if opener_img_path:
+                    response['image_path'] = opener_img_path
+                    self._update_session_img_sent(session['id'])
+
+            if current_state == STATE_OUTREACH_PART1:
+                outreach_prompt = self._get_dynamic_prompt(assets, session['id'])
                 history = self._get_conversation_history(session['id'], limit=10)
-                # Add current user message
                 history.append({'role': 'user', 'content': message_text})
-                
-                reply_text = self.text_gen.generate_reply(history, dynamic_prompt, model=assets.get('model_name'))
-                response['text'] = reply_text
-                
-                # Move to SMALL_TALK state
-                new_state = STATE_SMALL_TALK
-            
-        elif current_state == STATE_SMALL_TALK:
-            # Check if we should transition to asking preferences (e.g., after 2-3 turns)
-            # For now, let's keep it simple: 50% chance to ask pref, or if user asks for content.
-            # OR logic: if message count > 3, then ask pref.
-            
-            # Check for triggers to escalate (e.g., user asking for pics)
-            last_user_msg = message_text.lower()
-            escalate_keywords = ['pic', 'picture', 'photo', 'send', 'see', 'show', 'nude', 'hot', 'sexy', 'breast', 'boobs', 'tits']
-            should_escalate = any(keyword in last_user_msg for keyword in escalate_keywords)
-            
-            # OR random chance if convo gets long (e.g. > 10 msgs)
-            msg_count = self._get_message_count(session['id'])
-            import random
-            if msg_count > 10 and random.random() < 0.2:
-                should_escalate = True
+                response['text'] = self.text_gen.generate_reply(history, outreach_prompt, model=assets.get('model_name'))
+                new_state = STATE_OUTREACH_PART1
 
-            if should_escalate:
-                # Start of Logic
-                # Check for detailed preference to jump straight to generation
-                detailed_keywords = ['bikini', 'lingerie', 'naked', 'nude', 'dress', 'skirt', 'outfit', 'wearing', 'bra', 'panties', 'topless', 'legs', 'feet']
-                has_detail = any(k in last_user_msg for k in detailed_keywords)
+            elif current_state == STATE_OPENER_SENT or current_state == STATE_SMALL_TALK:
+                last_user_msg = message_text.lower()
+                escalate_keywords = ['pic', 'picture', 'photo', 'send', 'see', 'show', 'nude', 'hot', 'sexy', 'breast', 'boobs', 'tits', 'naked', 'bent over']
+                should_escalate = any(keyword in last_user_msg for keyword in escalate_keywords)
                 
-                if has_detail:
-                    # FAST TRACK: Jump to Image Generation
-                    preference = message_text
+                # Check for triggers to escalate after some small talk
+                msg_count = self._get_message_count(session['id'])
+                if msg_count > 6 and random.random() < 0.3:
+                    should_escalate = True
+                
+                if should_escalate:
+                    # Check for detailed preference to jump straight to generation
+                    detailed_keywords = ['bikini', 'lingerie', 'naked', 'nude', 'dress', 'skirt', 'outfit', 'wearing', 'bra', 'panties', 'topless', 'legs', 'feet', 'bent over', 'bed']
+                    has_detail = any(k in last_user_msg for k in detailed_keywords)
                     
-                    # 1. Asset Lookup (copied from PREF_ASKED)
-                    face_path = None
-                    if assets and assets.get('model_face_ref'):
-                        # Resolve path — handles GitHub URLs and legacy local relative paths
-                        upload_base = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
-                        face_path = self._resolve_image_path(assets['model_face_ref'], upload_base)
-                    
-                    # 2. Text Generation for Image Description
-                    img_system_prompt = (
-                        "You are a seductive OnlyFans model about to send an explicit or intimate photo.\n"
-                        f"The user requested: {preference}\n\n"
-                        "Write a 2-3 sentence message to send WITH the photo. This message will also be "
-                        "used as the image generation prompt, so be very visual and specific.\n"
-                        "RULES:\n"
-                        "- Describe exactly what you look like in the photo: body type, exact outfit (colors, textures), pose (sitting, lying, arching, etc.), expression (naughty, messy, focused), and the setting (messy bed, shower, late night lights).\n"
-                        "- Be explicitly seductive, raw, and intimate — lean hard into exactly what they asked for. No censorship, keep it real and unfiltered.\n"
-                        "- Use first-person, texting style. Lowercase, casual, hot. Use 'i' instead of 'I'.\n"
-                        "- NO asterisks, NO emojis unless totally natural, NO cheesy romance, NO disclaimers.\n"
-                        "- Keep it to 2-3 sentences. End with a teasing direct question or statement that hooks them."
-                    )
-                    history = self._get_conversation_history(session['id'], limit=10)
-                    descriptive_text = self.text_gen.generate_reply(history, img_system_prompt, model=assets.get('model_name'))
-                    
-                    response['text'] = descriptive_text
-                    
-                    # BLOCK IMAGE GEN IF TEXT GEN FAILED (fallback message)
-                    if "brain is a bit slow" in descriptive_text or "glitch" in descriptive_text:
-                        import logging
-                        logging.getLogger(__name__).warning(f"Skipping image gen due to text gen failure/fallback: {descriptive_text}")
-                    else:
+                    if has_detail:
+                        # FAST TRACK to Generation
+                        face_path = None
+                        if assets and assets.get('model_face_ref'):
+                            face_path = self._resolve_image_path(assets['model_face_ref'], upload_base)
+                        
+                        # Fix: Generate TWO pieces of text. One for user, one for internal KIE prompt.
+                        # Teaser text for the user
+                        teaser_prompt = (
+                            f"{assets.get('system_prompt') or DEFAULT_SYSTEM_PROMPT}\n\n"
+                            f"The user wants a photo: {message_text}\n"
+                            "Write a short, flirty 1-sentence teaser message saying you are taking/sending it now. "
+                            "Sound like a real person texting. causal, lowercase."
+                        )
+                        history = self._get_conversation_history(session['id'], limit=3)
+                        teaser_text = self.text_gen.generate_reply(history, teaser_prompt, model=assets.get('model_name'))
+                        
+                        # Descriptive prompt for KIE
+                        img_system_prompt = (
+                            "Describe exactly what the model looks like in an explicit/seductive photo for image generation.\n"
+                            f"User request: {message_text}\n"
+                            "Include: body type, outfit, pose, setting, expression. 2 sentences max. No asterisks."
+                        )
+                        descriptive_prompt = self.text_gen.generate_reply([], img_system_prompt, model=assets.get('model_name'))
+                        
+                        response['text'] = teaser_text
                         response['async_task'] = {
                             'type': 'image_gen',
-                            'prompt': descriptive_text,   # LLM text sent as message
-                            'kie_prompt': preference,      # Raw request used for image gen
+                            'prompt': teaser_text, # Used as caption
+                            'kie_prompt': descriptive_prompt, # Used for internal generation
                             'face_path': face_path
                         }
-                    
-                    new_state = STATE_GEN_SENT
-                    
+                        new_state = STATE_GEN_SENT
+                    else:
+                        # Ask for preference
+                        system_prompt = (
+                            f"{assets.get('system_prompt') or DEFAULT_SYSTEM_PROMPT}\n\n"
+                            "The user wants photos. Ask what they want to see specifically (style, outfit, vibe). Keep it hot."
+                            + BREVITY_RULE
+                        )
+                        history = self._get_conversation_history(session['id'], limit=5)
+                        history.append({'role': 'user', 'content': message_text})
+                        response['text'] = self.text_gen.generate_reply(history, system_prompt, model=assets.get('model_name'))
+                        new_state = STATE_PREF_ASKED
                 else:
-                    # Standard Escalation: ask for preference, guided by chatflow
-                    base_cfg = assets.get('system_prompt') or DEFAULT_SYSTEM_PROMPT
-                    chatflow_ctx = f"\n\n### CHATFLOW GUIDE ###\n{assets['example_chatflow']}" if assets and assets.get('example_chatflow') else ""
-                    system_prompt = (
-                        f"{base_cfg}{chatflow_ctx}\n\n"
-                        "The user is engaged. Transition naturally to asking their preference "
-                        "(what vibe/style they want in a photo). Keep it flirty and casual."
-                        + BREVITY_RULE
-                    )
+                    # Continue Small Talk
+                    dynamic_prompt = self._get_dynamic_prompt(assets, session['id'])
                     history = self._get_conversation_history(session['id'], limit=10)
                     history.append({'role': 'user', 'content': message_text})
-                    response['text'] = self.text_gen.generate_reply(history, system_prompt, model=assets.get('model_name'))
-                    new_state = STATE_PREF_ASKED
-            else:
-                # Use consolidated prompt logic
-                dynamic_prompt = self._get_dynamic_prompt(assets, session['id'])
+                    response['text'] = self.text_gen.generate_reply(history, dynamic_prompt, model=assets.get('model_name'))
+                    new_state = STATE_SMALL_TALK
+
+            elif current_state == STATE_PREF_ASKED:
+                # User provided preference after being asked
+                face_path = None
+                if assets and assets.get('model_face_ref'):
+                    face_path = self._resolve_image_path(assets['model_face_ref'], upload_base)
                 
-                # History: 10 messages (not 50 — keeps replies short and on-topic)
+                # Teaser text for the user
+                teaser_prompt = (
+                    f"{assets.get('system_prompt') or DEFAULT_SYSTEM_PROMPT}\n\n"
+                    f"The user chose a style: {message_text}\n"
+                    "Write a short, flirty 1-sentence teaser message acknowledging their choice. causal, lowercase."
+                )
+                history = self._get_conversation_history(session['id'], limit=3)
+                teaser_text = self.text_gen.generate_reply(history, teaser_prompt, model=assets.get('model_name'))
+                
+                # Internal KIE prompt
+                img_system_prompt = (
+                    "Describe exactly what the model looks like in an explicit/seductive photo for image generation.\n"
+                    f"User choice: {message_text}\n"
+                    "Include: body type, outfit, pose, setting. 2 sentences max."
+                )
+                descriptive_prompt = self.text_gen.generate_reply([], img_system_prompt, model=assets.get('model_name'))
+                
+                response['text'] = teaser_text
+                response['async_task'] = {
+                    'type': 'image_gen',
+                    'prompt': teaser_text,
+                    'kie_prompt': descriptive_prompt,
+                    'face_path': face_path
+                }
+                new_state = STATE_GEN_SENT
+
+            elif current_state == STATE_GEN_SENT:
+                # User replied to generated image. Return to small talk.
+                dynamic_prompt = self._get_dynamic_prompt(assets, session['id'])
                 history = self._get_conversation_history(session['id'], limit=10)
                 history.append({'role': 'user', 'content': message_text})
-                
-                model_name = assets.get('model_name') if assets and assets.get('model_name') else None
-                response['text'] = self.text_gen.generate_reply(history, dynamic_prompt, model=model_name)
+                response['text'] = self.text_gen.generate_reply(history, dynamic_prompt, model=assets.get('model_name'))
                 new_state = STATE_SMALL_TALK
 
-        elif current_state == STATE_PREF_ASKED:
-            # User replied with preference. Generate Image.
-            preference = message_text
-            
-            face_path = None
-            room_path = None
-            
-            room_path = None
-            
-            with open("debug_ai.log", "a") as f:
-                f.write(f"\n[{datetime.now()}] DEBUG: Preference Input: '{preference}'\n")
-
-            # FILTER: Check for system/bot error messages and Telegram service texts
-            forbidden = [
-                "verified", "verify", "account", "credential", "login",
-                "subscribe", "payment", "card", "spam", "blocked", "restricted",
-                "flood", "limit", "banned", "delivered", "failed to send"
-            ]
-            is_system_msg = any(w in preference.lower() for w in forbidden)
-            is_too_short_or_symbolic = len(preference.strip()) < 3
-            if is_system_msg or is_too_short_or_symbolic:
-                print(f"DEBUG: Filtered invalid preference: {preference}")
-                with open("debug_ai.log", "a") as f:
-                    f.write(f"[{datetime.now()}] DEBUG: Filtered invalid preference.\n")
-                
-                # Dynamic request for clarification, using configured persona
-                system_prompt = (
-                    (assets.get('system_prompt') or DEFAULT_SYSTEM_PROMPT)
-                    + "\n\nThe user didn't give a clear photo preference. Ask them playfully what vibe or look they want."
-                    + BREVITY_RULE
-                )
-                response['text'] = self.text_gen.generate_reply([], system_prompt, model=assets.get('model_name'))
-                return response
-
-            face_path = None
-            room_path = None
-            
-            if assets:
-                print(f"DEBUG: Assets found: {assets.keys()}")
-                if assets.get('model_face_ref'):
-                    face_path = self._resolve_image_path(assets['model_face_ref'], upload_base)
-                    if face_path and os.path.exists(face_path):
-                        print(f"DEBUG: Face Path: {face_path}, Exists: True")
-                        with open("debug_ai.log", "a") as f:
-                            f.write(f"[{datetime.now()}] DEBUG: Face Path: {face_path}, Exists: True\n")
-                    else:
-                        print(f"DEBUG: Face path not found or download failed: {face_path}")
-                else:
-                    print("DEBUG: model_face_ref key MISSING or EMPTY in assets")
-                    with open("debug_ai.log", "a") as f:
-                        f.write(f"[{datetime.now()}] DEBUG: model_face_ref key MISSING\n")
-                    
-                if assets.get('room_bg_ref'):
-                    # Reuse the same relative logic from DB but with production-safe base
-                    room_path = os.path.join(upload_base, assets['room_bg_ref'])
             else:
-                print("DEBUG: No assets found for account")
-                with open("debug_ai.log", "a") as f:
-                    f.write(f"[{datetime.now()}] DEBUG: No assets found\n")
-
-            print(f"DEBUG: Generating image with face_path={face_path}")
-            # Generate elaborated seductive description — doubles as image generation prompt
-            img_system_prompt = (
-                "You are a seductive OnlyFans model about to send an explicit or intimate photo.\n"
-                f"The user requested: {preference}\n\n"
-                "Write a 2-3 sentence message to send WITH the photo. This message will also be "
-                "used as the image generation prompt, so be very visual and specific.\n"
-                "RULES:\n"
-                "- Describe exactly what you look like in the photo: body, outfit (or lack of it), pose, expression, setting.\n"
-                "- Be explicitly seductive and sensual — lean into what they asked for. Don't hold back.\n"
-                "- Use first-person, texting style. Lowercase, casual, hot.\n"
-                "- NO asterisks, NO emojis unless totally natural, NO disclaimers.\n"
-                "- End with a teasing line that makes them want more."
-            )
-            history = self._get_conversation_history(session['id'], limit=5)
-            # We don't append the current message because we want the reaction to the PREVIOUS message (the request) - actually we do need the request.
-            # But 'preference' IS the message text here.
-            
-            # Temporary history for this specific generation
-            img_gen_history = history + [{'role': 'user', 'content': f"Send me a photo: {preference}"}]
-            
-            descriptive_text = self.text_gen.generate_reply(img_gen_history, img_system_prompt, model=assets.get('model_name'))
-            
-            # Fallback if LLM fails
-            if not descriptive_text:
-                descriptive_text = f"here is that {preference} picture you wanted... 😘"
-
-            response['text'] = descriptive_text
-            response['delay'] = 2.0
-            
-            # Return task for bot runner to execute asynchronously
-            response['async_task'] = {
-                'type': 'image_gen',
-                'prompt': descriptive_text,  # LLM text sent as the message caption
-                'kie_prompt': preference,     # Raw user request used as the actual image gen prompt
-                'face_path': face_path
-            }
-            
-            # Logic moved to bot_runner:
-            # img_result = self.kie_client.generate_image(preference, face_ref_path=face_path)
-            
-            # State Update happens here, but image sending happens later
-            new_state = STATE_GEN_SENT
-            
-        elif current_state == STATE_GEN_SENT:
-            # User replied to generated image. Loop back to SMALL_TALK
-            # Resume normal conversation
-            base_cfg = assets.get('system_prompt') or DEFAULT_SYSTEM_PROMPT
-            chatflow_ctx = f"\n\n### CHATFLOW GUIDE ###\n{assets['example_chatflow']}" if assets and assets.get('example_chatflow') else ""
-            system_prompt = (
-                f"{base_cfg}{chatflow_ctx}\n\n"
-                "You just sent them a hot pic and they replied. Continue naturally. "
-                "Be playful, confident. Don't ask if they liked it."
-                + BREVITY_RULE
-            )
-            history = self._get_conversation_history(session['id'], limit=10)
-            history.append({'role': 'user', 'content': message_text})
-            
-            response['text'] = self.text_gen.generate_reply(history, system_prompt, model=assets.get('model_name'))
-            new_state = STATE_SMALL_TALK
+                # Fallback: Small Talk
+                dynamic_prompt = self._get_dynamic_prompt(assets, session['id'])
+                history = self._get_conversation_history(session['id'], limit=10)
+                history.append({'role': 'user', 'content': message_text})
+                response['text'] = self.text_gen.generate_reply(history, dynamic_prompt, model=assets.get('model_name'))
+                new_state = STATE_SMALL_TALK
             
             # Fallback for closed state or unknown
             pass
@@ -677,6 +530,42 @@ class AIHandler:
         
         response['new_state'] = new_state
         return response
+
+    def _get_opener_image_path(self, assets, display_name):
+        """Helper to resolve and overlay an opener image."""
+        if not assets or not assets.get('opener_images'):
+            return None
+        
+        try:
+            import random
+            import json
+            import logging
+            log = logging.getLogger(__name__)
+            
+            openers = json.loads(assets['opener_images'])
+            if not openers:
+                return None
+            
+            opener_path = random.choice(openers)
+            upload_base = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+            
+            log.info(f"Resolving opener_path: {opener_path}")
+            full_opener_path = self._resolve_image_path(opener_path, upload_base)
+            
+            if full_opener_path:
+                try:
+                    from image_overlay import overlay_name_on_image
+                    log.info(f"Attempting overlay for name '{display_name}' on {full_opener_path}")
+                    new_opener_path = overlay_name_on_image(full_opener_path, display_name)
+                    return new_opener_path
+                except Exception as overlay_err:
+                    log.warning(f"Name overlay failed: {overlay_err}")
+                    return full_opener_path
+            return None
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Failed to get opener image: {e}")
+            return None
 
     def _resolve_image_path(self, path_or_url, upload_base):
         """
@@ -759,25 +648,33 @@ class AIHandler:
 
 
     def _get_session(self, account_id, remote_user_id):
-        conn = sqlite3.connect(DB_PATH)
-        conn.row_factory = sqlite3.Row
-        c = conn.cursor()
-        c.execute('SELECT * FROM chat_sessions WHERE account_id = ? AND remote_user_id = ?', (account_id, remote_user_id))
-        session = c.fetchone()
-        conn.close()
-        return session
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            conn.row_factory = sqlite3.Row
+            c = conn.cursor()
+            c.execute('SELECT * FROM chat_sessions WHERE account_id = ? AND remote_user_id = ?', (account_id, remote_user_id))
+            row = c.fetchone()
+            conn.close()
+            return dict(row) if row else None
+        except Exception as e:
+            print(f"Error getting session: {e}")
+            return None
 
     def _create_session(self, account_id, remote_user_id, username, initial_state=STATE_OPENER_SENT):
-        conn = sqlite3.connect(DB_PATH)
-        c = conn.cursor()
-        c.execute('''
-            INSERT INTO chat_sessions (account_id, remote_user_id, username, state)
-            VALUES (?, ?, ?, ?)
-        ''', (account_id, remote_user_id, username, initial_state))
-        conn.commit()
-        session_id = c.lastrowid
-        conn.close()
-        return {'id': session_id, 'state': initial_state}
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            c.execute('''
+                INSERT INTO chat_sessions (account_id, remote_user_id, username, state, opener_img_sent)
+                VALUES (?, ?, ?, ?, 0)
+            ''', (account_id, remote_user_id, username, initial_state))
+            conn.commit()
+            session_id = c.lastrowid
+            conn.close()
+            return self._get_session(account_id, remote_user_id)
+        except Exception as e:
+            print(f"Error creating session: {e}")
+            return None
 
     def _update_session(self, session_id, new_state, last_message):
         conn = sqlite3.connect(DB_PATH)
@@ -814,6 +711,17 @@ class AIHandler:
             return [{'role': r['role'], 'content': r['content']} for r in reversed(rows)]
         except:
             return []
+
+    def _get_message_count(self, session_id):
+        try:
+            conn = sqlite3.connect(DB_PATH)
+            c = conn.cursor()
+            c.execute('SELECT COUNT(*) FROM chat_messages WHERE session_id = ?', (session_id,))
+            count = c.fetchone()[0]
+            conn.close()
+            return count
+        except:
+            return 0
 
     def _get_custom_image_count(self, session_id):
         """Count how many custom (generated) images have been sent in this session."""
