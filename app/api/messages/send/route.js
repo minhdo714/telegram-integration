@@ -5,7 +5,7 @@ import { WORKER_URL } from '@/lib/worker-url';
 export async function POST(request) {
     try {
         const body = await request.json();
-        const { accountId, recipient, message } = body;
+        const { accountId, recipient, message, sendOpenerImage } = body;
 
         // Validation
         if (!accountId) {
@@ -25,7 +25,7 @@ export async function POST(request) {
         const response = await fetch(`${WORKER_URL}/api/send-dm`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ accountId, recipient, message }),
+            body: JSON.stringify({ accountId, recipient, message, sendOpenerImage }),
         });
 
         const data = await response.json();

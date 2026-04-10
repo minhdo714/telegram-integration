@@ -116,9 +116,17 @@ class TextGenClient:
 
         # Iterate through available providers in order of priority
         last_error = None
+        primary_provider = self.available_providers[0] if self.available_providers else None
         for provider_name in self.available_providers:
             client, default_model = self.clients[provider_name]
-            target_model = model if model else default_model
+            # Only apply the custom model override on the primary provider.
+            # Fallback providers must use their own default model — passing an
+            # xAI model name to OpenRouter (or vice-versa) causes an instant failure
+            # which trips the fallback loop and results in the static placeholder response.
+            if provider_name == primary_provider:
+                target_model = model if model else default_model
+            else:
+                target_model = default_model
 
             # Retry logic: try up to 2 times per provider
             for attempt in range(2):

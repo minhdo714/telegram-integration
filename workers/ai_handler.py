@@ -134,11 +134,15 @@ class AIHandler:
         return text
 
     # Phrases that signal the AI is confused / stalling instead of responding properly
+    # Also includes the static fallback phrases from TextGenClient (all-providers-failed scenario)
     _CONFUSED_PHRASES = [
         'brain is a bit slow', 'brain a bit slow', 'my brain is slow',
         'what did you say', 'say that again', 'can you repeat',
         'i missed that', "didn't catch that", 'slow today',
         'glitched on my end', 'something glitched',
+        # TextGenClient fallback phrases (returned when all AI providers fail)
+        "you're intriguing me", "you got my attention", "i'm all ears",
+        "got me curious here", "hmm, interesting... go on",
     ]
 
     def _is_confused_response(self, text: str) -> bool:
@@ -147,6 +151,37 @@ class AIHandler:
             return True
         low = text.lower()
         return any(phrase in low for phrase in self._CONFUSED_PHRASES)
+
+    def _guard_reply(self, reply_text: str, history: list, assets: dict) -> str:
+        """
+        If the AI returned a confused/stalling/fallback phrase, retry once with a
+        simpler prompt that just asks it to respond to the last user message.
+        Returns a safe hardcoded response if the retry also fails.
+        """
+        if not self._is_confused_response(reply_text):
+            return reply_text
+
+        import logging
+        logging.getLogger(__name__).warning(f"Confused/fallback response detected: {reply_text!r} — retrying")
+        simple_prompt = (
+            f"{assets.get('system_prompt') or DEFAULT_SYSTEM_PROMPT}\n\n"
+            "The user just sent you a message. Reply naturally with 1 casual sentence. "
+            "Address what they actually said."
+            + BREVITY_RULE
+        )
+        retry = self.text_gen.generate_reply(history, simple_prompt, model=None)
+        if not self._is_confused_response(retry):
+            return retry
+
+        # Both attempts failed — return a safe generic reply rather than a placeholder
+        safe_fallbacks = [
+            "haha yeah, what else you got? 😄",
+            "lol okay tell me more 😊",
+            "omg same, what've you been up to? 😄",
+            "haha that's actually kinda cute 👀",
+            "okay okay, so what do you do for fun? 😊",
+        ]
+        return random.choice(safe_fallbacks)
 
     def _get_dynamic_prompt(self, assets, session_id, part1_warmup=False):
         """Constructs the system prompt, always putting config inputs first, then enforcing brevity.
@@ -431,20 +466,7 @@ class AIHandler:
                 history = self._get_conversation_history(session['id'], limit=10)
                 history.append({'role': 'user', 'content': message_text})
                 reply_text = self.text_gen.generate_reply(history, outreach_prompt, model=assets.get('model_name'))
-
-                # Guard: if the AI generated a confused/stalling response, retry with a simpler prompt
-                if self._is_confused_response(reply_text):
-                    import logging
-                    logging.getLogger(__name__).warning(f"Confused response detected: {reply_text!r} — retrying with simpler prompt")
-                    simple_prompt = (
-                        f"{assets.get('system_prompt') or DEFAULT_SYSTEM_PROMPT}\n\n"
-                        "The user just replied to your message. Respond naturally with 1 casual sentence "
-                        "and ask a simple follow-up question to keep them talking."
-                        + BREVITY_RULE
-                    )
-                    retry = self.text_gen.generate_reply(history, simple_prompt, model=assets.get('model_name'))
-                    reply_text = retry if not self._is_confused_response(retry) else "haha yeah totally, what've you been up to? 😊"
-
+                reply_text = self._guard_reply(reply_text, history, assets)
                 response['text'] = reply_text
                 new_state = STATE_OUTREACH_PART1
 
@@ -452,23 +474,23 @@ class AIHandler:
                 last_user_msg = message_text.lower()
                 escalate_keywords = ['pic', 'picture', 'photo', 'send', 'see', 'show', 'nude', 'hot', 'sexy', 'breast', 'boobs', 'tits', 'naked', 'bent over']
                 should_escalate = any(keyword in last_user_msg for keyword in escalate_keywords)
-                
+
                 # Check for triggers to escalate after some small talk
                 msg_count = self._get_message_count(session['id'])
                 if msg_count > 6 and random.random() < 0.3:
                     should_escalate = True
-                
+
                 if should_escalate:
                     # Check for detailed preference to jump straight to generation
                     detailed_keywords = ['bikini', 'lingerie', 'naked', 'nude', 'dress', 'skirt', 'outfit', 'wearing', 'bra', 'panties', 'topless', 'legs', 'feet', 'bent over', 'bed']
                     has_detail = any(k in last_user_msg for k in detailed_keywords)
-                    
+
                     if has_detail:
                         # FAST TRACK to Generation
                         face_path = None
                         if assets and assets.get('model_face_ref'):
                             face_path = self._resolve_image_path(assets['model_face_ref'], upload_base)
-                        
+
                         # Fix: Generate TWO pieces of text. One for user, one for internal KIE prompt.
                         # Teaser text for the user
                         teaser_prompt = (
@@ -479,7 +501,7 @@ class AIHandler:
                         )
                         history = self._get_conversation_history(session['id'], limit=3)
                         teaser_text = self.text_gen.generate_reply(history, teaser_prompt, model=assets.get('model_name'))
-                        
+
                         # Descriptive prompt for KIE
                         img_system_prompt = (
                             "Describe exactly what the model looks like in an explicit/seductive photo for image generation.\n"
@@ -487,7 +509,7 @@ class AIHandler:
                             "Include: body type, outfit, pose, setting, expression. 2 sentences max. No asterisks."
                         )
                         descriptive_prompt = self.text_gen.generate_reply([], img_system_prompt, model=assets.get('model_name'))
-                        
+
                         response['text'] = teaser_text
                         response['async_task'] = {
                             'type': 'image_gen',
@@ -505,14 +527,16 @@ class AIHandler:
                         )
                         history = self._get_conversation_history(session['id'], limit=5)
                         history.append({'role': 'user', 'content': message_text})
-                        response['text'] = self.text_gen.generate_reply(history, system_prompt, model=assets.get('model_name'))
+                        reply_text = self.text_gen.generate_reply(history, system_prompt, model=assets.get('model_name'))
+                        response['text'] = self._guard_reply(reply_text, history, assets)
                         new_state = STATE_PREF_ASKED
                 else:
                     # Continue Small Talk
                     dynamic_prompt = self._get_dynamic_prompt(assets, session['id'])
                     history = self._get_conversation_history(session['id'], limit=10)
                     history.append({'role': 'user', 'content': message_text})
-                    response['text'] = self.text_gen.generate_reply(history, dynamic_prompt, model=assets.get('model_name'))
+                    reply_text = self.text_gen.generate_reply(history, dynamic_prompt, model=assets.get('model_name'))
+                    response['text'] = self._guard_reply(reply_text, history, assets)
                     new_state = STATE_SMALL_TALK
 
             elif current_state == STATE_PREF_ASKED:
@@ -520,7 +544,7 @@ class AIHandler:
                 face_path = None
                 if assets and assets.get('model_face_ref'):
                     face_path = self._resolve_image_path(assets['model_face_ref'], upload_base)
-                
+
                 # Teaser text for the user
                 teaser_prompt = (
                     f"{assets.get('system_prompt') or DEFAULT_SYSTEM_PROMPT}\n\n"
@@ -529,7 +553,7 @@ class AIHandler:
                 )
                 history = self._get_conversation_history(session['id'], limit=3)
                 teaser_text = self.text_gen.generate_reply(history, teaser_prompt, model=assets.get('model_name'))
-                
+
                 # Internal KIE prompt
                 img_system_prompt = (
                     "Describe exactly what the model looks like in an explicit/seductive photo for image generation.\n"
@@ -537,7 +561,7 @@ class AIHandler:
                     "Include: body type, outfit, pose, setting. 2 sentences max."
                 )
                 descriptive_prompt = self.text_gen.generate_reply([], img_system_prompt, model=assets.get('model_name'))
-                
+
                 response['text'] = teaser_text
                 response['async_task'] = {
                     'type': 'image_gen',
@@ -552,7 +576,8 @@ class AIHandler:
                 dynamic_prompt = self._get_dynamic_prompt(assets, session['id'])
                 history = self._get_conversation_history(session['id'], limit=10)
                 history.append({'role': 'user', 'content': message_text})
-                response['text'] = self.text_gen.generate_reply(history, dynamic_prompt, model=assets.get('model_name'))
+                reply_text = self.text_gen.generate_reply(history, dynamic_prompt, model=assets.get('model_name'))
+                response['text'] = self._guard_reply(reply_text, history, assets)
                 new_state = STATE_SMALL_TALK
 
             else:
@@ -560,11 +585,9 @@ class AIHandler:
                 dynamic_prompt = self._get_dynamic_prompt(assets, session['id'])
                 history = self._get_conversation_history(session['id'], limit=10)
                 history.append({'role': 'user', 'content': message_text})
-                response['text'] = self.text_gen.generate_reply(history, dynamic_prompt, model=assets.get('model_name'))
+                reply_text = self.text_gen.generate_reply(history, dynamic_prompt, model=assets.get('model_name'))
+                response['text'] = self._guard_reply(reply_text, history, assets)
                 new_state = STATE_SMALL_TALK
-            
-            # Fallback for closed state or unknown
-            pass
 
         # Handle /reset command globally
         if message_text.strip().lower() == '/reset':

@@ -564,7 +564,8 @@ OFCharmer: But for now.. just type START and meet your new 3 AM shift worker.`);
                     body: JSON.stringify({
                         accountId: selectedAccountId,
                         recipient: recipient,
-                        message: msgToSend
+                        message: msgToSend,
+                        sendOpenerImage: true
                     })
                 });
 

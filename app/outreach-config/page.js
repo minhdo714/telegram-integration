@@ -656,7 +656,7 @@ function OutreachConfigContent() {
                 const res = await fetch('/api/messages/send', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ accountId: selectedAccountId, recipient, message: msgToSend })
+                    body: JSON.stringify({ accountId: selectedAccountId, recipient, message: msgToSend, sendOpenerImage: true })
                 });
 
                 const data = await res.json();
