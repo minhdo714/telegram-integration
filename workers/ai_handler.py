@@ -133,8 +133,26 @@ class AIHandler:
             text = text.replace(f"{{{{{key}}}}}", str(value))
         return text
 
-    def _get_dynamic_prompt(self, assets, session_id):
-        """Constructs the system prompt, always putting config inputs first, then enforcing brevity."""
+    # Phrases that signal the AI is confused / stalling instead of responding properly
+    _CONFUSED_PHRASES = [
+        'brain is a bit slow', 'brain a bit slow', 'my brain is slow',
+        'what did you say', 'say that again', 'can you repeat',
+        'i missed that', "didn't catch that", 'slow today',
+        'glitched on my end', 'something glitched',
+    ]
+
+    def _is_confused_response(self, text: str) -> bool:
+        """Return True if the AI generated a confused/stalling placeholder instead of a real reply."""
+        if not text:
+            return True
+        low = text.lower()
+        return any(phrase in low for phrase in self._CONFUSED_PHRASES)
+
+    def _get_dynamic_prompt(self, assets, session_id, part1_warmup=False):
+        """Constructs the system prompt, always putting config inputs first, then enforcing brevity.
+
+        part1_warmup=True → OUTREACH PART1 casual chat mode (do NOT follow the pitch script yet).
+        """
         is_outreach = assets.get('is_outreach', False) if assets else False
         system_prompt_cfg = assets.get('system_prompt') if assets else None
         # For outreach, fall back to the page default if no script is saved
@@ -145,6 +163,22 @@ class AIHandler:
 
         # Start with configured system prompt or default
         base = system_prompt_cfg if system_prompt_cfg else DEFAULT_SYSTEM_PROMPT
+
+        if is_outreach and part1_warmup:
+            # PART1 = warm-up / small talk phase BEFORE the pitch script.
+            # Goal: keep the prospect engaged with natural, casual replies.
+            # Do NOT start pitching yet — that happens after they reply positively.
+            dynamic_prompt = (
+                f"{base}\n\n"
+                "=== WARM-UP MODE ===\n"
+                "You already sent the first message from a Telegram group. The prospect replied.\n"
+                "Your job RIGHT NOW: keep the conversation warm and natural.\n"
+                "- Respond to what they actually said.\n"
+                "- Ask ONE simple follow-up question to keep them talking.\n"
+                "- DO NOT mention any product, service, or platform yet.\n"
+                "- Sound like a real person, not a pitch."
+            )
+            return dynamic_prompt + BREVITY_RULE
 
         if is_outreach and example_flow:
             # Part 2 — Promotion Logic.
@@ -160,7 +194,8 @@ class AIHandler:
                 "2. Identify the VERY NEXT line from your role in the script that hasn't been sent yet.\n"
                 "3. Output ONLY that one line. Do NOT combine lines. Do NOT rewrite them.\n"
                 "4. Ensure your reply is 1 short sentence. If the script line is long, shorten it to its core vibe.\n"
-                "5. Never repeat a line you already sent in this session.\n\n"
+                "5. Never repeat a line you already sent in this session.\n"
+                "6. If all your lines are already sent, continue naturally in the same tone.\n\n"
                 "--- SCRIPT START ---\n"
                 f"{example_flow}\n"
                 "--- SCRIPT END ---"
@@ -238,7 +273,14 @@ class AIHandler:
             initial_state = STATE_OUTREACH_PART1 if is_outreach else STATE_OPENER_SENT
             session = self._create_session(account_id, remote_user_id, username, initial_state)
             just_created = True
-            
+
+        if not session:
+            # _create_session also failed (DB unavailable or schema issue)
+            import logging
+            logging.getLogger(__name__).error(
+                f"Failed to get or create session for account={account_id} user={remote_user_id}")
+            return {'text': "hey! can you say that again? something glitched on my end 😅"}
+
         current_state = session['state']
         
         # Outreach Part 2 Trigger (s[ta]*rt, star[r]*, etc.)
@@ -384,10 +426,26 @@ class AIHandler:
                     self._update_session_img_sent(session['id'])
 
             if current_state == STATE_OUTREACH_PART1:
-                outreach_prompt = self._get_dynamic_prompt(assets, session['id'])
+                # PART1 = warm-up small talk. Use casual prompt, NOT the pitch script.
+                outreach_prompt = self._get_dynamic_prompt(assets, session['id'], part1_warmup=True)
                 history = self._get_conversation_history(session['id'], limit=10)
                 history.append({'role': 'user', 'content': message_text})
-                response['text'] = self.text_gen.generate_reply(history, outreach_prompt, model=assets.get('model_name'))
+                reply_text = self.text_gen.generate_reply(history, outreach_prompt, model=assets.get('model_name'))
+
+                # Guard: if the AI generated a confused/stalling response, retry with a simpler prompt
+                if self._is_confused_response(reply_text):
+                    import logging
+                    logging.getLogger(__name__).warning(f"Confused response detected: {reply_text!r} — retrying with simpler prompt")
+                    simple_prompt = (
+                        f"{assets.get('system_prompt') or DEFAULT_SYSTEM_PROMPT}\n\n"
+                        "The user just replied to your message. Respond naturally with 1 casual sentence "
+                        "and ask a simple follow-up question to keep them talking."
+                        + BREVITY_RULE
+                    )
+                    retry = self.text_gen.generate_reply(history, simple_prompt, model=assets.get('model_name'))
+                    reply_text = retry if not self._is_confused_response(retry) else "haha yeah totally, what've you been up to? 😊"
+
+                response['text'] = reply_text
                 new_state = STATE_OUTREACH_PART1
 
             elif current_state == STATE_OPENER_SENT or current_state == STATE_SMALL_TALK:
@@ -664,17 +722,31 @@ class AIHandler:
         try:
             conn = sqlite3.connect(DB_PATH)
             c = conn.cursor()
+
+            # Ensure columns added by migrate_sessions_v2 exist (idempotent — silently skips if already present)
+            for ddl in [
+                'ALTER TABLE chat_sessions ADD COLUMN opener_img_sent INTEGER DEFAULT 0',
+                'ALTER TABLE chat_sessions ADD COLUMN last_image_sent_at TIMESTAMP',
+            ]:
+                try:
+                    c.execute(ddl)
+                except Exception:
+                    pass  # Column already exists
+
             c.execute('''
                 INSERT INTO chat_sessions (account_id, remote_user_id, username, state, opener_img_sent)
                 VALUES (?, ?, ?, ?, 0)
             ''', (account_id, remote_user_id, username, initial_state))
             conn.commit()
-            session_id = c.lastrowid
             conn.close()
             return self._get_session(account_id, remote_user_id)
         except Exception as e:
             print(f"Error creating session: {e}")
-            return None
+            # Last-ditch: session may have been created by a parallel process — try fetching it
+            try:
+                return self._get_session(account_id, remote_user_id)
+            except Exception:
+                return None
 
     def _update_session(self, session_id, new_state, last_message):
         conn = sqlite3.connect(DB_PATH)

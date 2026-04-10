@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
@@ -146,7 +146,7 @@ except Exception as e:
 
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({"status": "healthy", "service": "telegram-worker", "version": "1.4.6-diag-expanded"}), 200
+    return jsonify({"status": "healthy", "service": "telegram-worker", "version": "1.5.0-session-fix"}), 200
 
 @app.route('/debug/env', methods=['GET'])
 def debug_env():
@@ -194,7 +194,9 @@ def debug_routes():
 @app.route('/api/qr-login/initiate', methods=['POST'])
 def qr_login_initiate():
     try:
-        result = initiate_qr_login()
+        data = request.json or {}
+        user_id = data.get('userId', '1')  # Default to 1 if not provided
+        result = initiate_qr_login(user_id)
         return jsonify(result), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -230,13 +232,18 @@ def sms_verify_code():
         code = data.get('code')
         phone_hash = data.get('phoneHash')
         session_string = data.get('sessionString')
+        user_id = data.get('userId', '1')  # Default to 1 if not provided
+        
+        logger.info(f"[SMS VERIFY] Received request - userId={user_id}, phone={phone_number}, code={code[:5 if code else 0]}...")
         
         if not all([phone_number, code, phone_hash]):
             return jsonify({"error": "Missing required fields"}), 400
         
-        result = verify_sms_code(phone_number, code, phone_hash, session_string)
+        result = verify_sms_code(phone_number, code, phone_hash, session_string, user_id)
+        logger.info(f"[SMS VERIFY] Result status: {result.get('status')}")
         return jsonify(result), 200
     except Exception as e:
+        logger.error(f"[SMS VERIFY] Exception: {e}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/sms-login/verify-password', methods=['POST'])
@@ -246,11 +253,12 @@ def sms_verify_password():
         phone_number = data.get('phoneNumber')
         password = data.get('password')
         session_string = data.get('sessionString')
+        user_id = data.get('userId', '1')  # Default to 1 if not provided
         
         if not all([phone_number, password]):
             return jsonify({"error": "Missing required fields"}), 400
         
-        result = verify_2fa_password(phone_number, password, session_string)
+        result = verify_2fa_password(phone_number, password, session_string, user_id)
         return jsonify(result), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -282,7 +290,20 @@ def register_route():
         result = register_user(email, password)
         if 'error' in result:
              return jsonify(result), 400
-        return jsonify(result), 200
+        
+        # Create response and set cookies
+        response = make_response(jsonify(result))
+        user_id = result['user']['id']
+        
+        # Set auth_token cookie (httpOnly for security)
+        response.set_cookie('auth_token', result['token'], httponly=True, samesite='Lax', max_age=7*24*3600)
+        
+        # Set user_id cookie (readable from JavaScript)
+        response.set_cookie('user_id', str(user_id), samesite='Lax', max_age=7*24*3600)
+        
+        logger.info(f"[REGISTER] New user {email} (ID: {user_id}) registered successfully. Cookies set.")
+        
+        return response, 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -299,7 +320,20 @@ def login_route():
         result = login_user(email, password)
         if 'error' in result:
              return jsonify(result), 401
-        return jsonify(result), 200
+        
+        # Create response and set cookies
+        response = make_response(jsonify(result))
+        user_id = result['user']['id']
+        
+        # Set auth_token cookie (httpOnly for security)
+        response.set_cookie('auth_token', result['token'], httponly=True, samesite='Lax', max_age=7*24*3600)
+        
+        # Set user_id cookie (readable from JavaScript)
+        response.set_cookie('user_id', str(user_id), samesite='Lax', max_age=7*24*3600)
+        
+        logger.info(f"[LOGIN] User {email} (ID: {user_id}) logged in successfully. Cookies set.")
+        
+        return response, 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -379,6 +413,7 @@ def save_ai_config_route():
 @app.route('/api/accounts', methods=['POST'])
 def add_account_route():
     try:
+        from account_manager import add_account
         data = request.json
         user_id = data.get('userId')
         phone_number = data.get('phoneNumber')
@@ -924,6 +959,35 @@ def force_reset_context():
     conn.close()
     logger.info(f'force-reset-context DELETE: account={account_id} context={context} rows={rows_deleted}')
     return jsonify({'status': 'ok', 'rows_deleted': rows_deleted})
+
+
+@app.route('/api/chat/reset-sessions', methods=['POST'])
+def reset_chat_sessions():
+    """Admin: delete all chat_sessions and chat_messages for an account to clear corrupt state."""
+    data = request.json or {}
+    account_id = data.get('account_id')
+    secret = data.get('secret')
+    if secret != os.getenv('ADMIN_SECRET', 'ofcharmer-reset-2026'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    if not account_id:
+        return jsonify({'error': 'Missing account_id'}), 400
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('SELECT id FROM chat_sessions WHERE CAST(account_id AS TEXT) = CAST(? AS TEXT)', (account_id,))
+    session_ids = [r[0] for r in c.fetchall()]
+    if session_ids:
+        placeholders = ','.join('?' * len(session_ids))
+        c.execute(f'DELETE FROM chat_messages WHERE session_id IN ({placeholders})', session_ids)
+        msgs_deleted = c.rowcount
+        c.execute('DELETE FROM chat_sessions WHERE CAST(account_id AS TEXT) = CAST(? AS TEXT)', (account_id,))
+        sessions_deleted = c.rowcount
+    else:
+        msgs_deleted = 0
+        sessions_deleted = 0
+    conn.commit()
+    conn.close()
+    logger.info(f'reset-sessions: account={account_id} sessions={sessions_deleted} messages={msgs_deleted}')
+    return jsonify({'status': 'ok', 'sessions_deleted': sessions_deleted, 'messages_deleted': msgs_deleted})
 
 
 @app.route('/api/assets/dump-rows', methods=['GET'])

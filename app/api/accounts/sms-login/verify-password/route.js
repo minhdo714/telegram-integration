@@ -4,7 +4,7 @@ import { verify2FA } from '@/lib/railwayWorker';
 export async function POST(request) {
     try {
         const body = await request.json();
-        const { phoneNumber, password, sessionString } = body;
+        const { phoneNumber, password, sessionString, userId } = body;
 
         if (!phoneNumber || !password) {
             return NextResponse.json(
@@ -13,7 +13,7 @@ export async function POST(request) {
             );
         }
 
-        const result = await verify2FA(phoneNumber, password, sessionString);
+        const result = await verify2FA(phoneNumber, password, sessionString, userId);
 
         if (result.status === 'success') {
             return NextResponse.json({

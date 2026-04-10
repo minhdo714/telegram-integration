@@ -43,10 +43,17 @@ export default function QRCodeDisplay({ onSuccess, onError }) {
 
     const initiateQRLogin = async () => {
         try {
+            // Get user_id from cookie
+            const userId = document.cookie.split('; ').find(row => row.startsWith('user_id='))?.split('=')[1] || '1';
+            console.log('DEBUG QR: Initiating with user_id:', userId);
+            
             const response = await fetch('/api/accounts/qr-login/initiate', {
                 method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId })  // Send user_id
             });
             const data = await response.json();
+            console.log('DEBUG QR: Initiate response:', data);
 
             if (response.ok) {
                 setJobId(data.jobId);
@@ -54,9 +61,11 @@ export default function QRCodeDisplay({ onSuccess, onError }) {
                 setStatus('qr_ready');
                 setLoading(false);
             } else {
+                console.error('DEBUG QR: Initiate failed:', data);
                 onError(new Error(data.error || 'Failed to initiate login'));
             }
         } catch (error) {
+            console.error('DEBUG QR: Initiate error:', error);
             onError(error);
         }
     };

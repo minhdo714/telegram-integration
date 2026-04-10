@@ -221,7 +221,20 @@ OFCharmer: But for now.. just type START and meet your new 3 AM shift worker.`);
         checkStatus();
         fetchLeads();
         const interval = setInterval(checkStatus, 5000);
-        return () => clearInterval(interval);
+        // Also refresh accounts every 3 seconds during the first 10 seconds to catch newly added accounts
+        let refreshCount = 0;
+        const refreshInterval = setInterval(() => {
+            if (refreshCount < 4) { // 4 x 3 seconds = 12 seconds total
+                fetchAccounts();
+                refreshCount++;
+            } else {
+                clearInterval(refreshInterval);
+            }
+        }, 3000);
+        return () => {
+            clearInterval(interval);
+            clearInterval(refreshInterval);
+        };
     }, []);
 
     useEffect(() => {
@@ -243,17 +256,46 @@ OFCharmer: But for now.. just type START and meet your new 3 AM shift worker.`);
             const userId = document.cookie.split('; ').find(row => row.startsWith('user_id='))?.split('=')[1] || '1';
             const res = await fetch(`/api/accounts?userId=${userId}`);
             const data = await res.json();
-            if (data.accounts) {
+
+            if (data.accounts && Array.isArray(data.accounts) && data.accounts.length > 0) {
                 setAccounts(data.accounts);
 
-                // Auto-selection logic:
-                if (!selectedAccountId && data.accounts.length > 0) {
-                    // Default to the first account (most recent according to backend ordering)
+                // Auto-selection logic: default to first account
+                if (!selectedAccountId) {
                     setSelectedAccountId(data.accounts[0].id);
+                }
+            } else {
+                // No accounts found (or error) — ensure a default account exists
+                if (data.warning || data.error) {
+                    console.warn('Account fetch warning:', data.warning || data.error);
+                }
+                try {
+                    const defaultRes = await fetch('/api/accounts/ensure-default', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ userId }),
+                    });
+                    const defaultData = await defaultRes.json();
+                    if (defaultData.account) {
+                        setAccounts([defaultData.account]);
+                        if (!selectedAccountId) {
+                            setSelectedAccountId(defaultData.account.id);
+                        }
+                        if (defaultData.created) {
+                            addLog('✅ Default account created — you can now upload assets.');
+                        }
+                    } else {
+                        setAccounts([]);
+                        console.warn('Could not ensure default account:', defaultData.error);
+                    }
+                } catch (ensureErr) {
+                    console.error('ensure-default error:', ensureErr);
+                    setAccounts([]);
                 }
             }
         } catch (error) {
             console.error('Failed to fetch accounts', error);
+            addLog(`⚠️ Error loading accounts: ${error.message}`);
         }
     };
 
@@ -327,14 +369,41 @@ OFCharmer: But for now.. just type START and meet your new 3 AM shift worker.`);
     };
 
     const handleUpload = async (type, file) => {
-        if (!selectedAccountId) {
-            alert('Please select an account first!');
-            return;
+        // Auto-select first account if none selected
+        let accountToUse = selectedAccountId;
+        if (!accountToUse && accounts.length > 0) {
+            accountToUse = accounts[0].id;
+            setSelectedAccountId(accounts[0].id);
+            addLog(`Auto-selected account: ${accounts[0].telegram_username}`);
+        }
+        
+        if (!accountToUse) {
+            // Try to create a default account on the fly
+            try {
+                const userId = document.cookie.split('; ').find(row => row.startsWith('user_id='))?.split('=')[1] || '1';
+                const defaultRes = await fetch('/api/accounts/ensure-default', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId }),
+                });
+                const defaultData = await defaultRes.json();
+                if (defaultData.account) {
+                    accountToUse = defaultData.account.id;
+                    setSelectedAccountId(defaultData.account.id);
+                    setAccounts([defaultData.account]);
+                } else {
+                    addLog('❌ Could not create default account. Please try again.');
+                    return;
+                }
+            } catch (err) {
+                addLog('❌ No account available. Please connect a Telegram account.');
+                return;
+            }
         }
 
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('accountId', selectedAccountId);
+        formData.append('accountId', accountToUse);
         formData.append('type', type);
         formData.append('context', 'engagement');
 
@@ -387,7 +456,13 @@ OFCharmer: But for now.. just type START and meet your new 3 AM shift worker.`);
     };
 
     const deleteAsset = async (type, filename, assetPath) => {
-        if (!selectedAccountId) return;
+        let accountToUse = selectedAccountId;
+        if (!accountToUse && accounts.length > 0) {
+            accountToUse = accounts[0].id;
+            setSelectedAccountId(accounts[0].id);
+        }
+        
+        if (!accountToUse) return;
 
         if (!confirm('Are you sure you want to delete this asset? This cannot be undone.')) {
             return;
@@ -400,7 +475,7 @@ OFCharmer: But for now.. just type START and meet your new 3 AM shift worker.`);
                 method: 'DELETE',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    account_id: selectedAccountId,
+                    account_id: accountToUse,
                     type,
                     filename: cleanPath,
                     context: 'engagement'
@@ -1027,13 +1102,25 @@ OFCharmer: But for now.. just type START and meet your new 3 AM shift worker.`);
                                 <p style={{ opacity: 0.7, marginBottom: '24px' }}>
                                     Connect your first Telegram account to start configuring your AI personality and discovery settings.
                                 </p>
-                                <button
-                                    className="btn btn-primary"
-                                    onClick={() => setIsConnectionModalOpen(true)}
-                                    style={{ padding: '12px 32px', fontSize: '16px' }}
-                                >
-                                    🚀 Connect Your First Bot
-                                </button>
+                                <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                                    <button
+                                        className="btn btn-primary"
+                                        onClick={() => setIsConnectionModalOpen(true)}
+                                        style={{ padding: '12px 32px', fontSize: '16px' }}
+                                    >
+                                        🚀 Connect Your First Bot
+                                    </button>
+                                    <button
+                                        className="btn btn-secondary"
+                                        onClick={() => {
+                                            addLog('🔄 Refreshing account list...');
+                                            fetchAccounts();
+                                        }}
+                                        style={{ padding: '12px 32px', fontSize: '16px', opacity: 0.8 }}
+                                    >
+                                        🔄 Refresh List
+                                    </button>
+                                </div>
                             </div>
                         )}
 

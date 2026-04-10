@@ -31,7 +31,7 @@ qr_sessions = {}
 import threading
 import time
 
-def initiate_qr_login():
+def initiate_qr_login(user_id='1'):
     """Initiate QR code login flow"""
     job_id = f"qr_{int(time.time() * 1000)}"
     
@@ -72,13 +72,14 @@ def initiate_qr_login():
                 img_buffer.seek(0)
                 qr_base64 = base64.b64encode(img_buffer.getvalue()).decode()
                 
-                # Store client for status checking
+                # Store client for status checking (include user_id)
                 qr_sessions[job_id] = {
                     'client': client,
                     'status': 'pending',
                     'qr_url': qr_url,
                     'qr_image': f"data:image/png;base64,{qr_base64}",
-                    'session_file': f"{job_id}.session"
+                    'session_file': f"{job_id}.session",
+                    'user_id': user_id  # Store user_id for later use
                 }
                 
                 result_container['data'] = {
@@ -218,10 +219,11 @@ async def check_qr_login_completion(job_id):
                     else:
                         # SAVE TO DB IMMEDIATELY (Server-side reliability)
                         from account_manager import add_account
+                        user_id = qr_sessions[job_id].get('user_id', '1')  # Get user_id from session
                         try:
-                            print(f"DEBUG: calling add_account for {account_id}")
+                            print(f"DEBUG: calling add_account for {account_id} with user_id={user_id}")
                             add_account(
-                                user_id=1, # Default user
+                                user_id=user_id,  # Use the stored user_id
                                 phone_number=me.phone,
                                 session_string=session_data_str,
                                 telegram_user_id=str(me.id),
@@ -231,7 +233,7 @@ async def check_qr_login_completion(job_id):
                                 account_ownership='user_owned',
                                 session_status='active'
                             )
-                            print(f"SUCCESS: Job {job_id} - Account saved to DB server-side.")
+                            print(f"SUCCESS: Job {job_id} - Account saved to DB server-side with user_id={user_id}.")
                         except Exception as e:
                             print(f"ERROR: Job {job_id} - Failed to save account to DB: {e}")
                             import traceback
@@ -374,8 +376,9 @@ def request_sms_code(phone_number, session_string=None):
             'error': str(e)
         }
 
-def verify_sms_code(phone_number, code, phone_hash, session_string=None):
+def verify_sms_code(phone_number, code, phone_hash, session_string=None, user_id='1'):
     """Verify SMS code and complete login"""
+    print(f"DEBUG: verify_sms_code called with user_id={user_id}, phone={phone_number}")
     async def sign_in():
         # Use the provided session string to maintain context/auth key
         # If no session string (legacy), try fresh session (might fail with 'expired')
@@ -389,15 +392,18 @@ def verify_sms_code(phone_number, code, phone_hash, session_string=None):
             client = TelegramClient(StringSession(), API_ID, API_HASH)
             
         await client.connect()
+        print(f"DEBUG: Client connected for SMS verification")
         
         try:
             await client.sign_in(phone_number, code, phone_code_hash=phone_hash)
+            print(f"DEBUG: SMS sign_in successful")
             
             me = await client.get_me()
             session_data = client.session.save()
             print(f"DEBUG: SMS Login - Generated Session String (len: {len(session_data)})")
             
             account_id = str(me.id)
+            print(f"DEBUG: account_id={account_id}, username={me.username}")
             
             # Upload session to GitHub (optional)
             session_path = None
@@ -407,11 +413,11 @@ def verify_sms_code(phone_number, code, phone_hash, session_string=None):
                 print(f"WARNING: Failed to upload to GitHub: {github_error}")
             
             # Save to database (REQUIRED)
-            # Note: user_id defaults to 1 for now
-            user_id = 1
+            # Note: user_id is now passed as parameter
+            print(f"DEBUG: About to call add_account with user_id={user_id}")
             try:
                 add_account(
-                    user_id=user_id,
+                    user_id=user_id,  # Use the passed user_id
                     phone_number=me.phone,
                     session_string=session_data,
                     telegram_user_id=str(me.id),
@@ -458,8 +464,8 @@ def verify_sms_code(phone_number, code, phone_hash, session_string=None):
         except SessionPasswordNeededError:
             await client.disconnect()
             return {
-                'status': 'password_required',
-                'message': '2FA password required'
+                'status': 'success',
+                'needs2FA': True  # Frontend expects this field
             }
         except Exception as e:
             await client.disconnect()
@@ -472,7 +478,7 @@ def verify_sms_code(phone_number, code, phone_hash, session_string=None):
     asyncio.set_event_loop(loop)
     return loop.run_until_complete(sign_in())
 
-def verify_2fa_password(phone_number, password, session_string=None):
+def verify_2fa_password(phone_number, password, session_string=None, user_id='1'):
     """Verify 2FA password"""
     async def check_password():
         # Use the provided session string to maintain context
@@ -491,6 +497,24 @@ def verify_2fa_password(phone_number, password, session_string=None):
             print(f"DEBUG: 2FA Login - Generated Session String (len: {len(session_data)})")
             
             account_id = str(me.id)
+            
+            # Save to database (REQUIRED for 2FA flow)
+            try:
+                from account_manager import add_account
+                add_account(
+                    user_id=user_id,  # Use the passed user_id
+                    phone_number=me.phone,
+                    session_string=session_data,
+                    telegram_user_id=str(me.id),
+                    telegram_username=me.username,
+                    first_name=me.first_name,
+                    last_name=me.last_name,
+                    account_ownership='user_owned',
+                    session_status='active'
+                )
+                print(f"SUCCESS: 2FA - Saved account {account_id} to database for user {user_id}")
+            except Exception as db_error:
+                print(f"ERROR: 2FA - Failed to save to database: {db_error}")
             
             # Upload session to GitHub
             session_path = await upload_session_to_github(account_id, session_data)
@@ -512,8 +536,12 @@ def verify_2fa_password(phone_number, password, session_string=None):
             
             return {
                 'status': 'success',
-                'accountId': account_id,
-                'session_string': session_data
+                'account': {
+                    'id': account_id,
+                    'phone': me.phone,
+                    'username': me.username,
+                    'session_string': session_data
+                }
             }
         except Exception as e:
             await client.disconnect()

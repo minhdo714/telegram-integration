@@ -5,7 +5,7 @@ import { WORKER_URL } from '@/lib/worker-url';
 export async function POST(request) {
     try {
         const body = await request.json();
-        const { phoneNumber, sessionString } = body;
+        const { phoneNumber, sessionString, userId } = body;
 
         if (!phoneNumber) {
             return NextResponse.json(
@@ -14,7 +14,7 @@ export async function POST(request) {
             );
         }
 
-        const result = await initiateSMSLogin(phoneNumber, sessionString);
+        const result = await initiateSMSLogin(phoneNumber, sessionString, userId);
         return NextResponse.json(result);
 
     } catch (error) {

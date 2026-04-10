@@ -3,15 +3,36 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Navigation() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const router = useRouter();
+
+    const checkAuthStatus = () => {
+        // Check for user_id cookie instead of auth_token (auth_token is httpOnly and hidden from JS)
+        const hasUserId = document.cookie.includes('user_id=');
+        console.log('[Navigation] Auth status check - Has user_id:', hasUserId, 'Cookies:', document.cookie.substring(0, 100));
+        setIsLoggedIn(hasUserId);
+    };
 
     useEffect(() => {
-        // Simple client-side check for auth token cookie
-        const hasAuthToken = document.cookie.includes('auth_token');
-        setIsLoggedIn(hasAuthToken);
+        // Check immediately
+        checkAuthStatus();
+
+        // Re-check more aggressively on any state change
+        const checkInterval = setInterval(checkAuthStatus, 500);
+
+        // Also check on focus/visibility
+        window.addEventListener('focus', checkAuthStatus);
+        document.addEventListener('visibilitychange', checkAuthStatus);
+
+        return () => {
+            clearInterval(checkInterval);
+            window.removeEventListener('focus', checkAuthStatus);
+            document.removeEventListener('visibilitychange', checkAuthStatus);
+        };
     }, []);
 
     const scrollToSection = (sectionId) => {
@@ -78,9 +99,23 @@ export default function Navigation() {
                     <Link href="/outreach-config" className="nav-link" style={{ color: '#a855f7', fontWeight: 'bold', textDecoration: 'none', display: 'inline-block' }}>Outreach Config</Link>
 
                     {isLoggedIn ? (
-                        <button onClick={() => scrollToSection('accounts')} className="btn btn-primary" style={{ padding: '0.5rem 1.5rem' }}>
-                            My Account
-                        </button>
+                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                            <Link href="/config" className="btn btn-primary" style={{ padding: '0.5rem 1.5rem', textDecoration: 'none' }}>
+                                Dashboard
+                            </Link>
+                            <button 
+                                onClick={() => {
+                                    document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                                    document.cookie = 'user_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                                    setIsLoggedIn(false);
+                                    router.push('/');
+                                }}
+                                className="nav-link" 
+                                style={{ fontWeight: '500', color: '#ff6b6b' }}
+                            >
+                                Log Out
+                            </button>
+                        </div>
                     ) : (
                         <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
                             <Link href="/login?mode=login" className="nav-link" style={{ fontWeight: '500' }}>
@@ -132,9 +167,24 @@ export default function Navigation() {
                     <Link href="/outreach-config" className="nav-link" style={{ textAlign: 'center', color: '#a855f7', fontWeight: 'bold', textDecoration: 'none', display: 'block' }}>Outreach Config</Link>
 
                     {isLoggedIn ? (
-                        <button onClick={() => scrollToSection('accounts')} className="btn btn-primary">
-                            My Account
-                        </button>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            <Link href="/config" className="btn btn-primary" style={{ textAlign: 'center', textDecoration: 'none', display: 'block' }}>
+                                Dashboard
+                            </Link>
+                            <button 
+                                onClick={() => {
+                                    document.cookie = 'auth_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                                    document.cookie = 'user_id=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+                                    setIsLoggedIn(false);
+                                    setIsMobileMenuOpen(false);
+                                    router.push('/');
+                                }}
+                                className="nav-link" 
+                                style={{ fontWeight: '500', color: '#ff6b6b', textAlign: 'center' }}
+                            >
+                                Log Out
+                            </button>
+                        </div>
                     ) : (
                         <>
                             <Link href="/login?mode=login" className="nav-link" style={{ textAlign: 'center' }}>Log In</Link>

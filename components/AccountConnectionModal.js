@@ -55,20 +55,26 @@ export default function AccountConnectionModal({ isOpen, onClose, onSuccess }) {
     };
 
     const handleQRSuccess = async (accountData) => {
+        console.log('DEBUG: QR Success with accountData:', accountData);
         toast.success('Account connected!');
         onSuccess(accountData);
     };
 
     const handleSendCode = async (phone) => {
+        const userId = document.cookie.split('; ').find(row => row.startsWith('user_id='))?.split('=')[1] || '1';
+        console.log('DEBUG: Sending SMS code for user_id:', userId);
+        
         setLoading(true);
         try {
+            // Get user_id from cookie
             const response = await fetch('/api/accounts/sms-login/request-code', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phoneNumber: phone }),
+                body: JSON.stringify({ phoneNumber: phone, userId }),  // Send user_id
             });
 
             const data = await response.json();
+            console.log('DEBUG: SMS Code Request Response:', data);
 
             if (response.ok) {
                 console.log('DEBUG: SMS Code Request Success:', data);
@@ -79,9 +85,11 @@ export default function AccountConnectionModal({ isOpen, onClose, onSuccess }) {
                 setSmsStep('code');
                 toast.success('Code sent to your phone!');
             } else {
+                console.error('DEBUG: SMS Code Request Failed:', data);
                 toast.error(data.error || 'Failed to send code');
             }
         } catch (error) {
+            console.error('DEBUG: SMS Send Code Error:', error);
             toast.error('Network error. Please try again.');
         } finally {
             setLoading(false);
@@ -100,18 +108,28 @@ export default function AccountConnectionModal({ isOpen, onClose, onSuccess }) {
 
         setLoading(true);
         try {
+            // Get user_id from cookie
+            const userId = document.cookie.split('; ').find(row => row.startsWith('user_id='))?.split('=')[1] || '1';
+            console.log('DEBUG: All cookies:', document.cookie);
+            console.log('DEBUG: Extracted userId from cookie:', userId);
+            
+            const body = {
+                phoneNumber,
+                code,
+                phoneHash,
+                sessionString,
+                userId  // Send user_id
+            };
+            console.log('DEBUG: Sending verify-code with body:', body);
+            
             const response = await fetch('/api/accounts/sms-login/verify-code', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    phoneNumber,
-                    code,
-                    phoneHash,
-                    sessionString
-                }),
+                body: JSON.stringify(body),
             });
 
             const data = await response.json();
+            console.log('DEBUG: verify-code response:', data);
 
             if (response.ok) {
                 if (data.needs2FA) {
@@ -125,6 +143,7 @@ export default function AccountConnectionModal({ isOpen, onClose, onSuccess }) {
                 toast.error(data.error || 'Invalid code');
             }
         } catch (error) {
+            console.error('DEBUG: verify-code error:', error);
             toast.error('Network error. Please try again.');
         } finally {
             setLoading(false);
@@ -134,13 +153,17 @@ export default function AccountConnectionModal({ isOpen, onClose, onSuccess }) {
     const handleVerify2FA = async (password) => {
         setLoading(true);
         try {
+            // Get user_id from cookie
+            const userId = document.cookie.split('; ').find(row => row.startsWith('user_id='))?.split('=')[1] || '1';
+            
             const response = await fetch('/api/accounts/sms-login/verify-password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     phoneNumber,
                     password,
-                    sessionString
+                    sessionString,
+                    userId  // Send user_id
                 }),
             });
 

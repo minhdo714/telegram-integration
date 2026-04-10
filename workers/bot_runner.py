@@ -126,7 +126,7 @@ async def process_incoming_message(client, account_id, sender_id, message_text, 
             )
             
             if not response or not isinstance(response, dict):
-                response = {'text': "hey sorry, my brain glitched (INVALID_RESP)... can you say that again? 😅"}
+                response = {'text': "hey! give me one sec 😊"}
             
             if not response.get('text') and not response.get('image_path') and not response.get('async_task'):
                  response['text'] = "hey! sorry i was spacing out... what's up? 😊"

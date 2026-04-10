@@ -101,6 +101,7 @@ class TextGenClient:
     def generate_reply(self, history: List[Dict[str, str]], system_prompt: str, model: str = None) -> str:
         """
         Generate a reply based on conversation history with automatic fallback.
+        Includes retry logic with exponential backoff.
         """
         if self.mode == 'mock':
             # Simple mock logic based on last message
@@ -119,23 +120,49 @@ class TextGenClient:
             client, default_model = self.clients[provider_name]
             target_model = model if model else default_model
 
-            try:
-                messages = [{"role": "system", "content": system_prompt}] + history
-                response = client.chat.completions.create(
-                    model=target_model,
-                    messages=messages,
-                    max_tokens=120,
-                    temperature=0.9
-                )
-                return response.choices[0].message.content.strip()
-            except Exception as e:
-                last_error = e
-                logger.error(f"TextGen Error ({provider_name}): {e}")
-                # Log specific 429 errors for debugging
-                if "429" in str(e) or "exhausted" in str(e).lower():
-                    logger.warning(f"Provider {provider_name} exhausted. Trying fallback...")
-                continue # Try next provider
+            # Retry logic: try up to 2 times per provider
+            for attempt in range(2):
+                try:
+                    messages = [{"role": "system", "content": system_prompt}] + history
+                    # Add timeout: 45 seconds to give APIs enough time
+                    response = client.chat.completions.create(
+                        model=target_model,
+                        messages=messages,
+                        max_tokens=120,
+                        temperature=0.9,
+                        timeout=45
+                    )
+                    return response.choices[0].message.content.strip()
+                except Exception as e:
+                    last_error = e
+                    error_str = str(e).lower()
+                    
+                    # Log specific error types
+                    if "429" in str(e) or "exhausted" in error_str:
+                        logger.warning(f"Provider {provider_name} rate limited. Trying next...")
+                        break  # Skip to next provider if rate limited
+                    elif "timeout" in error_str or "deadline" in error_str:
+                        if attempt < 1:
+                            logger.info(f"Provider {provider_name} timeout. Retrying... (attempt {attempt + 1}/2)")
+                            continue  # Retry same provider
+                        else:
+                            logger.warning(f"Provider {provider_name} timeout after retries. Trying next...")
+                            break  # Skip to next provider
+                    else:
+                        logger.error(f"TextGen Error ({provider_name}, attempt {attempt + 1}): {e}")
+                        if attempt < 1:
+                            continue  # Retry same provider
+                        break  # Skip to next provider
 
         # If we reached here, ALL providers failed
         logger.critical(f"All AI providers failed. Last Error: {last_error}")
-        return "sorry, my brain is a bit slow today... what did you say again?"
+        # Fallback to a generic engaging response instead of apologizing
+        fallback_responses = [
+            "You got my attention 👀 Tell me more...",
+            "Hmm, interesting... go on 😊",
+            "I'm all ears! What's up? 💭",
+            "You're intriguing me... continue 😏",
+            "Got me curious here... what is it? 🤔"
+        ]
+        import random
+        return random.choice(fallback_responses)

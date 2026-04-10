@@ -4,7 +4,7 @@ import { verifySMSCode } from '@/lib/railwayWorker';
 export async function POST(request) {
     try {
         const body = await request.json();
-        const { phoneNumber, code, phoneHash, sessionString } = body;
+        const { phoneNumber, code, phoneHash, sessionString, userId } = body;
 
         console.log('API: Verifying code request received');
         if (!phoneNumber || !code || !phoneHash) {
@@ -14,7 +14,7 @@ export async function POST(request) {
             );
         }
 
-        const result = await verifySMSCode(phoneNumber, code, phoneHash, sessionString);
+        const result = await verifySMSCode(phoneNumber, code, phoneHash, sessionString, userId);
 
         // Normalize response for frontend
         if (result.status === 'success') {
