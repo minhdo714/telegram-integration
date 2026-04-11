@@ -948,12 +948,12 @@ function OutreachConfigContent() {
 
                                 {/* 3. Prospect Database */}
                                 <div className={assetStyles.discoveryPanel}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                                        <h3 style={{ margin: 0 }}>Prospect Database ({scrapedLeads.length})</h3>
-                                        <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
-                                            <button className="btn" style={{ fontSize: '12px' }} onClick={fetchLeads}>Refresh</button>
-                                            <button className="btn" style={{ fontSize: '12px' }} onClick={toggleSelectAll}>Select All</button>
-                                            <button className="btn btn-primary" style={{ fontSize: '12px' }} onClick={() => {
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                                        <h3 style={{ margin: 0, flexShrink: 0 }}>Prospect Database ({scrapedLeads.length})</h3>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginLeft: 'auto' }}>
+                                            <button className="btn" style={{ fontSize: '12px', whiteSpace: 'nowrap' }} onClick={fetchLeads}>Refresh</button>
+                                            <button className="btn" style={{ fontSize: '12px', whiteSpace: 'nowrap' }} onClick={toggleSelectAll}>Select All</button>
+                                            <button className="btn btn-primary" style={{ fontSize: '12px', whiteSpace: 'nowrap' }} onClick={() => {
                                                 const selected = scrapedLeads.filter(l => selectedLeadIds.includes(l.id) && l.username);
                                                 if (selected.length === 0) return alert('Select prospects with usernames');
                                                 setUsernames(selected.map(l => `@${l.username}`).join('\n'));

@@ -363,9 +363,10 @@
 .leadTableContainer {
     background: rgba(0, 0, 0, 0.2);
     border-radius: 12px;
-    overflow-y: auto;
+    overflow: auto;
     max-height: 520px;
     border: 1px solid rgba(255, 255, 255, 0.05);
+    -webkit-overflow-scrolling: touch;
 }
 
 .leadTable {
