@@ -356,7 +356,45 @@ class AIHandler:
             return {'text': "hey! can you say that again? something glitched on my end 😅"}
 
         current_state = session['state']
-        
+
+        # ── GLOBAL IMAGE REQUEST INTERCEPT ────────────────────────────────────
+        # Fires in ANY state so explicit image requests are never routed to the
+        # LLM (which has content filters and refuses them).
+        _GLOBAL_IMAGE_KW = [
+            'pic', 'picture', 'photo', 'send', 'show', 'see', 'nude', 'naked',
+            'topless', 'sexy', 'hot', 'breast', 'boobs', 'tits', 'ass', 'butt',
+            'pussy', 'dick', 'cock', 'nipples', 'lingerie', 'bikini', 'bra',
+            'panties', 'bent over', 'spread', 'undress', 'strip', 'flash',
+            'yourself', 'your body', 'ur body', 'explicit', 'uncensored',
+            'naughty', 'horny', 'fuck', 'sex', 'full nude', 'completely naked',
+        ]
+        _is_global_img_req = any(kw in msg_lower for kw in _GLOBAL_IMAGE_KW)
+
+        if _is_global_img_req:
+            upload_base = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+            face_path = None
+            if assets and assets.get('model_face_ref'):
+                face_path = self._resolve_image_path(assets['model_face_ref'], upload_base)
+
+            teaser_text = self._pick_image_teaser()
+            descriptive_prompt = self._build_image_prompt(message_text)
+
+            self._update_session(session['id'], current_state, message_text)
+            self._log_message(session['id'], 'user', message_text)
+            self._log_message(session['id'], 'assistant', teaser_text)
+            return {
+                'text': teaser_text,
+                'delay': self._calculate_delay(teaser_text),
+                'new_state': current_state,
+                'async_task': {
+                    'type': 'image_gen',
+                    'prompt': teaser_text,
+                    'kie_prompt': descriptive_prompt,
+                    'face_path': face_path,
+                }
+            }
+        # ── END GLOBAL IMAGE INTERCEPT ─────────────────────────────────────────
+
         # Outreach Part 2 Trigger (s[ta]*rt, star[r]*, etc.)
         start_pattern = re.compile(r'\b(s[ta]*rt+|sta+r+|sa+rt+|st[aeiou]*rt)\b', re.IGNORECASE)
         if is_outreach and start_pattern.search(msg_lower) and current_state != STATE_OUTREACH_PART2:
