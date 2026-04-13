@@ -888,6 +888,23 @@ class AIHandler:
         if not path_or_url:
             return None
 
+        # Base64 data URL — decode to a temp file
+        if str(path_or_url).startswith('data:'):
+            try:
+                import base64 as _b64
+                import tempfile
+                header, b64data = str(path_or_url).split(',', 1)
+                mime = header.split(';')[0].replace('data:', '') or 'image/jpeg'
+                ext = '.' + mime.split('/')[-1] if '/' in mime else '.jpg'
+                tmp = tempfile.NamedTemporaryFile(delete=False, suffix=ext)
+                tmp.write(_b64.b64decode(b64data))
+                tmp.close()
+                logger.info(f'Decoded base64 image to temp file: {tmp.name}')
+                return tmp.name
+            except Exception as e:
+                logger.error(f'Failed to decode base64 image: {e}')
+                return None
+
         # New proxy URL format: /api/assets/image/assets/{accountId}/{context}/{type}/{filename}
         if str(path_or_url).startswith('/api/assets/image/'):
             # Strip prefix to get the path in the repo (e.g. assets/9/...)
@@ -1097,7 +1114,8 @@ class AIHandler:
         def is_persistent(p):
             return p and (str(p).startswith('/api/assets/image/') or
                           str(p).startswith('https://') or
-                          str(p).startswith('http://'))
+                          str(p).startswith('http://') or
+                          str(p).startswith('data:'))
 
         if is_persistent(config_path):
             return config_path
@@ -1116,7 +1134,8 @@ class AIHandler:
         def is_persistent(p):
             return p and (str(p).startswith('/api/assets/image/') or
                           str(p).startswith('https://') or
-                          str(p).startswith('http://'))
+                          str(p).startswith('http://') or
+                          str(p).startswith('data:'))
 
         def has_persistent(json_str):
             if not json_str:

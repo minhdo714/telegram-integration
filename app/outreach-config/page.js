@@ -284,6 +284,7 @@ function OutreachConfigContent() {
                 // getProxyUrl: if the stored path is already a full URL (GitHub CDN), use it directly.
                 const getProxyUrl = (path) => {
                     if (!path) return null;
+                    if (path.startsWith('data:')) return path;
                     if (path.startsWith('http://') || path.startsWith('https://')) return path;
                     if (path.startsWith('/api/assets/image/') || path.startsWith('/api/uploads/')) return path;
                     return `/api/uploads/${path}`;
@@ -327,10 +328,14 @@ function OutreachConfigContent() {
             const res = await fetch('/api/assets/upload', { method: 'POST', body: formData });
             const data = await res.json();
             if (data.status === 'success') {
-                // data.path is either a full GitHub URL or a local relative path
-                const proxyUrl = (data.path && (data.path.startsWith('http://') || data.path.startsWith('https://'))
-                    ? data.path
-                    : `/api/uploads/${data.path}`);
+                // data.path is a GitHub URL, base64 data URL, or local relative path
+                const proxyUrl = (data.path && (
+                    data.path.startsWith('data:') ||
+                    data.path.startsWith('http://') ||
+                    data.path.startsWith('https://') ||
+                    data.path.startsWith('/api/')
+                        ? data.path
+                        : `/api/uploads/${data.path}`));
                 if (type === 'face') setFaceRef(proxyUrl);
                 if (type === 'room') setRoomRef(proxyUrl);
                 if (type === 'opener') setOpeners(prev => [...prev, proxyUrl]);

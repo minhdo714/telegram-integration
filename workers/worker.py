@@ -1250,13 +1250,24 @@ def upload_file():
             # Try to upload to GitHub for persistent storage across Railway restarts
             github_url = _upload_image_to_github(account_id, context, asset_type, filename, save_path)
 
-            # If GitHub upload succeeded, store the full URL; otherwise fall back to local relative path
             if github_url:
                 relative_path = github_url
                 logger.info(f"Using GitHub URL as stored path: {relative_path}")
             else:
-                relative_path = f"{account_id}/{context}/{asset_type}/{filename}"
-                logger.warning(f"GitHub upload failed — storing local relative path: {relative_path}")
+                # GitHub not configured or failed — encode image as base64 data URL so it
+                # survives Railway redeploys (stored directly in the DB, no filesystem needed).
+                try:
+                    import base64 as _b64
+                    import mimetypes as _mt
+                    mime, _ = _mt.guess_type(save_path)
+                    mime = mime or 'image/jpeg'
+                    with open(save_path, 'rb') as _f:
+                        b64_data = _b64.b64encode(_f.read()).decode('utf-8')
+                    relative_path = f"data:{mime};base64,{b64_data}"
+                    logger.info(f"GitHub unavailable — stored image as base64 data URL ({len(relative_path)} chars)")
+                except Exception as b64_err:
+                    relative_path = f"{account_id}/{context}/{asset_type}/{filename}"
+                    logger.warning(f"base64 fallback failed ({b64_err}) — storing local relative path: {relative_path}")
 
             logger.info(f"Updating DB with path: {relative_path}")
             
