@@ -120,20 +120,21 @@ const DEFAULT_PART1_OPENERS = [
     "Hey {{name}}, saw you posting in the {{group}} group. How's customer flow been for your OnlyFans & live chat lately?"
 ].join('\n');
 
-const DEFAULT_PART2_CHATFLOW = `OFcharmer: Nice, so honestly that's exactly why I reached out — I built a tool called OFCharmer specifically for creators like you.
-Quick rundown of what it does:
-✅ Finds potential customers on Telegram and messages them for you automatically — no manual hunting
-✅ Chats with them in your voice (learns from one sample convo you give it — sounds like you, not a bot)
-✅ Generates custom AI pics of you on demand — fan asks for something specific, it creates and sends it instantly from just one reference photo
-All running 24/7 while you focus on your content or just live your life.
-Model: that actually sounds useful
-OFcharmer: It saves a ton of time and brings in consistent customers without you having to grind DMs all day.
-The best part — it's completely free right now for early users. Setup takes about 2 minutes.
-If you want to try it, sooner is better while it's still free:
-👉 https://ofcharmer.vercel.app/
-Just upload one photo + paste a short sample from your DMs and you're good to go.
-Model: ok I'll check it out
-OFcharmer: Perfect 👊 Let me know if you get stuck or have questions — happy to help you get it set up.`;
+const DEFAULT_PART2_CHATFLOW = `OFCharmer: Hey, saw you in those late-night Telegram groups again... guys just chilling, venting about shitty days or feeling invisible. Kinda hits different when you're on the other side of it too, doesn't it? 😔
+Jane: Omg yes. It's the same thing every night. I'm Jane, content ready, always down for live sex chats or PPV, but actually getting those quiet lurkers to pay? It's fucking exhausting. I sit there for hours scrolling, trying to figure out who might actually buy, and most just ghost or flake the second I bring up anything real. Leaves me drained and honestly? Feeling like I'm begging sometimes.
+OFCharmer: Ugh I felt that in my bones. That exact burnout is why I built OFCharmer. It basically does the boring part for you—watches those groups, spots the guys who seem open (like the ones posting "another lonely night" or "work sucked today"), and slides into their DMs with short, real messages that don't scream "SELL." Stuff like:
+OFCharmer: "Hey saw your comment... rough day? I'm unwinding too rn, same boat."
+Jane: Wait that's actually... not cringe? Most outreach feels so thirsty.
+OFCharmer: Right?? They reply way more 'cause it feels like another tired human in the group reaching out, not some bot or desperate spam. Then it keeps the chat flowing naturally—quick back and forth, no long paragraphs—and here's the part that changed everything for me: you upload your actual pics once as base, and when a guy says "can I see you in a nurse fit" or whatever weird kink they're into, the AI generates that exact image of YOU in seconds and sends it. Like... no editing, no stopping what you're doing, no "hold on let me make something." Just instant custom content that looks 100% like you. Guys go absolutely feral for it.
+Jane: Wait so I don't have to pause my whole night every time someone asks for something specific?
+OFCharmer: Exactly. It handles all that while you sleep, shower, film, scroll TikTok, whatever. No more hunting or chasing ghosts. More paid chats, more sales, way less of that soul-crushing feeling that you're working 24/7 for nothing. I actually get to enjoy making content again instead of dreading the hustle.
+OFCharmer: Setup is stupid easy—connect your Telegram in like 10 mins, upload your real pics as base, pick your vibe (raw, sweet, bratty, whatever fits you), add your triggers, and it just... runs. While you exist.
+OFCharmer: It's 11:50 PM here in the LA area, I'm finally in bed with the lights low, brain turning off. You in Garden Grove still up scrolling too?
+OFCharmer: Real quick—what's actually draining you most right now? The hours of scrolling that lead nowhere, or guys acting interested then vanishing right when it's time to pay?
+Jane: Probably the vanishing tbh. Gets my hopes up then nothing.
+OFCharmer: Yeah that's the worst. Makes you feel crazy. This fixes that because it keeps them hooked with those instant custom pics—once they see themselves getting exactly what they asked for right away, they're way more likely to actually follow through on a live session or PPV.
+OFCharmer: So... want to see how it actually feels? No card needed, no commitment. Just type START and it'll boot up the actual AI bot for you right here. You can play with it, see how it talks, how it sends pics—and if you wanna go deeper and customize everything, just head to https://ofcharmer.vercel.app/ and set your exact vibe. Takes two minutes.
+OFCharmer: But for now.. just type START and meet your new 3 AM shift worker.`;
 
 const DEFAULT_PART3_CHATFLOW = `Jane: Hey! It's Jane from The Night Owls group. Hope you don't mind me DMing you. I just had to say that your comment in there was spot on, you seem like you have a great sense of humor. It's refreshing in such a chaotic group! 😄
 John: Oh hey Jane! No worries at all. Haha, thanks, I try. The group can be a bit much sometimes. Welcome, by the way.
