@@ -121,21 +121,43 @@ function AIConfigContent() {
     const [blastListMode, setBlastListMode] = useState('text'); // 'text' | 'list'
     const [selectedBlastItems, setSelectedBlastItems] = useState(new Set());
     const [outreachMessage, setOutreachMessage] = useState(DEFAULT_OUTREACH_MESSAGES);
-    const [exampleChatflow, setExampleChatflow] = useState(`OFCharmer: Hey, saw you in those late-night Telegram groups again... guys just chilling, venting about shitty days or feeling invisible. Kinda hits different when you're on the other side of it too, doesn't it? 😔
-Jane: Omg yes. It's the same thing every night. I'm Jane, content ready, always down for live sex chats or PPV, but actually getting those quiet lurkers to pay? It's fucking exhausting. I sit there for hours scrolling, trying to figure out who might actually buy, and most just ghost or flake the second I bring up anything real. Leaves me drained and honestly? Feeling like I'm begging sometimes.
-OFCharmer: Ugh I felt that in my bones. That exact burnout is why I built OFCharmer. It basically does the boring part for you—watches those groups, spots the guys who seem open (like the ones posting "another lonely night" or "work sucked today"), and slides into their DMs with short, real messages that don't scream "SELL." Stuff like:
-OFCharmer: "Hey saw your comment... rough day? I'm unwinding too rn, same boat."
-Jane: Wait that's actually... not cringe? Most outreach feels so thirsty.
-OFCharmer: Right?? They reply way more 'cause it feels like another tired human in the group reaching out, not some bot or desperate spam. Then it keeps the chat flowing naturally—quick back and forth, no long paragraphs—and here's the part that changed everything for me: you upload your actual pics once as base, and when a guy says "can I see you in a nurse fit" or whatever weird kink they're into, the AI generates that exact image of YOU in seconds and sends it. Like... no editing, no stopping what you're doing, no "hold on let me make something." Just instant custom content that looks 100% like you. Guys go absolutely feral for it.
-Jane: Wait so I don't have to pause my whole night every time someone asks for something specific?
-OFCharmer: Exactly. It handles all that while you sleep, shower, film, scroll TikTok, whatever. No more hunting or chasing ghosts. More paid chats, more sales, way less of that soul-crushing feeling that you're working 24/7 for nothing. I actually get to enjoy making content again instead of dreading the hustle.
-OFCharmer: Setup is stupid easy—connect your Telegram in like 10 mins, upload your real pics as base, pick your vibe (raw, sweet, bratty, whatever fits you), add your triggers, and it just... runs. While you exist.
-OFCharmer: It's 11:50 PM here in the LA area, I'm finally in bed with the lights low, brain turning off. You in Garden Grove still up scrolling too?
-OFCharmer: Real quick—what's actually draining you most right now? The hours of scrolling that lead nowhere, or guys acting interested then vanishing right when it's time to pay?
-Jane: Probably the vanishing tbh. Gets my hopes up then nothing.
-OFCharmer: Yeah that's the worst. Makes you feel crazy. This fixes that because it keeps them hooked with those instant custom pics—once they see themselves getting exactly what they asked for right away, they're way more likely to actually follow through on a live session or PPV.
-OFCharmer: So... want to see how it actually feels? No card needed, no commitment. Just type START and it'll boot up the actual AI bot for you right here. You can play with it, see how it talks, how it sends pics—and if you wanna go deeper and customize everything, just head to https://ofcharmer.vercel.app/ and set your exact vibe. Takes two minutes.
-OFCharmer: But for now.. just type START and meet your new 3 AM shift worker.`);
+    const [exampleChatflow, setExampleChatflow] = useState(`OFcharmer: Hey, saw you active in the group earlier 😊
+Model: hey what's up
+OFcharmer: lol not much, just been helping some creators with this AI thing I built
+your posts in the group caught my eye, you seem pretty active
+what made you join that group anyway?
+Model: just looking for promo and new fans mostly
+OFcharmer: same reason a lot of us are here haha
+I've been grinding DMs for years and it was killing me — replying at 3am, running out of fresh pics, fans ghosting if I didn't reply fast…
+So I built this AI called OFCharmer that basically clones how I chat and handles everything.
+Model: oh interesting
+OFcharmer: yeah it's still in beta but it's working really well.
+It does three main things:
+
+Learns your exact chatting style from just one sample convo you give it — sounds 100% like you, no bot vibes.
+Generates custom pics on demand from only one photo of you. Fan asks for something specific? It creates it instantly.
+Finds prospects in your niche on Telegram and auto-messages them to bring in new subs 24/7.
+
+I've been using it and it's honestly saved me so much time and boosted my earnings while I sleep.
+Would you wanna see a quick live demo? I can generate a custom pic right now to show you how it works.
+Model: sure, why not
+OFcharmer: cool 😊
+Tell me a typical request your fans usually ask for — like "ass in yoga pants" or "red lingerie tease" or whatever your niche is. I'll generate one live using just one reference photo style.
+Model: hmm usually they ask for booty pics in yoga pants from behind
+OFcharmer: got it.
+Hold on… uploading a quick reference… generating now…
+There — that was made from just one sample photo. The AI keeps your body/face consistent but changes the pose/outfit exactly how the fan wants.
+Fans think you're sending it live, so they stay engaged and buy more PPV or customs.
+The best part is once you train it on one of your real chat logs, it replies exactly like you would — same slang, same energy.
+Model: damn that looks pretty good
+OFcharmer: right? Most creators I've shown it to get hooked after seeing the image part.
+It also has the prospecting feature — it can scan groups and auto-send personalized messages like what I did with you.
+Wanna try the beta yourself? It's completely free right now for early testers (no card needed). Setup takes like 2 minutes — just upload one good photo + one short chat sample from your DMs.
+Link: https://ofcharmer.vercel.app/
+If you want, I can walk you through the first test or answer any questions. No pressure at all.
+Model: alright I'll check it out
+OFcharmer: nice! Once you're in, start with the image generator tab — upload one pic and try a wild request. Then train the voice with a short convo.
+Let me know how it goes or if you get stuck — happy to help 😊`);
     const [sendTeasePic, setSendTeasePic] = useState(true);
     const [teasePreview, setTeasePreview] = useState(false);
     const [teaseThumbVersion, setTeaseThumbVersion] = useState(0);
