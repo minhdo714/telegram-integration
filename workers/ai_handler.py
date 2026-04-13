@@ -255,26 +255,25 @@ class AIHandler:
             return dynamic_prompt + BREVITY_RULE
 
         if is_outreach and example_flow:
-            # Part 2 — Promotion Logic.
-            # The script is a two-party dialogue. The LLM plays the FIRST speaker in the script
-            # (e.g. 'OFCharmer', 'Jane', or whatever name appears first on the left side).
-            # Read the conversation history, identify which lines have already been sent,
-            # and deliver ONLY the next unsent line from your side of the script.
+            # Strip non-script header lines before injecting
+            clean_lines = [l.strip() for l in example_flow.strip().split('\n') if ':' in l.strip()]
+            clean_flow = '\n'.join(clean_lines)
+            first_speaker = clean_lines[0].split(':')[0].strip() if clean_lines else 'OFCharmer'
+
             dynamic_prompt = (
                 f"{base}\n\n"
                 "=== OUTREACH MODE: FOLLOW SCRIPT EXACTLY ===\n"
-                "You are playing the FIRST ROLE (the one on the left) in the script below.\n"
-                "1. Review the conversation history carefully.\n"
-                "2. Identify the VERY NEXT line from your role in the script that hasn't been sent yet.\n"
-                "3. Output ONLY that one line. Do NOT combine lines. Do NOT rewrite them.\n"
-                "4. Ensure your reply is 1 short sentence. If the script line is long, shorten it to its core vibe.\n"
-                "5. Never repeat a line you already sent in this session.\n"
-                "6. If all your lines are already sent, continue naturally in the same tone.\n\n"
-                "--- SCRIPT START ---\n"
-                f"{example_flow}\n"
-                "--- SCRIPT END ---"
+                f"You are '{first_speaker}'. Deliver your lines from the script below.\n"
+                "1. Find the VERY NEXT unsent line for your role.\n"
+                "2. Output it EXACTLY as written — do NOT shorten or rewrite.\n"
+                "3. One line per reply. Never repeat a line already sent.\n"
+                "4. If all lines sent, naturally prompt them to type START.\n\n"
+                "--- SCRIPT ---\n"
+                f"{clean_flow}\n"
+                "--- END SCRIPT ---\n\n"
+                "Output the full line as written. Do NOT truncate."
             )
-            return dynamic_prompt + BREVITY_RULE
+            return dynamic_prompt  # No BREVITY_RULE — pitch lines are intentionally long
         elif example_flow:
             dynamic_prompt = (
                 f"{base}\n\n"
@@ -298,6 +297,56 @@ class AIHandler:
         # Append engagement nudge only for non-outreach bots
         dynamic_prompt += "\n\nEnd with ONE short, casual question to keep them engaged."
         return dynamic_prompt + BREVITY_RULE
+    def _get_outreach_pitch_prompt(self, assets: dict) -> str:
+        """
+        Build the system prompt for the OFCharmer pitch phase (after warm-up).
+        Delivers the example_chatflow script line-by-line WITHOUT the brevity rule
+        so multi-sentence pitch lines are not truncated.
+        """
+        raw_script = (
+            assets.get('example_chatflow')
+            or DEFAULT_PART2_CHATFLOW
+        )
+
+        # Strip any non-script header lines (e.g. "Here is an example of a chatflow")
+        script_lines = []
+        for line in raw_script.strip().split('\n'):
+            stripped = line.strip()
+            # Keep only lines that look like script dialogue (contain ': ')
+            if ':' in stripped:
+                script_lines.append(stripped)
+        cleaned_script = '\n'.join(script_lines)
+
+        # Detect the first-speaker name from the script
+        first_speaker = 'OFCharmer'
+        if script_lines:
+            first_line = script_lines[0]
+            if ':' in first_line:
+                first_speaker = first_line.split(':')[0].strip()
+
+        base = assets.get('system_prompt') or (
+            f"You are {first_speaker}, the founder of OFCharmer — an AI outreach and content tool "
+            "for OnlyFans creators. You are texting a potential user directly on Telegram."
+        )
+
+        return (
+            f"{base}\n\n"
+            "=== PITCH MODE: FOLLOW SCRIPT EXACTLY ===\n"
+            f"You are '{first_speaker}'. Follow the script below line by line.\n\n"
+            "RULES:\n"
+            f"1. Find the NEXT unsent line for '{first_speaker}:' in the script.\n"
+            "2. Output that line EXACTLY as written — do NOT shorten, summarize, or rewrite it.\n"
+            "3. Send only ONE of your lines per reply — stop at the end of that line.\n"
+            "4. Never repeat a line already in the conversation history.\n"
+            "5. If the prospect goes off-topic, give a brief natural response then return to script.\n"
+            "6. When all your lines are delivered, naturally remind them to type START to try the demo.\n"
+            "7. Never reveal you are an AI or a bot.\n\n"
+            "--- SCRIPT ---\n"
+            f"{cleaned_script}\n"
+            "--- END SCRIPT ---\n\n"
+            "IMPORTANT: Output the full line as written. Do NOT truncate."
+        )
+
     # Telegram service/system message patterns to ignore completely
     TELEGRAM_SYSTEM_PREFIXES = [
         'spam', 'blocked', 'spam blocked', 'spam. ', 'spam.\n',
@@ -610,10 +659,17 @@ class AIHandler:
                     self._update_session_img_sent(session['id'])
 
             if current_state == STATE_OUTREACH_PART1:
-                # PART1 = warm-up small talk. Use casual prompt, NOT the pitch script.
-                outreach_prompt = self._get_dynamic_prompt(assets, session['id'], part1_warmup=True)
-                history = self._get_conversation_history(session['id'], limit=10)
+                msg_count = self._get_message_count(session['id'])
+                history = self._get_conversation_history(session['id'], limit=12)
                 history.append({'role': 'user', 'content': message_text})
+
+                if msg_count <= 3:
+                    # First 2 exchanges: warm up casually before pitching
+                    outreach_prompt = self._get_dynamic_prompt(assets, session['id'], part1_warmup=True)
+                else:
+                    # After warmup: follow the OFCharmer pitch script exactly
+                    outreach_prompt = self._get_outreach_pitch_prompt(assets)
+
                 reply_text = self.text_gen.generate_reply(history, outreach_prompt, model=assets.get('model_name'))
                 reply_text = self._guard_reply(reply_text, history, assets)
                 response['text'] = reply_text
