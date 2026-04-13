@@ -1416,10 +1416,12 @@ OFCharmer: But for now.. just type START and meet your new 3 AM shift worker.`);
 
                                 {/* 3. Prospect Database */}
                                 <div className={assetStyles.discoveryPanel}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                                        <h3 style={{ margin: 0 }}>Prospect Database ({scrapedLeads.length})</h3>
-                                        <InfoTooltip text="A centralized view of all discovered leads, including their source group and outreach status. Benefit: Keep track of every relationship and ensure no lead is missed." />
-                                        <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
+                                    <div style={{ marginBottom: '16px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                                            <h3 style={{ margin: 0 }}>Prospect Database ({scrapedLeads.length})</h3>
+                                            <InfoTooltip text="A centralized view of all discovered leads, including their source group and outreach status. Benefit: Keep track of every relationship and ensure no lead is missed." />
+                                        </div>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                                             <button className="btn" style={{ fontSize: '12px' }} onClick={fetchLeads}>Refresh</button>
                                             <button
                                                 className="btn"
