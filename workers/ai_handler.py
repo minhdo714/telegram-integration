@@ -255,25 +255,31 @@ class AIHandler:
             return dynamic_prompt + BREVITY_RULE
 
         if is_outreach and example_flow:
-            # Strip non-script header lines before injecting
+            # Extract only the AI sender's lines as talking points (strip character names)
             clean_lines = [l.strip() for l in example_flow.strip().split('\n') if ':' in l.strip()]
-            clean_flow = '\n'.join(clean_lines)
-            first_speaker = clean_lines[0].split(':')[0].strip() if clean_lines else 'OFCharmer'
+            ai_sender = clean_lines[0].split(':')[0].strip() if clean_lines else 'OFCharmer'
+            ai_guide = '\n'.join(
+                f"- {l.partition(':')[2].strip()}"
+                for l in clean_lines
+                if l.split(':')[0].strip() == ai_sender
+            )
 
             dynamic_prompt = (
                 f"{base}\n\n"
-                "=== OUTREACH MODE: FOLLOW SCRIPT EXACTLY ===\n"
-                f"You are '{first_speaker}'. Deliver your lines from the script below.\n"
-                "1. Find the VERY NEXT unsent line for your role.\n"
-                "2. Output it EXACTLY as written — do NOT shorten or rewrite.\n"
-                "3. One line per reply. Never repeat a line already sent.\n"
-                "4. If all lines sent, naturally prompt them to type START.\n\n"
-                "--- SCRIPT ---\n"
-                f"{clean_flow}\n"
-                "--- END SCRIPT ---\n\n"
-                "Output the full line as written. Do NOT truncate."
+                "=== OUTREACH CONVERSATION GUIDE ===\n"
+                "Use the talking points below as a guide for tone and content. "
+                "Do NOT use any character names from the example. Speak as yourself in first person.\n\n"
+                "RULES:\n"
+                "1. Cover these points one at a time, in order.\n"
+                "2. Casual, real tone — not salesy.\n"
+                "3. One point per reply. React to what they say before moving on.\n"
+                "4. Never reveal you are an AI or bot.\n"
+                "5. End by asking them to type START to try the live demo.\n\n"
+                "--- TALKING POINTS ---\n"
+                f"{ai_guide}\n"
+                "--- END ---"
             )
-            return dynamic_prompt  # No BREVITY_RULE — pitch lines are intentionally long
+            return dynamic_prompt  # No BREVITY_RULE — pitch content needs natural length
         elif example_flow:
             dynamic_prompt = (
                 f"{base}\n\n"
@@ -300,51 +306,53 @@ class AIHandler:
     def _get_outreach_pitch_prompt(self, assets: dict) -> str:
         """
         Build the system prompt for the OFCharmer pitch phase (after warm-up).
-        Delivers the example_chatflow script line-by-line WITHOUT the brevity rule
-        so multi-sentence pitch lines are not truncated.
+        The example_chatflow is used as a GUIDE for tone, flow and content —
+        the bot should never output the character names from the script.
         """
         raw_script = (
             assets.get('example_chatflow')
             or DEFAULT_PART2_CHATFLOW
         )
 
-        # Strip any non-script header lines (e.g. "Here is an example of a chatflow")
-        script_lines = []
-        for line in raw_script.strip().split('\n'):
-            stripped = line.strip()
-            # Keep only lines that look like script dialogue (contain ': ')
-            if ':' in stripped:
-                script_lines.append(stripped)
-        cleaned_script = '\n'.join(script_lines)
-
-        # Detect the first-speaker name from the script
-        first_speaker = 'OFCharmer'
+        # Strip non-dialogue lines (headers etc.) and extract only the AI-sender lines
+        # so we know what topics/beats to cover, without leaking character names.
+        # Identify the AI sender: first name that appears on the left side of ': '
+        script_lines = [l.strip() for l in raw_script.strip().split('\n') if ':' in l.strip()]
+        ai_sender = 'OFCharmer'
         if script_lines:
-            first_line = script_lines[0]
-            if ':' in first_line:
-                first_speaker = first_line.split(':')[0].strip()
+            ai_sender = script_lines[0].split(':')[0].strip()
+
+        # Collect only the AI sender's lines as the guide (strip the "Name: " prefix)
+        ai_lines = []
+        for line in script_lines:
+            speaker, _, text = line.partition(':')
+            if speaker.strip() == ai_sender:
+                ai_lines.append(text.strip())
+
+        guide_text = '\n'.join(f'- {l}' for l in ai_lines)
 
         base = assets.get('system_prompt') or (
-            f"You are {first_speaker}, the founder of OFCharmer — an AI outreach and content tool "
-            "for OnlyFans creators. You are texting a potential user directly on Telegram."
+            "You are an outreach agent for OFCharmer — an AI-powered outreach and content tool "
+            "for OnlyFans creators. You are having a direct Telegram conversation with a prospect."
         )
 
         return (
             f"{base}\n\n"
-            "=== PITCH MODE: FOLLOW SCRIPT EXACTLY ===\n"
-            f"You are '{first_speaker}'. Follow the script below line by line.\n\n"
+            "=== PITCH CONVERSATION GUIDE ===\n"
+            "The example below shows the TOPICS and TONE you should cover, in order.\n"
+            "You are the AI sender. Do NOT use any names from the example (not 'OFCharmer', "
+            "not 'Aria', not any character name). Speak in first person naturally.\n\n"
             "RULES:\n"
-            f"1. Find the NEXT unsent line for '{first_speaker}:' in the script.\n"
-            "2. Output that line EXACTLY as written — do NOT shorten, summarize, or rewrite it.\n"
-            "3. Send only ONE of your lines per reply — stop at the end of that line.\n"
-            "4. Never repeat a line already in the conversation history.\n"
-            "5. If the prospect goes off-topic, give a brief natural response then return to script.\n"
-            "6. When all your lines are delivered, naturally remind them to type START to try the demo.\n"
-            "7. Never reveal you are an AI or a bot.\n\n"
-            "--- SCRIPT ---\n"
-            f"{cleaned_script}\n"
-            "--- END SCRIPT ---\n\n"
-            "IMPORTANT: Output the full line as written. Do NOT truncate."
+            "1. Work through these talking points one at a time, in order, across the conversation.\n"
+            "2. Match the tone: casual, real, slightly tired but passionate — NOT salesy.\n"
+            "3. Each reply = 1 talking point. Short paragraphs, not walls of text.\n"
+            "4. React naturally to what the prospect says before moving to the next point.\n"
+            "5. Never use character names from the example. Speak as yourself.\n"
+            "6. Never say you are an AI or a bot.\n"
+            "7. End the pitch by telling them to type START to try the live demo.\n\n"
+            "--- TALKING POINTS (in order) ---\n"
+            f"{guide_text}\n"
+            "--- END TALKING POINTS ---"
         )
 
     # Telegram service/system message patterns to ignore completely
