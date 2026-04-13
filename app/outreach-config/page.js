@@ -120,44 +120,20 @@ const DEFAULT_PART1_OPENERS = [
     "Hey {{name}}, saw you posting in the {{group}} group. How's customer flow been for your OnlyFans & live chat lately?"
 ].join('\n');
 
-const DEFAULT_PART2_CHATFLOW = `OFcharmer: Hey, saw you active in the group earlier 😊
-Model: hey what's up
-OFcharmer: lol not much, just been helping some creators with this AI thing I built
-your posts in the group caught my eye, you seem pretty active
-what made you join that group anyway?
-Model: just looking for promo and new fans mostly
-OFcharmer: same reason a lot of us are here haha
-I've been grinding DMs for years and it was killing me — replying at 3am, running out of fresh pics, fans ghosting if I didn't reply fast…
-So I built this AI called OFCharmer that basically clones how I chat and handles everything for OnlyFans & live chat creators.
-Model: oh interesting
-OFcharmer: yeah it's still in beta but it's working really well.
-It does three main things:
-
-Learns your exact chatting style from just one sample convo you give it — sounds 100% like you, no bot vibes.
-Generates custom pics on demand from only one photo of you. Fan asks for something specific? It creates it instantly.
-Finds prospects in your niche on Telegram and auto-messages them to bring in new subs 24/7.
-
-I've been using it and it's honestly saved me so much time and boosted my earnings while I sleep.
-Would you wanna see a quick live demo? I can generate a custom pic right now to show you how it works.
-Model: sure, why not
-OFcharmer: cool 😊
-Tell me a typical request your fans usually ask for — like "ass in yoga pants" or "red lingerie tease" or whatever your niche is. I'll generate one live using just one reference photo style.
-Model: hmm usually they ask for booty pics in yoga pants from behind
-OFcharmer: got it.
-Hold on… uploading a quick reference… generating now…
-[Send AI-generated image: realistic booty in yoga pants from behind]
-There — that was made from just one sample photo. The AI keeps your body/face consistent but changes the pose/outfit exactly how the fan wants.
-Fans think you're sending it live, so they stay engaged and buy more PPV or customs.
-The best part is once you train it on one of your real chat logs, it replies exactly like you would — same slang, same energy.
-Model: damn that looks pretty good
-OFcharmer: right? Most creators I've shown it to get hooked after seeing the image part.
-It also has the prospecting feature — it can scan groups and auto-send personalized messages like what I did with you.
-Wanna try the beta yourself? It's completely free right now for early testers (no card needed). Setup takes like 2 minutes — just upload one good photo + one short chat sample from your DMs.
-Link: https://ofcharmer.vercel.app/
-If you want, I can walk you through the first test or answer any questions. No pressure at all.
-Model: alright I'll check it out
-OFcharmer: nice! Once you're in, start with the image generator tab — upload one pic and try a wild request. Then train the voice with a short convo.
-Let me know how it goes or if you get stuck — happy to help 😊`;
+const DEFAULT_PART2_CHATFLOW = `OFcharmer: Nice, so honestly that's exactly why I reached out — I built a tool called OFCharmer specifically for creators like you.
+Quick rundown of what it does:
+✅ Finds potential customers on Telegram and messages them for you automatically — no manual hunting
+✅ Chats with them in your voice (learns from one sample convo you give it — sounds like you, not a bot)
+✅ Generates custom AI pics of you on demand — fan asks for something specific, it creates and sends it instantly from just one reference photo
+All running 24/7 while you focus on your content or just live your life.
+Model: that actually sounds useful
+OFcharmer: It saves a ton of time and brings in consistent customers without you having to grind DMs all day.
+The best part — it's completely free right now for early users. Setup takes about 2 minutes.
+If you want to try it, sooner is better while it's still free:
+👉 https://ofcharmer.vercel.app/
+Just upload one photo + paste a short sample from your DMs and you're good to go.
+Model: ok I'll check it out
+OFcharmer: Perfect 👊 Let me know if you get stuck or have questions — happy to help you get it set up.`;
 
 const DEFAULT_PART3_CHATFLOW = `Jane: Hey! It's Jane from The Night Owls group. Hope you don't mind me DMing you. I just had to say that your comment in there was spot on, you seem like you have a great sense of humor. It's refreshing in such a chaotic group! 😄
 John: Oh hey Jane! No worries at all. Haha, thanks, I try. The group can be a bit much sometimes. Welcome, by the way.
