@@ -128,7 +128,7 @@ what made you join that group anyway?
 Model: just looking for promo and new fans mostly
 OFcharmer: same reason a lot of us are here haha
 I've been grinding DMs for years and it was killing me — replying at 3am, running out of fresh pics, fans ghosting if I didn't reply fast…
-So I built this AI called OFCharmer that basically clones how I chat and handles everything.
+So I built this AI called OFCharmer that basically clones how I chat and handles everything for OnlyFans & live chat creators.
 Model: oh interesting
 OFcharmer: yeah it's still in beta but it's working really well.
 It does three main things:
@@ -145,6 +145,7 @@ Tell me a typical request your fans usually ask for — like "ass in yoga pants"
 Model: hmm usually they ask for booty pics in yoga pants from behind
 OFcharmer: got it.
 Hold on… uploading a quick reference… generating now…
+[Send AI-generated image: realistic booty in yoga pants from behind]
 There — that was made from just one sample photo. The AI keeps your body/face consistent but changes the pose/outfit exactly how the fan wants.
 Fans think you're sending it live, so they stay engaged and buy more PPV or customs.
 The best part is once you train it on one of your real chat logs, it replies exactly like you would — same slang, same energy.
