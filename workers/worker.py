@@ -78,7 +78,7 @@ from flask import send_from_directory
 from migrate_presets import migrate
 from PIL import Image, ImageDraw, ImageFont
 import requests
-from kie_client import KieClient
+from atlas_client import AtlasClient as KieClient  # AtlasCloud replaces Kie.ai
 import threading
 
 
@@ -1554,30 +1554,44 @@ def process_tease_pic(account_id, recipient, lead_name, group_name):
     try:
         logger.info(f"Starting tease pic generation for {recipient} (Lead: {lead_name})")
         
-        # 1. Get Model Face Ref
+        # 1. Get Model Face Ref — check outreach config first, fall back to model_assets
         conn = sqlite3.connect(DB_PATH, timeout=20, check_same_thread=False)
         conn.execute('PRAGMA journal_mode=WAL')
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
-        c.execute('SELECT model_face_ref FROM model_assets WHERE account_id = ?', (account_id,))
+
+        face_ref = None
+        # Try active outreach config
+        c.execute('''
+            SELECT oc.model_face_ref
+            FROM telegram_accounts ta
+            LEFT JOIN outreach_configs oc ON ta.active_outreach_config_id = oc.id
+            WHERE ta.id = ?
+        ''', (account_id,))
         row = c.fetchone()
+        if row and row['model_face_ref']:
+            face_ref = row['model_face_ref']
+
+        # Fall back to model_assets
+        if not face_ref:
+            c.execute('SELECT model_face_ref FROM model_assets WHERE account_id = ?', (account_id,))
+            row = c.fetchone()
+            if row:
+                face_ref = row['model_face_ref']
+
         conn.close()
-        
-        face_ref = row['model_face_ref'] if row and row['model_face_ref'] else None
-        
+
         if not face_ref:
             logger.error(f"Tease Pic Failed: No model face reference for account {account_id}")
             return
 
-        # Resolve full path of face ref
-        # face_ref is relative like "9/face/timestamp.jpg"
-        face_ref_path = os.path.join(app.config['UPLOAD_FOLDER'], str(account_id), 'face', os.path.basename(face_ref))
-        if not os.path.exists(face_ref_path):
-             # Try absolute path logic or relative to worker
-             face_ref_path = os.path.join(os.path.dirname(__file__), face_ref)
-        
-        if not os.path.exists(face_ref_path):
-            logger.error(f"Tease Pic Failed: Face ref file not found at {face_ref_path}")
+        # Resolve full path of face ref — handles /api/assets/image/ proxy paths (GitHub-stored),
+        # plain https:// URLs, and legacy local relative paths.
+        upload_base = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+        face_ref_path = ai_handler._resolve_image_path(face_ref, upload_base)
+
+        if not face_ref_path or not os.path.exists(face_ref_path):
+            logger.error(f"Tease Pic Failed: Face ref file not found for {face_ref!r}")
             return
 
         # 2. Generate Image via Kie

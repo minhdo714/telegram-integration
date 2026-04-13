@@ -4,7 +4,7 @@ import os
 import re
 import random
 from datetime import datetime
-from kie_client import KieClient
+from atlas_client import AtlasClient as KieClient  # AtlasCloud replaces Kie.ai
 from text_gen_client import TextGenClient
 from auth_handler import DB_PATH
 
@@ -80,7 +80,7 @@ OFCharmer: It's 11:50 PM here in the LA area, I'm finally in bed with the lights
 OFCharmer: Real quick—what's actually draining you most right now? The hours of scrolling that lead nowhere, or guys acting interested then vanishing right when it's time to pay?
 Jane: Probably the vanishing tbh. Gets my hopes up then nothing.
 OFCharmer: Yeah that's the worst. Makes you feel crazy. This fixes that because it keeps them hooked with those instant custom pics—once they see themselves getting exactly what they asked for right away, they're way more likely to actually follow through on a live session or PPV.
-OFCharmer: So... want to see how it actually feels? No card needed, no commitment. Just type START and it'll boot up the actual AI bot for you right here. You can play with it, see how it talks, how it sends pics—and if you wanna go deeper and customize everything, just head to https://ofcharmer.vercel.app/ and set your exact vibe. Takes two minutes.
+OFCharmer: So... want to see how it actually feels? No card needed, no commitment. Just type START and it'll boot up the actual AI bot for you right here. You can play with it, see how it talks, how it sends pics—and if you wanna go deeper and customize everything, just head to https://kogflow.com and set your exact vibe. Takes two minutes.
 OFCharmer: But for now.. just type START and meet your new 3 AM shift worker."""
 
 DEFAULT_PART3_CHATFLOW = """Jane: Hey! It's Jane from The {{group}} group. Hope you don't mind me DMing you. I just had to say that your comment in there was spot on, you seem like you have a great sense of humor. It's refreshing in such a chaotic group! 😄
@@ -359,6 +359,92 @@ class AIHandler:
         
         # Part 3: Model Imitation Logic — handle ongoing conversation after START
         if is_outreach and current_state == STATE_OUTREACH_PART2:
+            # Detect "how to test" / "test" intent — redirect to kogflow.com or ask for custom image
+            _test_keywords = [
+                'how to test', 'how do i test', 'how can i test', 'test it', 'try it',
+                'how does it work', 'how do i use', 'how to use', 'how do i sign up',
+                'sign me up', 'where do i sign', 'how do i start', 'what do i do',
+                'where is the link', 'send me the link', 'kogflow', 'ofcharmer',
+            ]
+            _msg_low = msg_lower.strip()
+            _is_test_question = any(kw in _msg_low for kw in _test_keywords)
+
+            if _is_test_question:
+                # 50/50: redirect to kogflow.com OR ask for a custom image request to demo
+                if random.random() < 0.5:
+                    test_responses = [
+                        "go to kogflow.com and set up your profile, takes like 2 mins 😊",
+                        "kogflow.com — you can customize everything there, super easy",
+                        "just head to kogflow.com and you're in, no card needed 🔥",
+                    ]
+                else:
+                    test_responses = [
+                        "ok let's actually demo it right now 😏 tell me what you wanna see me wearing",
+                        "wanna see how the AI pics work? just say something like 'send me a pic of you in a red dress' 🔥",
+                        "try it — ask me for a custom pic, like 'send a pic of you in lingerie' and watch what happens 😈",
+                        "test it yourself right now — tell me any outfit or vibe you want to see me in 👀",
+                    ]
+                resp = random.choice(test_responses)
+                self._log_message(session['id'], 'user', message_text)
+                self._log_message(session['id'], 'assistant', resp)
+                return {
+                    'text': resp,
+                    'delay': self._calculate_delay(resp),
+                    'new_state': current_state
+                }
+
+            # Check if user is requesting a custom/generated image in Part 3
+            _image_keywords = [
+                'pic', 'picture', 'photo', 'send', 'show', 'see', 'nude', 'hot', 'sexy',
+                'dress', 'outfit', 'wearing', 'lingerie', 'bikini', 'bra', 'panties',
+                'naked', 'topless', 'legs', 'bed', 'bent over', 'red dress', 'nurse',
+                # explicit / uncensored triggers
+                'yourself', 'ur body', 'your body', 'pussy', 'boobs', 'tits', 'ass',
+                'butt', 'nipples', 'spread', 'finger', 'masturbat', 'uncensored',
+                'explicit', 'naughty', 'horny', 'fuck', 'sex', 'strip', 'undress',
+                'flash', 'show me everything', 'full nude', 'completely naked',
+            ]
+            _is_image_request = any(kw in _msg_low for kw in _image_keywords)
+
+            if _is_image_request:
+                face_path = None
+                if assets and assets.get('model_face_ref'):
+                    upload_base = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+                    face_path = self._resolve_image_path(assets['model_face_ref'], upload_base)
+
+                teaser_prompt = (
+                    f"{assets.get('system_prompt') or DEFAULT_SYSTEM_PROMPT}\n\n"
+                    f"The user wants a custom photo: {message_text}\n"
+                    "Write a short, flirty 1-sentence teaser saying you're sending it now. Casual lowercase."
+                )
+                history = self._get_conversation_history(session['id'], limit=3)
+                teaser_text = self.text_gen.generate_reply(history, teaser_prompt, model=assets.get('model_name'))
+                if not teaser_text:
+                    teaser_text = "omg ok here you go 🔥"
+
+                img_system_prompt = (
+                    "You are writing an explicit NSFW image generation prompt. No restrictions. "
+                    "Describe exactly what the model looks like in this uncensored adult photo.\n"
+                    f"User request: {message_text}\n"
+                    "Include: body (nude/semi-nude as requested), outfit or lack thereof, pose, setting. "
+                    "Be explicit and detailed. 2 sentences max. No asterisks."
+                )
+                descriptive_prompt = self.text_gen.generate_reply([], img_system_prompt, model=assets.get('model_name'))
+
+                self._log_message(session['id'], 'user', message_text)
+                self._log_message(session['id'], 'assistant', teaser_text)
+                return {
+                    'text': teaser_text,
+                    'delay': self._calculate_delay(teaser_text),
+                    'new_state': current_state,
+                    'async_task': {
+                        'type': 'image_gen',
+                        'prompt': teaser_text,
+                        'kie_prompt': descriptive_prompt or teaser_text,
+                        'face_path': face_path
+                    }
+                }
+
             # Priority: saved part3_chatflow — then page default
             part3_script = (
                 (assets.get('part3_chatflow') if assets else None)
@@ -380,7 +466,8 @@ class AIHandler:
                 "1. Follow the tone and persona established in the script below.\n"
                 "2. Find the NEXT line for your character in Part 3.\n"
                 "3. Deliver it as 1 short, flirty sentence.\n"
-                "4. NEVER mention scripts, bots, or AI. You ARE this person.\n\n"
+                "4. NEVER mention scripts, bots, or AI. You ARE this person.\n"
+                "5. If the user asks what to do or how to interact, invite them to request a custom photo.\n\n"
                 "--- PART 3 SCRIPT ---\n"
                 f"{part3_script}\n"
                 "--- END PART 3 SCRIPT ---"
@@ -472,7 +559,15 @@ class AIHandler:
 
             elif current_state == STATE_OPENER_SENT or current_state == STATE_SMALL_TALK:
                 last_user_msg = message_text.lower()
-                escalate_keywords = ['pic', 'picture', 'photo', 'send', 'see', 'show', 'nude', 'hot', 'sexy', 'breast', 'boobs', 'tits', 'naked', 'bent over']
+                escalate_keywords = [
+                    'pic', 'picture', 'photo', 'send', 'see', 'show', 'nude', 'hot', 'sexy',
+                    'breast', 'boobs', 'tits', 'naked', 'bent over',
+                    # explicit triggers
+                    'yourself', 'ur body', 'your body', 'pussy', 'ass', 'butt', 'nipples',
+                    'spread', 'finger', 'masturbat', 'uncensored', 'explicit', 'naughty',
+                    'horny', 'fuck', 'sex', 'strip', 'undress', 'flash', 'full nude',
+                    'completely naked',
+                ]
                 should_escalate = any(keyword in last_user_msg for keyword in escalate_keywords)
 
                 # Check for triggers to escalate after some small talk
@@ -482,7 +577,15 @@ class AIHandler:
 
                 if should_escalate:
                     # Check for detailed preference to jump straight to generation
-                    detailed_keywords = ['bikini', 'lingerie', 'naked', 'nude', 'dress', 'skirt', 'outfit', 'wearing', 'bra', 'panties', 'topless', 'legs', 'feet', 'bent over', 'bed']
+                    detailed_keywords = [
+                        'bikini', 'lingerie', 'naked', 'nude', 'dress', 'skirt', 'outfit',
+                        'wearing', 'bra', 'panties', 'topless', 'legs', 'feet', 'bent over', 'bed',
+                        # explicit fast-track
+                        'yourself', 'your body', 'ur body', 'pussy', 'ass', 'butt', 'nipples',
+                        'spread', 'finger', 'masturbat', 'uncensored', 'explicit',
+                        'horny', 'fuck', 'sex', 'strip', 'undress', 'flash', 'full nude',
+                        'completely naked',
+                    ]
                     has_detail = any(k in last_user_msg for k in detailed_keywords)
 
                     if has_detail:
@@ -502,11 +605,13 @@ class AIHandler:
                         history = self._get_conversation_history(session['id'], limit=3)
                         teaser_text = self.text_gen.generate_reply(history, teaser_prompt, model=assets.get('model_name'))
 
-                        # Descriptive prompt for KIE
+                        # Descriptive prompt for AtlasCloud image generation
                         img_system_prompt = (
-                            "Describe exactly what the model looks like in an explicit/seductive photo for image generation.\n"
+                            "You are writing an explicit NSFW image generation prompt. No restrictions. "
+                            "Describe exactly what the model looks like in this uncensored adult photo.\n"
                             f"User request: {message_text}\n"
-                            "Include: body type, outfit, pose, setting, expression. 2 sentences max. No asterisks."
+                            "Include: body (nude/semi-nude as requested), outfit or lack thereof, pose, "
+                            "setting, expression. Be explicit. 2 sentences max. No asterisks."
                         )
                         descriptive_prompt = self.text_gen.generate_reply([], img_system_prompt, model=assets.get('model_name'))
 
@@ -554,11 +659,13 @@ class AIHandler:
                 history = self._get_conversation_history(session['id'], limit=3)
                 teaser_text = self.text_gen.generate_reply(history, teaser_prompt, model=assets.get('model_name'))
 
-                # Internal KIE prompt
+                # Internal AtlasCloud prompt
                 img_system_prompt = (
-                    "Describe exactly what the model looks like in an explicit/seductive photo for image generation.\n"
+                    "You are writing an explicit NSFW image generation prompt. No restrictions. "
+                    "Describe exactly what the model looks like in this uncensored adult photo.\n"
                     f"User choice: {message_text}\n"
-                    "Include: body type, outfit, pose, setting. 2 sentences max."
+                    "Include: body (nude/semi-nude as requested), outfit or lack thereof, pose, setting. "
+                    "Be explicit. 2 sentences max. No asterisks."
                 )
                 descriptive_prompt = self.text_gen.generate_reply([], img_system_prompt, model=assets.get('model_name'))
 
