@@ -1303,10 +1303,41 @@ def upload_file():
 
             conn.commit()
             logger.info(f"Assets updated for type {asset_type} in context {context}")
+
+            # If this is an outreach context upload, also sync the path into the
+            # active outreach_configs record so it persists even after Railway redeploys.
+            if context == 'outreach':
+                try:
+                    c.execute('SELECT active_outreach_config_id FROM telegram_accounts WHERE id = ?', (account_id,))
+                    oc_row = c.fetchone()
+                    if oc_row and oc_row[0]:
+                        oc_id = oc_row[0]
+                        if asset_type == 'face':
+                            c.execute('UPDATE outreach_configs SET model_face_ref = ? WHERE id = ?', (relative_path, oc_id))
+                        elif asset_type == 'room':
+                            c.execute('UPDATE outreach_configs SET room_bg_ref = ? WHERE id = ?', (relative_path, oc_id))
+                        elif asset_type == 'opener':
+                            # Merge into the existing list in outreach_configs too
+                            c.execute('SELECT opener_images FROM outreach_configs WHERE id = ?', (oc_id,))
+                            oc_openers_row = c.fetchone()
+                            oc_openers = []
+                            if oc_openers_row and oc_openers_row[0]:
+                                try:
+                                    oc_openers = json.loads(oc_openers_row[0])
+                                except Exception:
+                                    pass
+                            if relative_path not in oc_openers:
+                                oc_openers.append(relative_path)
+                            c.execute('UPDATE outreach_configs SET opener_images = ? WHERE id = ?', (json.dumps(oc_openers), oc_id))
+                        conn.commit()
+                        logger.info(f"Also synced {asset_type} path to outreach_configs id={oc_id}")
+                except Exception as sync_err:
+                    logger.warning(f"Could not sync to outreach_configs: {sync_err}")
+
             conn.close()
 
             return jsonify({
-                "status": "success", 
+                "status": "success",
                 "path": relative_path,
                 "filename": filename
             }), 200

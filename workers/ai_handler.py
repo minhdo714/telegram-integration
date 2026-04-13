@@ -1088,15 +1088,65 @@ class AIHandler:
         except:
             return 0
 
+    def _best_image_path(self, config_path, base_path):
+        """
+        Prefer a persistent (GitHub/URL) path over a local relative path.
+        Railway's filesystem is ephemeral — local paths vanish on redeploy.
+        Priority: GitHub URL > local path that exists > other local path > None.
+        """
+        def is_persistent(p):
+            return p and (str(p).startswith('/api/assets/image/') or
+                          str(p).startswith('https://') or
+                          str(p).startswith('http://'))
+
+        if is_persistent(config_path):
+            return config_path
+        if is_persistent(base_path):
+            return base_path
+        # Both are local — prefer config_path if it exists on disk
+        upload_base = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+        if config_path and os.path.exists(os.path.join(upload_base, config_path)):
+            return config_path
+        if base_path and os.path.exists(os.path.join(upload_base, base_path)):
+            return base_path
+        return config_path or base_path or None
+
+    def _best_opener_images(self, config_openers_json, base_openers_json):
+        """Pick the opener_images JSON list that contains persistent (GitHub) URLs."""
+        def is_persistent(p):
+            return p and (str(p).startswith('/api/assets/image/') or
+                          str(p).startswith('https://') or
+                          str(p).startswith('http://'))
+
+        def has_persistent(json_str):
+            if not json_str:
+                return False
+            try:
+                items = json.loads(json_str) if isinstance(json_str, str) else json_str
+                return any(is_persistent(i) for i in items)
+            except Exception:
+                return False
+
+        if has_persistent(config_openers_json):
+            return config_openers_json
+        if has_persistent(base_openers_json):
+            return base_openers_json
+        return config_openers_json or base_openers_json
+
     def _get_account_assets(self, account_id, bot_type='engagement'):
         try:
             conn = sqlite3.connect(DB_PATH)
             conn.row_factory = sqlite3.Row
             c = conn.cursor()
-            
-            # 1. Fetch model_assets (Base)
-            c.execute('SELECT * FROM model_assets WHERE account_id = ?', (account_id,))
+
+            # 1. Fetch model_assets (Base) — prefer context-matched row
+            context_key = 'outreach' if bot_type == 'outreach' else 'engagement'
+            c.execute('SELECT * FROM model_assets WHERE account_id = ? AND context = ?', (account_id, context_key))
             base_assets_row = c.fetchone()
+            if not base_assets_row:
+                # Fall back to any row for this account
+                c.execute('SELECT * FROM model_assets WHERE account_id = ?', (account_id,))
+                base_assets_row = c.fetchone()
             base_assets = dict(base_assets_row) if base_assets_row else {}
 
             # 2. Select config based on bot_type
@@ -1104,22 +1154,23 @@ class AIHandler:
                 # Check for Outreach Config
                 c.execute('''
                     SELECT ta.active_outreach_config_id, oc.opener_images, oc.model_face_ref, oc.model_body_ref, oc.room_bg_ref,
-                           oc.system_prompt, oc.temperature, oc.model_name, oc.model_provider, oc.example_chatflow, 
+                           oc.system_prompt, oc.temperature, oc.model_name, oc.model_provider, oc.example_chatflow,
                            oc.outreach_message, oc.part3_chatflow
                     FROM telegram_accounts ta
                     LEFT JOIN outreach_configs oc ON ta.active_outreach_config_id = oc.id
                     WHERE ta.id = ?
                 ''', (account_id,))
                 outreach_info = c.fetchone()
-                
+
                 if outreach_info and outreach_info['active_outreach_config_id']:
                     merged = {
                         "account_id": account_id,
                         "is_outreach": True,
-                        "opener_images": outreach_info['opener_images'] or base_assets.get('opener_images'),
-                        "model_face_ref": outreach_info['model_face_ref'] or base_assets.get('model_face_ref'),
-                        "model_body_ref": outreach_info['model_body_ref'] or base_assets.get('model_body_ref'),
-                        "room_bg_ref": outreach_info['room_bg_ref'] or base_assets.get('room_bg_ref'),
+                        # Prefer persistent (GitHub) paths; fall back to local only if it exists
+                        "opener_images": self._best_opener_images(outreach_info['opener_images'], base_assets.get('opener_images')),
+                        "model_face_ref": self._best_image_path(outreach_info['model_face_ref'], base_assets.get('model_face_ref')),
+                        "model_body_ref": self._best_image_path(outreach_info['model_body_ref'], base_assets.get('model_body_ref')),
+                        "room_bg_ref": self._best_image_path(outreach_info['room_bg_ref'], base_assets.get('room_bg_ref')),
                         "system_prompt": outreach_info['system_prompt'] or base_assets.get('system_prompt'),
                         "temperature": outreach_info['temperature'] if outreach_info['temperature'] is not None else base_assets.get('temperature'),
                         "model_name": outreach_info['model_name'] or base_assets.get('model_name'),
@@ -1140,14 +1191,14 @@ class AIHandler:
                     WHERE ta.id = ?
                 ''', (account_id,))
                 acc_info = c.fetchone()
-                
+
                 if acc_info and acc_info['active_config_id']:
                     merged = {
                         "account_id": account_id,
-                        "opener_images": acc_info['opener_images'] or base_assets.get('opener_images'),
-                        "model_face_ref": acc_info['model_face_ref'] or base_assets.get('model_face_ref'),
-                        "model_body_ref": acc_info['model_body_ref'] or base_assets.get('model_body_ref'),
-                        "room_bg_ref": acc_info['room_bg_ref'] or base_assets.get('room_bg_ref'),
+                        "opener_images": self._best_opener_images(acc_info['opener_images'], base_assets.get('opener_images')),
+                        "model_face_ref": self._best_image_path(acc_info['model_face_ref'], base_assets.get('model_face_ref')),
+                        "model_body_ref": self._best_image_path(acc_info['model_body_ref'], base_assets.get('model_body_ref')),
+                        "room_bg_ref": self._best_image_path(acc_info['room_bg_ref'], base_assets.get('room_bg_ref')),
                         "system_prompt": acc_info['system_prompt'] or base_assets.get('system_prompt'),
                         "temperature": acc_info['temperature'] if acc_info['temperature'] is not None else base_assets.get('temperature'),
                         "model_name": acc_info['model_name'] or base_assets.get('model_name'),
