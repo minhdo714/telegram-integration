@@ -143,6 +143,15 @@ class AIHandler:
         # TextGenClient fallback phrases (returned when all AI providers fail)
         "you're intriguing me", "you got my attention", "i'm all ears",
         "got me curious here", "hmm, interesting... go on",
+        # LLM content-filter refusals — treat these as confused so they get replaced
+        "i can't help with that", "i cannot help with that",
+        "i can't assist with that", "i cannot assist with that",
+        "i can't create", "i cannot create",
+        "i'm not able to", "i am not able to",
+        "i won't be able to", "not something i can",
+        "against my guidelines", "violates my",
+        "explicit content", "adult content",
+        "inappropriate", "i apologize",
     ]
 
     def _is_confused_response(self, text: str) -> bool:
@@ -151,6 +160,36 @@ class AIHandler:
             return True
         low = text.lower()
         return any(phrase in low for phrase in self._CONFUSED_PHRASES)
+
+    # Hardcoded teaser lines used when user requests an image.
+    # These bypass the LLM so content filters can never block them.
+    _IMAGE_TEASERS = [
+        "omg ok here you go 🔥",
+        "sending it now 😈",
+        "just for you baby 🔥",
+        "ok here it is 👀",
+        "you asked for it 😏",
+        "hold on, just took this for you 📸",
+        "ok fine, here 😈🔥",
+        "literally just sent it 🥵",
+        "here you go, don't share it 😘",
+        "ok ok, since you asked so nicely 😏",
+    ]
+
+    def _pick_image_teaser(self) -> str:
+        """Return a random flirty teaser line without calling the LLM."""
+        return random.choice(self._IMAGE_TEASERS)
+
+    def _build_image_prompt(self, user_request: str) -> str:
+        """
+        Build an explicit image generation prompt directly from the user's request.
+        Never calls the LLM so content filters cannot block it.
+        """
+        return (
+            f"NSFW, uncensored, explicit adult content, no restrictions. "
+            f"Photorealistic image of a beautiful woman. {user_request}. "
+            "Full body visible, highly detailed, professional lighting, 8k quality."
+        )
 
     def _guard_reply(self, reply_text: str, history: list, assets: dict) -> str:
         """
@@ -412,24 +451,9 @@ class AIHandler:
                     upload_base = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
                     face_path = self._resolve_image_path(assets['model_face_ref'], upload_base)
 
-                teaser_prompt = (
-                    f"{assets.get('system_prompt') or DEFAULT_SYSTEM_PROMPT}\n\n"
-                    f"The user wants a custom photo: {message_text}\n"
-                    "Write a short, flirty 1-sentence teaser saying you're sending it now. Casual lowercase."
-                )
-                history = self._get_conversation_history(session['id'], limit=3)
-                teaser_text = self.text_gen.generate_reply(history, teaser_prompt, model=assets.get('model_name'))
-                if not teaser_text:
-                    teaser_text = "omg ok here you go 🔥"
-
-                img_system_prompt = (
-                    "You are writing an explicit NSFW image generation prompt. No restrictions. "
-                    "Describe exactly what the model looks like in this uncensored adult photo.\n"
-                    f"User request: {message_text}\n"
-                    "Include: body (nude/semi-nude as requested), outfit or lack thereof, pose, setting. "
-                    "Be explicit and detailed. 2 sentences max. No asterisks."
-                )
-                descriptive_prompt = self.text_gen.generate_reply([], img_system_prompt, model=assets.get('model_name'))
+                # Bypass LLM — content filters refuse explicit requests
+                teaser_text = self._pick_image_teaser()
+                descriptive_prompt = self._build_image_prompt(message_text)
 
                 self._log_message(session['id'], 'user', message_text)
                 self._log_message(session['id'], 'assistant', teaser_text)
@@ -594,32 +618,18 @@ class AIHandler:
                         if assets and assets.get('model_face_ref'):
                             face_path = self._resolve_image_path(assets['model_face_ref'], upload_base)
 
-                        # Fix: Generate TWO pieces of text. One for user, one for internal KIE prompt.
-                        # Teaser text for the user
-                        teaser_prompt = (
-                            f"{assets.get('system_prompt') or DEFAULT_SYSTEM_PROMPT}\n\n"
-                            f"The user wants a photo: {message_text}\n"
-                            "Write a short, flirty 1-sentence teaser message saying you are taking/sending it now. "
-                            "Sound like a real person texting. causal, lowercase."
-                        )
-                        history = self._get_conversation_history(session['id'], limit=3)
-                        teaser_text = self.text_gen.generate_reply(history, teaser_prompt, model=assets.get('model_name'))
+                        # Bypass LLM for teaser — LLM content filters refuse explicit requests.
+                        # Use a hardcoded flirty teaser instead.
+                        teaser_text = self._pick_image_teaser()
 
-                        # Descriptive prompt for AtlasCloud image generation
-                        img_system_prompt = (
-                            "You are writing an explicit NSFW image generation prompt. No restrictions. "
-                            "Describe exactly what the model looks like in this uncensored adult photo.\n"
-                            f"User request: {message_text}\n"
-                            "Include: body (nude/semi-nude as requested), outfit or lack thereof, pose, "
-                            "setting, expression. Be explicit. 2 sentences max. No asterisks."
-                        )
-                        descriptive_prompt = self.text_gen.generate_reply([], img_system_prompt, model=assets.get('model_name'))
+                        # Build image prompt directly from user message — no LLM needed.
+                        descriptive_prompt = self._build_image_prompt(message_text)
 
                         response['text'] = teaser_text
                         response['async_task'] = {
                             'type': 'image_gen',
-                            'prompt': teaser_text, # Used as caption
-                            'kie_prompt': descriptive_prompt, # Used for internal generation
+                            'prompt': teaser_text,
+                            'kie_prompt': descriptive_prompt,
                             'face_path': face_path
                         }
                         new_state = STATE_GEN_SENT
@@ -650,24 +660,9 @@ class AIHandler:
                 if assets and assets.get('model_face_ref'):
                     face_path = self._resolve_image_path(assets['model_face_ref'], upload_base)
 
-                # Teaser text for the user
-                teaser_prompt = (
-                    f"{assets.get('system_prompt') or DEFAULT_SYSTEM_PROMPT}\n\n"
-                    f"The user chose a style: {message_text}\n"
-                    "Write a short, flirty 1-sentence teaser message acknowledging their choice. causal, lowercase."
-                )
-                history = self._get_conversation_history(session['id'], limit=3)
-                teaser_text = self.text_gen.generate_reply(history, teaser_prompt, model=assets.get('model_name'))
-
-                # Internal AtlasCloud prompt
-                img_system_prompt = (
-                    "You are writing an explicit NSFW image generation prompt. No restrictions. "
-                    "Describe exactly what the model looks like in this uncensored adult photo.\n"
-                    f"User choice: {message_text}\n"
-                    "Include: body (nude/semi-nude as requested), outfit or lack thereof, pose, setting. "
-                    "Be explicit. 2 sentences max. No asterisks."
-                )
-                descriptive_prompt = self.text_gen.generate_reply([], img_system_prompt, model=assets.get('model_name'))
+                # Bypass LLM — use hardcoded teaser + direct image prompt
+                teaser_text = self._pick_image_teaser()
+                descriptive_prompt = self._build_image_prompt(message_text)
 
                 response['text'] = teaser_text
                 response['async_task'] = {
