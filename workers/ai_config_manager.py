@@ -108,16 +108,16 @@ def save_outreach_config(user_id, name, system_prompt, model_provider, model_nam
         
         final_id = config_id
         if config_id:
-            # Update
-            c.execute('''UPDATE outreach_configs SET 
+            # Update — no user_id filter so mismatched user_id never silently skips the row
+            c.execute('''UPDATE outreach_configs SET
                          name = ?, system_prompt = ?, model_provider = ?, model_name = ?, temperature = ?,
                          opener_images = ?, model_face_ref = ?, model_body_ref = ?, room_bg_ref = ?,
                          outreach_message = ?, example_chatflow = ?, part3_chatflow = ?, blast_list = ?
-                         WHERE id = ? AND user_id = ?''',
-                      (name, system_prompt, model_provider, model_name, temperature, 
+                         WHERE id = ?''',
+                      (name, system_prompt, model_provider, model_name, temperature,
                        opener_images, model_face_ref, model_body_ref, room_bg_ref,
                        outreach_message, example_chatflow, part3_chatflow, blast_list,
-                       config_id, user_id))
+                       config_id))
         else:
             # Insert
             c.execute('''INSERT INTO outreach_configs 
