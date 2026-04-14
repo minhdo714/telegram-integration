@@ -1442,6 +1442,78 @@ def delete_asset():
 bot_process = None
 current_bot_type = None # 'engagement' or 'outreach'
 
+# ── Bot state persistence ─────────────────────────────────────────────────────
+# Saves/loads desired bot state (running + type) so the worker can auto-restart
+# the bot after a Railway restart, redeploy, or local server bounce.
+
+def _save_bot_state(running: bool, bot_type: str = None):
+    """Persist desired bot state to the DB so it survives worker restarts."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute('''CREATE TABLE IF NOT EXISTS bot_state
+                     (id INTEGER PRIMARY KEY, desired_running INTEGER, bot_type TEXT)''')
+        c.execute('DELETE FROM bot_state')
+        c.execute('INSERT INTO bot_state (id, desired_running, bot_type) VALUES (1, ?, ?)',
+                  (1 if running else 0, bot_type or 'engagement'))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.error(f"Failed to save bot state: {e}")
+
+def _load_bot_state():
+    """Load persisted bot state. Returns (desired_running, bot_type)."""
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute('''CREATE TABLE IF NOT EXISTS bot_state
+                     (id INTEGER PRIMARY KEY, desired_running INTEGER, bot_type TEXT)''')
+        conn.commit()
+        c.execute('SELECT desired_running, bot_type FROM bot_state WHERE id = 1')
+        row = c.fetchone()
+        conn.close()
+        if row:
+            return bool(row[0]), row[1] or 'engagement'
+        return False, 'engagement'
+    except Exception as e:
+        logger.error(f"Failed to load bot state: {e}")
+        return False, 'engagement'
+
+def _launch_bot_process(bot_type: str):
+    """Internal: launch bot_runner.py and return the Popen object."""
+    out_log = '/tmp/bot_out.log' if os.name != 'nt' else 'bot_out.log'
+    err_log = '/tmp/bot_err.log' if os.name != 'nt' else 'bot_err.log'
+    stdout_f = open(out_log, 'a')
+    stderr_f = open(err_log, 'a')
+    bot_runner_path = os.path.join(os.path.dirname(__file__), 'bot_runner.py')
+    proc = subprocess.Popen(
+        [sys.executable, bot_runner_path, "--type", bot_type],
+        stdout=stdout_f,
+        stderr=stderr_f
+    )
+    logger.info(f"Bot process launched: PID {proc.pid}, type={bot_type}")
+    return proc
+
+def _watchdog_thread():
+    """Background thread: if bot should be running but isn't, restart it."""
+    global bot_process, current_bot_type
+    while True:
+        try:
+            time.sleep(20)
+            desired_running, saved_type = _load_bot_state()
+            if not desired_running:
+                continue
+            # Check if bot process is alive
+            alive = bot_process is not None and bot_process.poll() is None
+            if not alive:
+                logger.warning("WATCHDOG: Bot process is dead but should be running — restarting...")
+                kill_all_bot_runners()
+                bot_type = current_bot_type or saved_type or 'engagement'
+                bot_process = _launch_bot_process(bot_type)
+                current_bot_type = bot_type
+        except Exception as e:
+            logger.error(f"Watchdog error: {e}")
+
 def kill_all_bot_runners():
     """Robustly kill any running bot_runner.py processes to prevent orphans."""
     try:
@@ -1465,8 +1537,25 @@ def kill_all_bot_runners():
             # Linux/Mac
             subprocess.run(['pkill', '-f', 'bot_runner.py'], capture_output=True)
 
-# Initial cleanup on worker startup
+# Start watchdog as a daemon (dies with the worker, no cleanup needed)
+_watchdog = threading.Thread(target=_watchdog_thread, daemon=True, name="bot-watchdog")
+_watchdog.start()
+logger.info("Bot watchdog thread started.")
+
+# Initial cleanup on worker startup — kill orphans from the previous process
 kill_all_bot_runners()
+
+# Auto-restart bot if it was running when the worker last shut down
+try:
+    _desired_running, _saved_type = _load_bot_state()
+    if _desired_running:
+        logger.info(f"AUTO-RESTART: Bot was running before worker restarted (type={_saved_type}). Restarting...")
+        bot_process = _launch_bot_process(_saved_type)
+        current_bot_type = _saved_type
+    else:
+        logger.info("Bot state: stopped (no auto-restart needed).")
+except Exception as _e:
+    logger.error(f"Auto-restart check failed: {_e}")
 
 @app.route('/api/bot/start', methods=['POST'])
 def start_bot():
@@ -1474,33 +1563,25 @@ def start_bot():
     try:
         # 1. Kill any existing processes (Robust exclusivity)
         kill_all_bot_runners()
-        
+
         if bot_process and bot_process.poll() is None:
             try:
                 bot_process.terminate()
                 bot_process.wait(timeout=5)
             except:
                 pass
-        
+
         bot_process = None
-        
-        # Start the bot runner as a subprocess
-        # Redirect stdout/stderr to files so we can debug crashes
-        out_log = '/tmp/bot_out.log' if os.name != 'nt' else 'bot_out.log'
-        err_log = '/tmp/bot_err.log' if os.name != 'nt' else 'bot_err.log'
-        
-        stdout_f = open(out_log, 'w')
-        stderr_f = open(err_log, 'w')
-        
-        bot_runner_path = os.path.join(os.path.dirname(__file__), 'bot_runner.py')
+
         bot_type = request.json.get('type', 'engagement')
         global current_bot_type
         current_bot_type = bot_type
 
-        bot_process = subprocess.Popen([sys.executable, bot_runner_path, "--type", bot_type],
-                                     stdout=stdout_f,
-                                     stderr=stderr_f)
-        
+        bot_process = _launch_bot_process(bot_type)
+
+        # Persist so watchdog + auto-restart can recover after worker restarts
+        _save_bot_state(True, bot_type)
+
         return jsonify({"status": "started", "pid": bot_process.pid}), 200
     except Exception as e:
         traceback.print_exc()
@@ -1510,15 +1591,18 @@ def start_bot():
 def stop_bot():
     global bot_process, current_bot_type
     try:
+        # Persist stopped state FIRST so watchdog won't restart it
+        _save_bot_state(False)
+
         kill_all_bot_runners()
-        
+
         if bot_process and bot_process.poll() is None:
             bot_process.terminate()
             try:
                 bot_process.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 bot_process.kill()
-            
+
         bot_process = None
         current_bot_type = None
         return jsonify({"status": "stopped"}), 200
@@ -1812,6 +1896,237 @@ def test_gen_image():
         return jsonify(result), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+# ── Server-side Outreach Blast ────────────────────────────────────────────────
+# The blast loop runs in a background thread so it continues even when the
+# browser tab is closed. Only a POST to /api/outreach/blast/stop can cancel it.
+
+blast_thread = None
+blast_stop_event = threading.Event()
+blast_state_lock = threading.Lock()
+blast_state = {
+    "status": "idle",   # idle | running | stopped | complete | error
+    "account_id": None,
+    "total": 0,
+    "sent": 0,
+    "failed": 0,
+    "current_target": None,
+    "countdown": None,
+    "sent_usernames": [],
+    "failed_usernames": [],
+    "logs": [],
+}
+
+
+def _blast_add_log(msg):
+    with blast_state_lock:
+        ts = time.strftime('%H:%M:%S')
+        blast_state["logs"] = ([f"[{ts}] {msg}"] + blast_state["logs"])[:100]
+
+
+def _run_blast_loop(account_id, target_list, outreach_message, send_tease_pic, scraped_leads):
+    global blast_state, blast_stop_event
+    import re as _re
+
+    with blast_state_lock:
+        blast_state.update({
+            "status": "running",
+            "account_id": account_id,
+            "total": len(target_list),
+            "sent": 0,
+            "failed": 0,
+            "current_target": None,
+            "countdown": None,
+            "sent_usernames": [],
+            "failed_usernames": [],
+        })
+
+    _blast_add_log(f"[Outreach] Starting blast to {len(target_list)} users...")
+    variations = [v.strip() for v in outreach_message.split('\n') if v.strip()] if outreach_message else []
+
+    for i, user in enumerate(target_list):
+        if blast_stop_event.is_set():
+            _blast_add_log("[Outreach] 🛑 Blast stopped by user.")
+            break
+
+        recipient = user.lstrip('@')
+        with blast_state_lock:
+            blast_state["current_target"] = recipient
+
+        _blast_add_log(f"[Outreach] Sending to @{recipient} ({i + 1}/{len(target_list)})...")
+
+        try:
+            lead_data = next(
+                (l for l in scraped_leads if (l.get('username') or '').lower() == recipient.lower()),
+                None
+            )
+            group_name = (lead_data or {}).get('group_name', '')
+            first_name  = (lead_data or {}).get('first_name', '')
+            display_name = first_name.strip() or f"@{recipient}"
+
+            msg_template = (
+                random.choice(variations) if variations
+                else "Hey {{name}}! Found you through the {{group}} group, wanted to say hi"
+            )
+
+            msg_to_send = msg_template
+            if group_name:
+                msg_to_send = msg_to_send.replace('{{group}}', group_name)
+            else:
+                msg_to_send = _re.sub(
+                    r'\s*(through the|from|in|via)\s+\{\{group\}\}\s*(group)?', '',
+                    msg_to_send, flags=_re.IGNORECASE
+                )
+                msg_to_send = msg_to_send.replace('{{group}}', 'the group')
+            msg_to_send = msg_to_send.replace('{{name}}', display_name)
+
+            result = send_dm(account_id, recipient, msg_to_send, send_opener=True)
+
+            # On rate-limit: honour Telegram's retry_after, then try once more
+            if result.get('error_type') == 'rate_limited':
+                wait_secs = result.get('retry_after') or 60
+                _blast_add_log(f"[Outreach] ⏳ Rate limited — waiting {wait_secs}s then retrying @{recipient}...")
+                for remaining in range(int(wait_secs), 0, -1):
+                    if blast_stop_event.is_set():
+                        break
+                    with blast_state_lock:
+                        blast_state["countdown"] = remaining
+                    time.sleep(1)
+                with blast_state_lock:
+                    blast_state["countdown"] = None
+                if not blast_stop_event.is_set():
+                    result = send_dm(account_id, recipient, msg_to_send, send_opener=True)
+
+            if result.get('status') == 'success':
+                _blast_add_log(f"[Outreach] ✅ Sent to @{recipient}")
+                with blast_state_lock:
+                    blast_state["sent"] += 1
+                    blast_state["sent_usernames"].append(recipient)
+
+                if send_tease_pic:
+                    _blast_add_log(f"[Outreach] 📸 Triggering tease pic for @{recipient}...")
+                    t = threading.Thread(
+                        target=process_tease_pic,
+                        args=(account_id, recipient, first_name or recipient, group_name),
+                        daemon=True
+                    )
+                    t.start()
+            else:
+                err = result.get('message') or result.get('error') or 'Unknown error'
+                _blast_add_log(f"[Outreach] ❌ Failed @{recipient}: {err}")
+                with blast_state_lock:
+                    blast_state["failed"] += 1
+                    blast_state["failed_usernames"].append(recipient)
+
+                error_type = result.get('error_type')
+                if error_type == 'peer_flood':
+                    # Telegram has flagged the account as a spammer — stop immediately
+                    _blast_add_log("[Outreach] 🚨 PeerFloodError — Telegram flagged this account. Aborting blast to protect the account.")
+                    break
+                if error_type in ('session_invalid',):
+                    _blast_add_log(f"[Outreach] 🛑 Aborting — session is invalid, re-authenticate the account.")
+                    break
+                # connection_failed: could be transient, just skip and continue
+
+        except Exception as exc:
+            _blast_add_log(f"[Outreach] ❌ Error for @{recipient}: {exc}")
+            with blast_state_lock:
+                blast_state["failed"] += 1
+                blast_state["failed_usernames"].append(recipient)
+
+        # Wait between messages (60-120 s), with stop checks every second
+        if i < len(target_list) - 1 and not blast_stop_event.is_set():
+            wait_secs = random.randint(60, 120)
+            _blast_add_log(f"[Outreach] ⏳ Waiting {wait_secs}s before next...")
+            for remaining in range(wait_secs, 0, -1):
+                if blast_stop_event.is_set():
+                    break
+                with blast_state_lock:
+                    blast_state["countdown"] = remaining
+                time.sleep(1)
+            with blast_state_lock:
+                blast_state["countdown"] = None
+            if blast_stop_event.is_set():
+                _blast_add_log("[Outreach] 🛑 Blast stopped by user.")
+                break
+
+    with blast_state_lock:
+        blast_state["current_target"] = None
+        blast_state["countdown"] = None
+        blast_state["status"] = "stopped" if blast_stop_event.is_set() else "complete"
+
+    _blast_add_log("[Outreach] ✨ Blast cycle complete.")
+
+
+@app.route('/api/outreach/blast/start', methods=['POST'])
+def start_blast():
+    global blast_thread, blast_stop_event
+    try:
+        data = request.json or {}
+        account_id       = data.get('accountId')
+        usernames_raw    = data.get('usernames', '')
+        outreach_message = data.get('outreachMessage', '')
+        send_tease_pic   = data.get('sendTeasePic', False)
+        scraped_leads    = data.get('scrapedLeads', [])
+
+        if not account_id:
+            return jsonify({"error": "Account ID required"}), 400
+        if not usernames_raw.strip():
+            return jsonify({"error": "Usernames required"}), 400
+
+        import re as _re
+        user_list = [u.strip() for u in _re.split(r'[\n,]+', usernames_raw) if u.strip()]
+        if not user_list:
+            return jsonify({"error": "No valid usernames"}), 400
+
+        daily_cap   = random.randint(15, 30)
+        target_list = user_list[:daily_cap]
+
+        # Stop any in-flight blast first
+        if blast_thread and blast_thread.is_alive():
+            blast_stop_event.set()
+            blast_thread.join(timeout=5)
+
+        blast_stop_event = threading.Event()
+        blast_thread = threading.Thread(
+            target=_run_blast_loop,
+            args=(account_id, target_list, outreach_message, send_tease_pic, scraped_leads),
+            daemon=True,
+            name="blast-worker"
+        )
+        blast_thread.start()
+
+        return jsonify({
+            "status":    "started",
+            "total":     len(target_list),
+            "daily_cap": daily_cap,
+            "capped":    len(user_list) > daily_cap,
+        }), 200
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/outreach/blast/stop', methods=['POST'])
+def stop_blast():
+    global blast_stop_event
+    try:
+        blast_stop_event.set()
+        return jsonify({"status": "stopping"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/outreach/blast/status', methods=['GET'])
+def get_blast_status():
+    try:
+        with blast_state_lock:
+            state = dict(blast_state)
+        return jsonify(state), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 @app.route('/api/chat/history', methods=['GET'])
 def get_chat_history():

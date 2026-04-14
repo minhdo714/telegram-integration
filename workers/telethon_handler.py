@@ -4,7 +4,7 @@ from telethon.tl.functions.contacts import SearchRequest
 from telethon.tl.functions.channels import JoinChannelRequest, GetParticipantsRequest
 from telethon.tl.functions.messages import GetDialogsRequest
 from telethon.tl.types import ChannelParticipantsSearch, UserStatusOnline, UserStatusRecently, UserStatusOffline, InputMessagesFilterChatPhotos
-from telethon.errors import SessionPasswordNeededError, FloodWaitError, ChatWriteForbiddenError, UserIsBlockedError
+from telethon.errors import SessionPasswordNeededError, FloodWaitError, ChatWriteForbiddenError, UserIsBlockedError, PeerFloodError
 from telethon.sessions import StringSession
 import asyncio
 import os
@@ -921,6 +921,14 @@ def send_dm(account_id, recipient, message, send_opener=False):
                         'status': 'error',
                         'error_type': 'blocked',
                         'message': 'This user has blocked you'
+                    }
+                except PeerFloodError:
+                    await client.disconnect()
+                    if conn: conn.close()
+                    return {
+                        'status': 'error',
+                        'error_type': 'peer_flood',
+                        'message': 'Account flagged for spam by Telegram. Blast aborted to protect the account.'
                     }
                 except Exception as send_error:
                     await client.disconnect()
