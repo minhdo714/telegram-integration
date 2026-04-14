@@ -220,16 +220,7 @@ Let me know how it goes or if you get stuck — happy to help 😊`);
     const [selectedLeadIds, setSelectedLeadIds] = useState([]);
     const [niche, setNiche] = useState('dating');
 
-    // Timer effect for countdown
-    useEffect(() => {
-        let timer;
-        if (countdown !== null && countdown > 0) {
-            timer = setInterval(() => {
-                setCountdown(prev => (prev > 0 ? prev - 1 : 0));
-            }, 1000);
-        }
-        return () => clearInterval(timer);
-    }, [countdown]);
+    // Countdown is now driven by the backend blast status poller — no browser timer needed
 
     // Format seconds into MM:SS
     const formatTime = (seconds) => {
@@ -253,9 +244,26 @@ Let me know how it goes or if you get stuck — happy to help 😊`);
                 clearInterval(refreshInterval);
             }
         }, 3000);
+
+        // Poll backend blast status every 2s so UI stays in sync after tab reopen
+        const blastInterval = setInterval(async () => {
+            try {
+                const res = await fetch('/api/outreach/blast/status');
+                if (!res.ok) return;
+                const d = await res.json();
+                setIsSending(d.status === 'running');
+                if (d.countdown !== undefined) setCountdown(d.countdown);
+                if (d.current_target !== undefined) setCurrentTarget(d.current_target);
+                if (d.sent_usernames) setSentUsernames(d.sent_usernames);
+                if (d.failed_usernames) setFailedUsernames(d.failed_usernames);
+                if (Array.isArray(d.logs) && d.logs.length > 0) setLogs(d.logs);
+            } catch (_) {}
+        }, 2000);
+
         return () => {
             clearInterval(interval);
             clearInterval(refreshInterval);
+            clearInterval(blastInterval);
         };
     }, []);
 
@@ -529,154 +537,41 @@ Let me know how it goes or if you get stuck — happy to help 😊`);
         if (!selectedAccountId) return alert('Please select an account');
         if (!usernames.trim()) return alert('Please enter at least one username');
 
-        const userList = usernames.split(/[\n,]+/).map(u => u.trim()).filter(u => u);
-        if (userList.length === 0) return alert('No valid usernames found');
-
-        // SAFETY: Random Daily Cap between 15 and 30
-        const dailyCap = Math.floor(Math.random() * (30 - 15 + 1)) + 15;
-        const targetList = userList.slice(0, dailyCap);
-
-        if (userList.length > dailyCap) {
-            alert(`SAFETY LIMIT: Sending to only first ${dailyCap} users to prevent ban. (Daily Cap: 15-30)`);
+        try {
+            const res = await fetch('/api/outreach/blast/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    accountId: selectedAccountId,
+                    usernames,
+                    outreachMessage,
+                    sendTeasePic,
+                    scrapedLeads,
+                }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setIsSending(true);
+                setSentUsernames([]);
+                setFailedUsernames([]);
+                setCurrentTarget(null);
+                setLogs([]);
+                addLog(`[Outreach] Blast started on server — ${data.total} targets${data.capped ? ` (capped at ${data.daily_cap} for safety)` : ''}.`);
+            } else {
+                addLog(`[Outreach] ❌ Failed to start: ${data.error || 'Unknown error'}`);
+            }
+        } catch (error) {
+            addLog(`[Outreach] ❌ Network error: ${error.message}`);
         }
+    };
 
-        setIsSending(true);
-        setStopRequested(false);
-        window.stopOutreachRequested = false;
-        setSentUsernames([]);
-        setFailedUsernames([]);
-        setCurrentTarget(null);
-        addLog(`[Outreach] Starting safe blast to ${targetList.length} users...`);
-        addLog(`[Safety] Daily Cap set to: ${dailyCap} messages`);
-
-        for (let i = 0; i < targetList.length; i++) {
-            // Check if stop was requested
-            if (stopRequested) {
-                addLog('[Outreach] 🛑 Blast stopped by user.');
-                break;
-            }
-
-            const user = targetList[i];
-            const recipient = user.replace('@', '');
-            setCurrentTarget(recipient);
-
-            // Send Message
-            addLog(`[Outreach] Sending to @${recipient} (${i + 1}/${targetList.length})...`);
-
-            try {
-                // Find data for this lead
-                const leadData = scrapedLeads.find(l => l.username?.toLowerCase() === recipient.toLowerCase());
-                const groupName = leadData?.group_name || '';
-                const firstName = leadData?.first_name || '';
-                // Always fall back to the actual @username so {{name}} is never blank
-                const displayName = firstName.trim() || `@${recipient}`;
-
-                // Support multiple variations (one per line)
-                const variations = (outreachMessage || "Hey {{name}}! Found you through the {{group}} group, wanted to say hi").split('\n').filter(v => v.trim());
-                let msgTemplate = variations[Math.floor(Math.random() * variations.length)];
-
-                let msgToSend = msgTemplate;
-                if (groupName) {
-                    msgToSend = msgToSend.replace(/\{\{group\}\}/g, groupName);
-                } else {
-                    // Remove any phrase containing {{group}} so message reads naturally
-                    msgToSend = msgToSend.replace(/\s*(through the|from|in|via)\s+\{\{group\}\}\s*(group)?/gi, '');
-                    msgToSend = msgToSend.replace(/\{\{group\}\}/g, 'the group');
-                }
-                msgToSend = msgToSend.replace(/\{\{name\}\}/g, displayName);
-
-                const res = await fetch('/api/messages/send', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        accountId: selectedAccountId,
-                        recipient: recipient,
-                        message: msgToSend,
-                        sendOpenerImage: true
-                    })
-                });
-
-                const data = await res.json();
-
-                if (res.ok && data.status !== 'error') {
-                    addLog(`[Outreach] ✅ Sent to @${recipient}`);
-                    setSentUsernames(prev => [...prev, recipient]);
-
-                    // TEASE PIC LOGIC
-                    if (sendTeasePic) {
-                        try {
-                            addLog(`[Outreach] 📸 Triggering Tease Pic for @${recipient}...`);
-                            fetch('/api/bot/tease', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    accountId: selectedAccountId,
-                                    recipient: recipient,
-                                    leadName: firstName || recipient,
-                                    groupName: groupName
-                                })
-                            }).then(teaseRes => teaseRes.json())
-                                .then(teaseData => {
-                                    if (teaseData.status === 'started') {
-                                        addLog(`[Outreach] 📸 Tease pic generation started.`);
-                                    } else {
-                                        addLog(`[Outreach] ⚠️ Tease pic error: ${teaseData.error}`);
-                                    }
-                                }).catch(e => console.error(e));
-                        } catch (teaseErr) {
-                            console.error("Tease trigger failed", teaseErr);
-                        }
-                    }
-
-                } else {
-                    addLog(`[Outreach] ❌ Failed @${recipient}: ${data.message || data.error || 'Unknown error'}`);
-                    setFailedUsernames(prev => [...prev, recipient]);
-
-                    if (data.error_type === 'session_invalid' || data.error_type === 'connection_failed') {
-                        addLog(`[Outreach] 🛑 Aborting blast due to critical error: ${data.message || data.error_type}`);
-                        break;
-                    }
-                }
-            } catch (err) {
-                addLog(`[Outreach] ❌ Error @${recipient}: ${err.message}`);
-                setFailedUsernames(prev => [...prev, recipient]);
-            }
-
-            // SAFETY: Delay logic (only if not the last message)
-            if (i < targetList.length - 1) {
-                // If stop was requested after sending, don't start the next delay
-                if (window.stopOutreachRequested) break;
-
-                const minDelay = 5 * 60;
-                const maxDelay = 15 * 60;
-                const delaySeconds = Math.floor(Math.random() * (maxDelay - minDelay + 1)) + minDelay;
-
-                addLog(`[Safety] Waiting ${Math.floor(delaySeconds / 60)}m ${delaySeconds % 60}s before next...`);
-
-                let remaining = delaySeconds;
-                setCountdown(remaining);
-
-                while (remaining > 0) {
-                    if (window.stopOutreachRequested) {
-                        setCountdown(null);
-                        break;
-                    }
-                    await new Promise(r => setTimeout(r, 1000));
-                    remaining--;
-                    setCountdown(remaining);
-                }
-                setCountdown(null);
-
-                // If stopped during the wait, break the main loop
-                if (window.stopOutreachRequested) break;
-            }
+    const handleStopOutreach = async () => {
+        try {
+            await fetch('/api/outreach/blast/stop', { method: 'POST' });
+            addLog('[Outreach] ⏳ Stop requested — finishing current message...');
+        } catch (error) {
+            addLog(`[Outreach] ❌ Stop error: ${error.message}`);
         }
-
-        setIsSending(false);
-        setStopRequested(false);
-        setCountdown(null);
-        addLog(`[Outreach] Batch ended. Stop signal: ${stopRequested ? 'Handled' : 'None'}`);
-        fetchLeads(); // Refresh leads status
     };
 
     // --- Blast List Management ---
@@ -1850,15 +1745,11 @@ Aria: You seem interesting... what's your vibe?"
 
                                         {isSending && (
                                             <button
-                                                onClick={() => {
-                                                    setStopRequested(true);
-                                                    addLog('[Outreach] 🛑 Stopping blast... please wait.');
-                                                }}
-                                                disabled={stopRequested}
+                                                onClick={handleStopOutreach}
                                                 className="btn btn-danger"
-                                                style={{ flex: 1, background: '#ef4444', border: 'none', borderRadius: '8px', color: 'white', fontWeight: 'bold', cursor: stopRequested ? 'not-allowed' : 'pointer' }}
+                                                style={{ flex: 1, background: '#ef4444', border: 'none', borderRadius: '8px', color: 'white', fontWeight: 'bold', cursor: 'pointer' }}
                                             >
-                                                {stopRequested ? '...' : '🛑 STOP'}
+                                                🛑 STOP
                                             </button>
                                         )}
                                     </div>

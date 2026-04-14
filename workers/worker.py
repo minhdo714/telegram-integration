@@ -2035,10 +2035,11 @@ def _run_blast_loop(account_id, target_list, outreach_message, send_tease_pic, s
                 blast_state["failed"] += 1
                 blast_state["failed_usernames"].append(recipient)
 
-        # Wait between messages (60-120 s), with stop checks every second
+        # Wait between messages (10-20 min), with stop checks every second
         if i < len(target_list) - 1 and not blast_stop_event.is_set():
-            wait_secs = random.randint(60, 120)
-            _blast_add_log(f"[Outreach] ⏳ Waiting {wait_secs}s before next...")
+            wait_secs = random.randint(600, 1200)
+            mins, secs = divmod(wait_secs, 60)
+            _blast_add_log(f"[Outreach] ⏳ Waiting {mins}m {secs}s before next...")
             for remaining in range(wait_secs, 0, -1):
                 if blast_stop_event.is_set():
                     break
