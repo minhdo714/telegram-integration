@@ -1516,27 +1516,45 @@ def _watchdog_thread():
             logger.error(f"Watchdog error: {e}")
 
 def kill_all_bot_runners():
-    """Robustly kill any running bot_runner.py processes to prevent orphans."""
+    """Gracefully stop bot_runner.py processes (SIGTERM first, SIGKILL fallback).
+    SIGTERM lets Telethon disconnect cleanly so Telegram doesn't invalidate the session."""
     try:
         import psutil
+        targets = []
         for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
             try:
                 cmdline = proc.info.get('cmdline') or []
                 if any('bot_runner.py' in arg for arg in cmdline):
-                    print(f"DEBUG: Killing orphaned bot_runner (PID: {proc.info['pid']})")
-                    proc.kill()
+                    targets.append(proc)
             except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                 pass
+
+        # Send SIGTERM to all, then wait up to 8 s for clean exit
+        for proc in targets:
+            try:
+                print(f"DEBUG: Terminating bot_runner (PID: {proc.pid})")
+                proc.terminate()
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+
+        _, still_alive = psutil.wait_procs(targets, timeout=8)
+
+        # Force-kill anything that didn't exit cleanly
+        for proc in still_alive:
+            try:
+                print(f"DEBUG: Force-killing bot_runner (PID: {proc.pid})")
+                proc.kill()
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+
     except ImportError:
-        # Fallback to shell command if psutil not available
+        # Fallback if psutil not available
         if os.name == 'nt':
-            # Windows
-            subprocess.run(['taskkill', '/F', '/IM', 'python.exe', '/FI', 'WINDOWTITLE eq bot_runner.py*'], capture_output=True)
-            # Brute force if needed
-            subprocess.run(['powershell', '-Command', 'Get-Process | Where-Object { $_.CommandLine -like "*bot_runner.py*" } | Stop-Process -Force'], capture_output=True)
+            subprocess.run(['taskkill', '/IM', 'python.exe', '/FI', 'WINDOWTITLE eq bot_runner.py*'], capture_output=True)
         else:
-            # Linux/Mac
-            subprocess.run(['pkill', '-f', 'bot_runner.py'], capture_output=True)
+            subprocess.run(['pkill', '-TERM', '-f', 'bot_runner.py'], capture_output=True)
+            time.sleep(8)
+            subprocess.run(['pkill', '-KILL', '-f', 'bot_runner.py'], capture_output=True)
 
 # Start watchdog as a daemon (dies with the worker, no cleanup needed)
 _watchdog = threading.Thread(target=_watchdog_thread, daemon=True, name="bot-watchdog")

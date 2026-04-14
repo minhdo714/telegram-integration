@@ -266,8 +266,21 @@ async def start_bot(account_id, session_string):
         logger.info(f"Connecting client for account {account_id}...")
         await client.connect()
         
-        if not await client.is_user_authorized():
-            logger.error(f"Account {account_id} NOT AUTHORIZED. Session string may be invalid or expired. Marking as expired in DB.")
+        # Retry authorization check up to 3 times — transient failures right after
+        # reconnect (e.g. after a SIGKILL) should not permanently expire the session.
+        authorized = False
+        for _attempt in range(3):
+            try:
+                authorized = await client.is_user_authorized()
+                if authorized:
+                    break
+            except Exception as auth_err:
+                logger.warning(f"Auth check attempt {_attempt + 1} failed for account {account_id}: {auth_err}")
+            if _attempt < 2:
+                await asyncio.sleep(5)
+
+        if not authorized:
+            logger.error(f"Account {account_id} NOT AUTHORIZED after 3 attempts. Marking as expired in DB.")
             try:
                 conn = sqlite3.connect(DB_PATH)
                 c = conn.cursor()
