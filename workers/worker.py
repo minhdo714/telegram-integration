@@ -80,6 +80,7 @@ from PIL import Image, ImageDraw, ImageFont
 import requests
 from atlas_client import AtlasClient as KieClient  # AtlasCloud replaces Kie.ai
 import threading
+import random
 
 
 # Run database migrations on startup
