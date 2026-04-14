@@ -268,9 +268,9 @@ class AIHandler:
                 f"{base}\n\n"
                 "=== WARM-UP MODE ===\n"
                 "You already sent the first message from a Telegram group. The prospect replied.\n"
-                "Your job RIGHT NOW: keep the conversation warm and natural.\n"
-                "- Respond to what they actually said.\n"
-                "- Ask ONE simple follow-up question to keep them talking.\n"
+                "YOUR FIRST PRIORITY: directly acknowledge and respond to what they just said.\n"
+                "THEN: ask ONE simple follow-up question to keep them talking.\n"
+                "- DO NOT skip over what they said to jump to a new topic.\n"
                 "- DO NOT mention any product, service, or platform yet.\n"
                 "- Sound like a real person, not a pitch."
             )
@@ -365,10 +365,10 @@ class AIHandler:
             "You are the AI sender. Do NOT use any names from the example (not 'OFCharmer', "
             "not 'Aria', not any character name). Speak in first person naturally.\n\n"
             "RULES:\n"
-            "1. Work through these talking points one at a time, in order, across the conversation.\n"
-            "2. Match the tone: casual, real, slightly tired but passionate — NOT salesy.\n"
-            "3. Each reply = 1 talking point. Short paragraphs, not walls of text.\n"
-            "4. React naturally to what the prospect says before moving to the next point.\n"
+            "1. ALWAYS respond to the prospect's last message first before advancing the script.\n"
+            "2. Work through the talking points one at a time, in order, across the conversation.\n"
+            "3. Match the tone: casual, real, slightly tired but passionate — NOT salesy.\n"
+            "4. Each reply = 1 talking point. Short paragraphs, not walls of text.\n"
             "5. Never use character names from the example. Speak as yourself.\n"
             "6. Never say you are an AI or a bot.\n"
             "7. End the pitch by telling them to type START to try the live demo.\n\n"
@@ -602,13 +602,13 @@ class AIHandler:
             # Part 3 prompt: LLM plays the MODEL role in the script (second party / Jane etc.)
             part3_prompt = (
                 f"{assets.get('system_prompt') or DEFAULT_SYSTEM_PROMPT}\n\n"
-                f"=== PART 3: MODEL PERSONA — START OF CONVERSATION ===\n"
-                f"You are now '{model_name_in_script}'. The prospect just activated the AI demo.\n"
-                "1. Follow the tone and persona established in the script below.\n"
-                "2. Find the NEXT line for your character in Part 3.\n"
+                f"=== PART 3: MODEL PERSONA ===\n"
+                f"You are now '{model_name_in_script}'. The prospect activated the AI demo.\n"
+                "1. FIRST: respond naturally to what they just said.\n"
+                "2. THEN: continue with the next beat from the script below.\n"
                 "3. Deliver it as 1 short, flirty sentence.\n"
                 "4. NEVER mention scripts, bots, or AI. You ARE this person.\n"
-                "5. If the user asks what to do or how to interact, invite them to request a custom photo.\n\n"
+                "5. Only send images when the user explicitly asks for one.\n\n"
                 "--- PART 3 SCRIPT ---\n"
                 f"{part3_script}\n"
                 "--- END PART 3 SCRIPT ---"
@@ -679,14 +679,8 @@ class AIHandler:
         else:
             # Handle user reply to existing session
             
-            # FIRST: Check if opener image was missed (backwards compatibility or resumed session)
-            if not session.get('opener_img_sent'):
-                display_name = (username or 'there').strip()
-                if display_name.startswith('@'): display_name = display_name[1:]
-                opener_img_path = self._get_opener_image_path(assets, display_name)
-                if opener_img_path:
-                    response['image_path'] = opener_img_path
-                    self._update_session_img_sent(session['id'])
+            # Opener image is sent once during the blast — do NOT re-send it
+            # here on subsequent replies, it comes across as spam.
 
             if current_state == STATE_OUTREACH_PART1:
                 msg_count = self._get_message_count(session['id'])
@@ -718,10 +712,7 @@ class AIHandler:
                 ]
                 should_escalate = any(keyword in last_user_msg for keyword in escalate_keywords)
 
-                # Check for triggers to escalate after some small talk
-                msg_count = self._get_message_count(session['id'])
-                if msg_count > 6 and random.random() < 0.3:
-                    should_escalate = True
+                # Only escalate when the user explicitly asks — no random triggers
 
                 if should_escalate:
                     # Check for detailed preference to jump straight to generation
